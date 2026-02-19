@@ -1,6 +1,71 @@
-import { useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useApp } from '../../context/AppContext';
 import type { AppSettings } from '../../types';
+import { saveGithubToken, clearGithubToken } from '../../services/persistence/credentials';
+
+function GitHubTokenField() {
+  const { state, dispatch } = useApp();
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saved' | 'unsupported'>('idle');
+
+  const handleSave = async () => {
+    if (!state.githubToken) return;
+    const ok = await saveGithubToken(state.githubToken);
+    setSaveStatus(ok ? 'saved' : 'unsupported');
+    setTimeout(() => setSaveStatus('idle'), 3000);
+  };
+
+  const handleClear = async () => {
+    dispatch({ type: 'SET_GITHUB_TOKEN', token: '' });
+    await clearGithubToken();
+  };
+
+  return (
+    <div className="mb-8">
+      <label htmlFor="github-token" className="block text-sm font-semibold text-text mb-1.5">GitHub Token</label>
+      <p id="github-token-desc" className="text-sm text-text-muted mb-3 leading-relaxed">
+        Optional. Used as fallback when clone fails. Saved securely in your browser's password manager.
+      </p>
+      <div className="flex gap-2">
+        <input
+          id="github-token"
+          type="password"
+          value={state.githubToken}
+          onChange={(e) => {
+            dispatch({ type: 'SET_GITHUB_TOKEN', token: e.target.value });
+            setSaveStatus('idle');
+          }}
+          placeholder="ghp_..."
+          className="flex-1 px-4 py-2.5 text-sm rounded-lg border border-border bg-surface-alt text-text placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-neon/50 focus:border-neon/50 transition-all"
+          aria-describedby="github-token-desc"
+          autoComplete="off"
+        />
+        {state.githubToken && (
+          <>
+            <button
+              onClick={handleSave}
+              className="px-4 py-2.5 text-sm rounded-lg border border-neon/30 hover:bg-neon/10 text-neon transition-all"
+              aria-label="Save GitHub token"
+            >
+              {saveStatus === 'saved' ? 'Saved' : 'Save'}
+            </button>
+            <button
+              onClick={handleClear}
+              className="px-4 py-2.5 text-sm rounded-lg border border-border hover:bg-surface-hover hover:border-grade-f/30 text-text-secondary hover:text-grade-f transition-all"
+              aria-label="Clear GitHub token"
+            >
+              Clear
+            </button>
+          </>
+        )}
+      </div>
+      {saveStatus === 'unsupported' && (
+        <p className="text-xs text-grade-c mt-2">
+          Your browser doesn't support the Credential Management API. Token will be kept in memory only.
+        </p>
+      )}
+    </div>
+  );
+}
 
 export function SettingsPanel() {
   const { state, dispatch } = useApp();
@@ -112,33 +177,7 @@ export function SettingsPanel() {
           </fieldset>
 
           {/* GitHub Token */}
-          <div className="mb-8">
-            <label htmlFor="github-token" className="block text-sm font-semibold text-text mb-1.5">GitHub Token</label>
-            <p id="github-token-desc" className="text-sm text-text-muted mb-3 leading-relaxed">
-              Optional. Increases rate limit from 60 to 5,000 requests/hour. Kept in memory only — never stored on disk.
-            </p>
-            <div className="flex gap-2">
-              <input
-                id="github-token"
-                type="password"
-                value={state.githubToken}
-                onChange={(e) => dispatch({ type: 'SET_GITHUB_TOKEN', token: e.target.value })}
-                placeholder="ghp_..."
-                className="flex-1 px-4 py-2.5 text-sm rounded-lg border border-border bg-surface-alt text-text placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-neon/50 focus:border-neon/50 transition-all"
-                aria-describedby="github-token-desc"
-                autoComplete="off"
-              />
-              {state.githubToken && (
-                <button
-                  onClick={() => dispatch({ type: 'SET_GITHUB_TOKEN', token: '' })}
-                  className="px-4 py-2.5 text-sm rounded-lg border border-border hover:bg-surface-hover hover:border-grade-f/30 text-text-secondary hover:text-grade-f transition-all"
-                  aria-label="Clear GitHub token"
-                >
-                  Clear
-                </button>
-              )}
-            </div>
-          </div>
+          <GitHubTokenField />
 
           {/* LLM Mode */}
           <fieldset className="mb-8">

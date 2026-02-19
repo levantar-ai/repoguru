@@ -2,6 +2,7 @@ import { createContext, useContext, useReducer, useEffect, useCallback, type Rea
 import type { AppSettings, RateLimitInfo, RecentRepo } from '../types';
 import { loadSettings, saveSettings } from '../services/persistence/settingsStore';
 import { loadRecentRepos, saveRecentRepo } from '../services/persistence/repoCache';
+import { loadGithubToken } from '../services/persistence/credentials';
 
 interface AppState {
   settings: AppSettings;
@@ -81,9 +82,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     (async () => {
       try {
-        const [settings, recentRepos] = await Promise.all([
+        const [settings, recentRepos, savedToken] = await Promise.all([
           loadSettings(),
           loadRecentRepos(),
+          loadGithubToken(),
         ]);
         if (settings) {
           // Force 'system' theme to 'dark' — system detection causes
@@ -94,6 +96,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
           dispatch({ type: 'SET_SETTINGS', settings });
         }
         dispatch({ type: 'SET_RECENT_REPOS', repos: recentRepos });
+        if (savedToken) {
+          dispatch({ type: 'SET_GITHUB_TOKEN', token: savedToken });
+        }
       } catch {
         // Persistence unavailable, use defaults
       }
