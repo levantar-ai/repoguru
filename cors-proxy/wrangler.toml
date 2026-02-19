@@ -3,4 +3,4 @@ main = "src/index.ts"
 compatibility_date = "2024-12-01"
 
 [vars]
-ALLOWED_ORIGINS = "https://reporev.app,http://localhost:5173"
+ALLOWED_ORIGINS = "https://reporev.andy-rea.workers.dev,https://*-reporev.andy-rea.workers.dev,http://localhost:5173"

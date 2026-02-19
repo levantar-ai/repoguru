@@ -1,14 +1,14 @@
 interface Env {
-  ALLOWED_ORIGINS: string; // comma-separated list, e.g. "https://reporev.app,http://localhost:5173"
+  ALLOWED_ORIGINS: string; // comma-separated, supports wildcards: "https://*.example.com,http://localhost:5173"
 }
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     // ── Origin check ──
     const origin = request.headers.get('Origin');
-    const allowed = parseAllowedOrigins(env.ALLOWED_ORIGINS);
+    const patterns = parseAllowedOrigins(env.ALLOWED_ORIGINS);
 
-    if (!origin || !allowed.has(origin)) {
+    if (!origin || !isAllowed(origin, patterns)) {
       return new Response('Forbidden', { status: 403 });
     }
 
@@ -64,9 +64,21 @@ export default {
   },
 };
 
-function parseAllowedOrigins(raw: string | undefined): Set<string> {
-  if (!raw) return new Set();
-  return new Set(raw.split(',').map((s) => s.trim()).filter(Boolean));
+function parseAllowedOrigins(raw: string | undefined): string[] {
+  if (!raw) return [];
+  return raw.split(',').map((s) => s.trim()).filter(Boolean);
+}
+
+function isAllowed(origin: string, patterns: string[]): boolean {
+  for (const pattern of patterns) {
+    if (pattern === origin) return true;
+    // Wildcard: "https://*.example.com" matches "https://foo.example.com"
+    if (pattern.includes('*')) {
+      const regex = new RegExp('^' + pattern.replace(/\./g, '\\.').replace(/\*/g, '[^.]+') + '$');
+      if (regex.test(origin)) return true;
+    }
+  }
+  return false;
 }
 
 function corsHeaders(origin: string): Headers {
