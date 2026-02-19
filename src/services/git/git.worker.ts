@@ -50,7 +50,7 @@ self.onmessage = async (e: MessageEvent<CloneMessage>) => {
 
     const url = `https://github.com/${owner}/${repo}.git`;
 
-    // 1. Clone
+    // 1. Clone (noCheckout — we only need git objects, not a working tree)
     postProgress('cloning', 0, 'Cloning repository...');
 
     await git.clone({
@@ -60,13 +60,13 @@ self.onmessage = async (e: MessageEvent<CloneMessage>) => {
       url,
       depth: 1000,
       singleBranch: true,
+      noCheckout: true,
       corsProxy,
       onProgress: (progress) => {
         let percent = 0;
         if (progress.total && progress.total > 0) {
           percent = Math.round((progress.loaded / progress.total) * 40);
         } else if (progress.loaded) {
-          // No total available, estimate based on loaded bytes
           percent = Math.min(38, Math.round(progress.loaded / 100000));
         }
         const phase = progress.phase || 'Downloading';
@@ -146,8 +146,20 @@ self.onmessage = async (e: MessageEvent<CloneMessage>) => {
     // 4. Compute aggregate stats
     postProgress('computing-stats', 80, 'Computing statistics...');
 
-    // Get file list for language detection
-    const fileList = await git.listFiles({ fs, dir: DIR });
+    // Get file list from HEAD tree (no checkout needed)
+    const headOid = await git.resolveRef({ fs, dir: DIR, ref: 'HEAD' });
+    const fileList: string[] = [];
+    await git.walk({
+      fs, dir: DIR,
+      trees: [git.TREE({ ref: headOid })],
+      map: async (filepath, entries) => {
+        if (!entries || filepath === '.') return;
+        const [entry] = entries;
+        if (!entry) return;
+        const type = await entry.type();
+        if (type === 'blob') fileList.push(filepath);
+      },
+    });
     const languages = computeLanguages(fileList);
 
     postProgress('computing-stats', 85, 'Building weekly aggregates...');
@@ -163,7 +175,7 @@ self.onmessage = async (e: MessageEvent<CloneMessage>) => {
       contributorStats: aggregates.contributorStats,
       codeFrequency: aggregates.codeFrequency,
       commitActivity: aggregates.commitActivity,
-      participation: null, // Not easily derived from clone data
+      participation: null,
       punchCard: aggregates.punchCard,
       languages,
     };
@@ -173,7 +185,6 @@ self.onmessage = async (e: MessageEvent<CloneMessage>) => {
 
     // 6. Clean up filesystem
     try {
-      // LightningFS wipe on next init is sufficient, but attempt cleanup
       await fs.promises.rmdir(DIR, { recursive: true } as unknown as undefined);
     } catch {
       // Cleanup failure is non-critical
