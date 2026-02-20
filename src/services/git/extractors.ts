@@ -159,12 +159,19 @@ async function diffTwoTrees(
   const isAdded = !parentEntry || parentOidVal === null;
   const isRemoved = !currentEntry || currentOidVal === null;
 
-  const status = isAdded ? 'added' : isRemoved ? 'removed' : 'modified';
-  const stats = isAdded
-    ? await computeAddedStats(currentEntry)
-    : isRemoved
-      ? await computeRemovedStats(parentEntry)
-      : await computeModifiedStats(parentEntry!, currentEntry!);
+  let status: 'added' | 'removed' | 'modified';
+  let stats: { additions: number; deletions: number };
+
+  if (isAdded) {
+    status = 'added';
+    stats = await computeAddedStats(currentEntry);
+  } else if (isRemoved) {
+    status = 'removed';
+    stats = await computeRemovedStats(parentEntry);
+  } else {
+    status = 'modified';
+    stats = await computeModifiedStats(parentEntry!, currentEntry!);
+  }
 
   return {
     sha: currentOidVal || parentOidVal || '',

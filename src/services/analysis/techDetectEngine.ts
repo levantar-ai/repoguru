@@ -1028,11 +1028,17 @@ export function filterTechFiles(tree: TreeEntry[]): string[] {
   paths.push(...packageJsons);
 
   // Python manifests
-  const pyManifests = ['requirements.txt', 'pyproject.toml', 'Pipfile', 'setup.py', 'setup.cfg'];
+  const pyManifests = new Set([
+    'requirements.txt',
+    'pyproject.toml',
+    'Pipfile',
+    'setup.py',
+    'setup.cfg',
+  ]);
   for (const entry of tree) {
     if (entry.type !== 'blob') continue;
     const basename = entry.path.split('/').pop() || '';
-    if (pyManifests.includes(basename) && entry.path.split('/').length <= 2) {
+    if (pyManifests.has(basename) && entry.path.split('/').length <= 2) {
       if (!paths.includes(entry.path)) paths.push(entry.path);
     }
   }

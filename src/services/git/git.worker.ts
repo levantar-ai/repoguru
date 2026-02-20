@@ -1,4 +1,4 @@
-import { Buffer } from 'buffer';
+import { Buffer } from 'node:buffer';
 (self as unknown as Record<string, unknown>).Buffer = Buffer;
 
 import git from 'isomorphic-git';
