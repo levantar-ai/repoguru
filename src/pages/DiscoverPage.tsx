@@ -442,9 +442,9 @@ export function DiscoverPage({ onNavigate }: Props) {
       {/* ── Loading skeleton ────────────────────────────────────────────────── */}
       {searching && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 max-w-7xl mx-auto">
-          {Array.from({ length: 6 }).map((_, i) => (
+          {['sk-a', 'sk-b', 'sk-c', 'sk-d', 'sk-e', 'sk-f'].map((skId) => (
             <div
-              key={`skeleton-${i}`}
+              key={skId}
               className="p-5 rounded-2xl bg-surface-alt border border-border animate-pulse"
             >
               <div className="h-5 bg-border/50 rounded w-3/4 mb-3" />

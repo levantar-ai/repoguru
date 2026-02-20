@@ -9,7 +9,7 @@ interface Props {
 export function RepoInput({ onSubmit, isLoading }: Props) {
   const [value, setValue] = useState('');
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (value.trim() && !isLoading) {
       onSubmit(value.trim());

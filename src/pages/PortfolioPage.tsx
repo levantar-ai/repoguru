@@ -372,6 +372,31 @@ async function analyzeSingleRepo(
   };
 }
 
+async function analyzeReposSequentially(
+  repos: GitHubRepoResponse[],
+  headers: Record<string, string>,
+  signal: AbortSignal,
+  setProgress: (n: number) => void,
+  setProgressLabel: (s: string) => void,
+): Promise<RepoAnalysis[]> {
+  const analyses: RepoAnalysis[] = [];
+  for (let i = 0; i < repos.length; i++) {
+    if (signal.aborted) break;
+
+    const repo = repos[i];
+    setProgress(Math.round(10 + ((i + 1) / repos.length) * 85));
+    setProgressLabel(`Analyzing ${repo.name} (${i + 1}/${repos.length})...`);
+
+    try {
+      const result = await analyzeSingleRepo(repo, headers, signal);
+      if (result) analyses.push(result);
+    } catch {
+      if (signal.aborted) break;
+    }
+  }
+  return analyses;
+}
+
 function buildPortfolioData(trimmed: string, analyses: RepoAnalysis[]): PortfolioData {
   const avgScore = Math.round(analyses.reduce((sum, r) => sum + r.score, 0) / analyses.length);
 
@@ -459,22 +484,13 @@ export function PortfolioPage({ onBack, onAnalyze, githubToken }: Props) {
       setProgress(10);
       setProgressLabel(`Analyzing ${nonForkRepos.length} repositories...`);
 
-      const analyses: RepoAnalysis[] = [];
-      for (let i = 0; i < nonForkRepos.length; i++) {
-        if (signal.aborted) break;
-
-        const repo = nonForkRepos[i];
-        const pct = 10 + ((i + 1) / nonForkRepos.length) * 85;
-        setProgress(Math.round(pct));
-        setProgressLabel(`Analyzing ${repo.name} (${i + 1}/${nonForkRepos.length})...`);
-
-        try {
-          const result = await analyzeSingleRepo(repo, headers, signal);
-          if (result) analyses.push(result);
-        } catch {
-          if (signal.aborted) break;
-        }
-      }
+      const analyses = await analyzeReposSequentially(
+        nonForkRepos,
+        headers,
+        signal,
+        setProgress,
+        setProgressLabel,
+      );
 
       if (analyses.length === 0) {
         throw new Error('Could not analyze any repositories. They may be empty or inaccessible.');
@@ -492,7 +508,7 @@ export function PortfolioPage({ onBack, onAnalyze, githubToken }: Props) {
     }
   }, [username, githubToken]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     analyze();
   };

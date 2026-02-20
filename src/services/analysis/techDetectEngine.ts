@@ -466,11 +466,11 @@ function parseRequirementsTxt(path: string, content: string): DetectedPythonPack
 
 function parsePep621Deps(path: string, content: string): DetectedPythonPackage[] {
   const results: DetectedPythonPackage[] = [];
-  const depsArrayMatch = content.match(/\[project\]\n[^[]*dependencies\s*=\s*\[([\s\S]*?)\]/);
+  const depsArrayMatch = /\[project\]\n[^[]*dependencies\s*=\s*\[([\s\S]*?)\]/.exec(content);
   if (!depsArrayMatch) return results;
 
   for (const line of depsArrayMatch[1].split('\n')) {
-    const m = line.match(/["']([a-zA-Z0-9_][a-zA-Z0-9._-]*)(?:\[[^\]]*\])?\s*([^"']*)["']/);
+    const m = /["'](\w[\w.-]*)(?:\[[^\]]*\])?\s*([^"']*)["']/.exec(line);
     if (m) {
       results.push({ name: m[1].toLowerCase(), version: m[2].trim() || undefined, source: path });
     }
@@ -484,7 +484,7 @@ function parsePoetryDeps(path: string, content: string): DetectedPythonPackage[]
   if (!poetryMatch) return results;
 
   for (const line of poetryMatch[1].split('\n')) {
-    const m = line.match(/^([a-zA-Z0-9_][a-zA-Z0-9._-]*)\s*=\s*(?:["']([^"'\n]*)["']|(\S+))/);
+    const m = /^(\w[\w.-]*)\s*=\s*(?:["']([^"'\n]*)["']|(\S+))/.exec(line);
     if (m && m[1] !== 'python') {
       const version = (m[2] ?? m[3])?.trim() || undefined;
       results.push({ name: m[1].toLowerCase(), version, source: path });
@@ -494,11 +494,11 @@ function parsePoetryDeps(path: string, content: string): DetectedPythonPackage[]
 }
 
 function parseOptionalDepsLine(path: string, line: string): DetectedPythonPackage | null {
-  const arrM = line.match(/["']([a-zA-Z0-9_][a-zA-Z0-9._-]*)(?:\[[^\]]*\])?\s*([^"']*)["']/);
+  const arrM = /["'](\w[\w.-]*)(?:\[[^\]]*\])?\s*([^"']*)["']/.exec(line);
   if (arrM) {
     return { name: arrM[1].toLowerCase(), version: arrM[2].trim() || undefined, source: path };
   }
-  const kvM = line.match(/^([a-zA-Z0-9_][a-zA-Z0-9._-]*)\s*=\s*(?:["']([^"'\n]*)["']|(\S+))/);
+  const kvM = /^(\w[\w.-]*)\s*=\s*(?:["']([^"'\n]*)["']|(\S+))/.exec(line);
   if (kvM && kvM[1] !== 'python') {
     const version = (kvM[2] ?? kvM[3])?.trim() || undefined;
     return { name: kvM[1].toLowerCase(), version, source: path };
@@ -535,7 +535,7 @@ function parsePipfile(path: string, content: string): DetectedPythonPackage[] {
   for (const section of sections) {
     const lines = section[1].split('\n');
     for (const line of lines) {
-      const m = line.match(/^([a-zA-Z0-9_][a-zA-Z0-9._-]*)\s*=\s*(?:["']([^"'\n]*)["']|(\S+))/);
+      const m = /^(\w[\w.-]*)\s*=\s*(?:["']([^"'\n]*)["']|(\S+))/.exec(line);
       if (m) {
         const raw = (m[2] ?? m[3])?.trim();
         const version = raw === '*' ? undefined : raw || undefined;
@@ -553,9 +553,7 @@ function parseSetupPy(path: string, content: string): DetectedPythonPackage[] {
   // Best-effort: match install_requires=[...] list
   const match = content.match(/install_requires\s*=\s*\[([\s\S]*?)\]/);
   if (match) {
-    const items = match[1].matchAll(
-      /["']([a-zA-Z0-9_][a-zA-Z0-9._-]*)(?:\[[^\]]*\])?\s*([^"']*)["']/g,
-    );
+    const items = match[1].matchAll(/["'](\w[\w.-]*)(?:\[[^\]]*\])?\s*([^"']*)["']/g);
     for (const m of items) {
       results.push({ name: m[1].toLowerCase(), version: m[2].trim() || undefined, source: path });
     }
@@ -570,11 +568,11 @@ function parseSetupCfg(path: string, content: string): DetectedPythonPackage[] {
   // Match [options] section's install_requires
   const optionsMatch = content.match(/\[options\]([\s\S]*?)(?:\n\[|$)/);
   if (optionsMatch) {
-    const irMatch = optionsMatch[1].match(/install_requires\s*=\s*([^\n]*(?:\n[ \t]+[^\n]*)*)/);
+    const irMatch = /install_requires\s*=\s*([^\n]*(?:\n[ \t]+[^\n]*)*)/.exec(optionsMatch[1]);
     if (irMatch) {
       const lines = irMatch[1].split('\n');
       for (const line of lines) {
-        const m = line.trim().match(/^([a-zA-Z0-9_][a-zA-Z0-9._-]*)(?:\[[^\]]*\])?\s*(.*)$/);
+        const m = /^(\w[\w.-]*)(?:\[[^\]]*\])?\s*(.*)$/.exec(line.trim());
         if (m?.[1]) {
           results.push({
             name: m[1].toLowerCase(),
@@ -690,7 +688,7 @@ function detectAzurePythonSdk(file: FileInput): DetectedAzureService[] {
   if (!isPythonManifest) return [];
 
   const results: DetectedAzureService[] = [];
-  const pattern = /azure[_-][a-zA-Z0-9_-]+/gi;
+  const pattern = /azure[_-][\w-]+/gi;
   let match;
   while ((match = pattern.exec(file.content)) !== null) {
     const pkg = match[0].toLowerCase();
@@ -761,7 +759,7 @@ function detectGcpPythonSdk(file: FileInput): DetectedGCPService[] {
   if (!isPythonManifest) return [];
 
   const results: DetectedGCPService[] = [];
-  const pattern = /google-cloud-[a-zA-Z0-9_-]+/gi;
+  const pattern = /google-cloud-[\w-]+/gi;
   let match;
   while ((match = pattern.exec(file.content)) !== null) {
     const pkg = match[0].toLowerCase();
@@ -945,11 +943,11 @@ export function detectPHP(files: FileInput[]): DetectedPackage[] {
 // ── Rust Detection ──
 
 function parseCargoDependencyLine(line: string, source: string): DetectedPackage | null {
-  const simpleMatch = line.match(/^([a-zA-Z0-9_-]+)\s*=\s*"([^"]*)"/);
+  const simpleMatch = /^([\w-]+)\s*=\s*"([^"]*)"/.exec(line);
   if (simpleMatch) {
     return { name: simpleMatch[1], version: simpleMatch[2], source };
   }
-  const tableMatch = line.match(/^([a-zA-Z0-9_-]+)\s*=\s*\{[^}]*version\s*=\s*"([^"]*)"/);
+  const tableMatch = /^([\w-]+)\s*=\s*\{[^}]*version\s*=\s*"([^"]*)"/.exec(line);
   if (tableMatch) {
     return { name: tableMatch[1], version: tableMatch[2], source };
   }

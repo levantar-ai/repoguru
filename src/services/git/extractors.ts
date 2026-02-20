@@ -114,6 +114,32 @@ interface DiffFile {
   changes: number;
 }
 
+// ── Helpers for computing line stats per diff status ──
+
+async function computeAddedStats(
+  entry: WalkerEntry | null,
+): Promise<{ additions: number; deletions: number }> {
+  const content = entry ? await entry.content() : null;
+  return { additions: content ? countLines(content) : 0, deletions: 0 };
+}
+
+async function computeRemovedStats(
+  entry: WalkerEntry | null,
+): Promise<{ additions: number; deletions: number }> {
+  const content = entry ? await entry.content() : null;
+  return { additions: 0, deletions: content ? countLines(content) : 0 };
+}
+
+async function computeModifiedStats(
+  parentEntry: WalkerEntry,
+  currentEntry: WalkerEntry,
+): Promise<{ additions: number; deletions: number }> {
+  const oldContent = await parentEntry.content();
+  const newContent = await currentEntry.content();
+  if (oldContent && newContent) return countLineDiff(oldContent, newContent);
+  return { additions: 0, deletions: 0 };
+}
+
 // ── Two-tree diff helper (parent vs current) for full content diff ──
 
 async function diffTwoTrees(
@@ -124,50 +150,28 @@ async function diffTwoTrees(
   const parentOidVal = parentEntry ? await parentEntry.oid() : null;
   const currentOidVal = currentEntry ? await currentEntry.oid() : null;
 
-  if (parentOidVal === currentOidVal) return null; // unchanged
+  if (parentOidVal === currentOidVal) return null;
 
   const parentType = parentEntry ? await parentEntry.type() : null;
   const currentType = currentEntry ? await currentEntry.type() : null;
-
-  // Only diff blobs (files), not trees
   if (parentType === 'tree' || currentType === 'tree') return null;
 
-  let additions = 0;
-  let deletions = 0;
-  let status = 'modified';
+  const isAdded = !parentEntry || parentOidVal === null;
+  const isRemoved = !currentEntry || currentOidVal === null;
 
-  if (!parentEntry || parentOidVal === null) {
-    // Added file
-    status = 'added';
-    const content = currentEntry ? await currentEntry.content() : null;
-    if (content) {
-      additions = countLines(content);
-    }
-  } else if (!currentEntry || currentOidVal === null) {
-    // Deleted file
-    status = 'removed';
-    const content = parentEntry ? await parentEntry.content() : null;
-    if (content) {
-      deletions = countLines(content);
-    }
-  } else {
-    // Modified file - count line differences
-    const oldContent = await parentEntry.content();
-    const newContent = await currentEntry.content();
-    if (oldContent && newContent) {
-      const diff = countLineDiff(oldContent, newContent);
-      additions = diff.additions;
-      deletions = diff.deletions;
-    }
-  }
+  const status = isAdded ? 'added' : isRemoved ? 'removed' : 'modified';
+  const stats = isAdded
+    ? await computeAddedStats(currentEntry)
+    : isRemoved
+      ? await computeRemovedStats(parentEntry)
+      : await computeModifiedStats(parentEntry!, currentEntry!);
 
   return {
     sha: currentOidVal || parentOidVal || '',
     filename: filepath,
     status,
-    additions,
-    deletions,
-    changes: additions + deletions,
+    ...stats,
+    changes: stats.additions + stats.deletions,
   };
 }
 

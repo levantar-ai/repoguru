@@ -7,7 +7,7 @@ interface Props {
 
 type SortKey = 'filename' | 'changeCount' | 'additions' | 'deletions' | 'contributors';
 
-function SortIcon({ active, dir }: { active: boolean; dir: 'asc' | 'desc' }) {
+function SortIcon({ active, dir }: Readonly<{ active: boolean; dir: 'asc' | 'desc' }>) {
   if (!active) return null;
   return (
     <svg

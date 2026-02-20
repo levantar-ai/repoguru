@@ -537,14 +537,14 @@ function SortHeader({
   sortField,
   sortDir,
   onToggleSort,
-}: {
+}: Readonly<{
   field: SortField;
   label: string;
   className?: string;
   sortField: SortField;
   sortDir: SortDir;
   onToggleSort: (field: SortField) => void;
-}) {
+}>) {
   return (
     <th
       className={`py-3 px-3 text-left text-xs font-semibold uppercase tracking-wider text-text-secondary cursor-pointer select-none hover:text-neon transition-colors whitespace-nowrap ${className}`}
@@ -576,9 +576,15 @@ function SortHeader({
   );
 }
 
+// ── Get a category score from a report ──────────────────────────────────────
+
+function getCategoryScore(categories: CategoryResult[], key: CategoryKey): number {
+  return categories.find((c) => c.key === key)?.score ?? 0;
+}
+
 // ── ScoreCell component (extracted outside parent to satisfy S6478) ──
 
-function ScoreCell({ score }: { score: number }) {
+function ScoreCell({ score }: Readonly<{ score: number }>) {
   return (
     <td className={`py-3 px-3 font-medium ${scoreColorClass(score)}`}>
       <span
@@ -640,6 +646,63 @@ function computeScanProgress(scan: ScanState): number {
   return 0;
 }
 
+// ── Fetch and filter org repo list ───────────────────────────────────────────
+
+async function fetchOrgRepoList(
+  org: string,
+  ghFetchFn: (url: string, signal?: AbortSignal) => Promise<Response>,
+  signal: AbortSignal,
+): Promise<Record<string, unknown>[] | null> {
+  const reposRes = await ghFetchFn(
+    `${GITHUB_API_BASE}/orgs/${encodeURIComponent(org)}/repos?per_page=100&sort=updated`,
+    signal,
+  );
+  const reposJson = await reposRes.json();
+
+  if (!Array.isArray(reposJson) || reposJson.length === 0) return null;
+
+  const repoList = reposJson
+    .filter((r: Record<string, unknown>) => !r.archived && !r.fork)
+    .slice(0, 20);
+
+  return repoList.length < 5
+    ? reposJson.filter((r: Record<string, unknown>) => !r.archived).slice(0, 20)
+    : repoList;
+}
+
+// ── Analyze a list of repos with progress updates ───────────────────────────
+
+async function analyzeRepoList(
+  org: string,
+  repoList: Record<string, unknown>[],
+  ghFetchFn: (url: string, signal?: AbortSignal) => Promise<Response>,
+  controller: AbortController,
+  setScan: (updater: ScanState | ((prev: ScanState) => ScanState)) => void,
+): Promise<LightAnalysisReport[]> {
+  const results: LightAnalysisReport[] = [];
+
+  for (const rawRepo of repoList) {
+    if (controller.signal.aborted) break;
+
+    const repoName = rawRepo.name as string;
+    setScan((s) => ({ ...s, currentRepo: repoName }));
+
+    try {
+      const report = await analyzeOrgRepo(org, rawRepo, ghFetchFn, controller.signal);
+      if (report) results.push(report);
+    } catch (err: unknown) {
+      console.warn(
+        `Failed to analyze ${org}/${repoName}:`,
+        err instanceof Error ? err.message : err,
+      );
+    }
+
+    setScan((s) => ({ ...s, repos: [...results], analyzedCount: results.length }));
+  }
+
+  return results;
+}
+
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export function OrgScanPage({ onBack, onAnalyze, githubToken }: Props) {
@@ -697,14 +760,9 @@ export function OrgScanPage({ onBack, onAnalyze, githubToken }: Props) {
     });
 
     try {
-      // 1) Fetch org repos
-      const reposRes = await ghFetch(
-        `${GITHUB_API_BASE}/orgs/${encodeURIComponent(org)}/repos?per_page=100&sort=updated`,
-        controller.signal,
-      );
-      const reposJson = await reposRes.json();
+      const finalList = await fetchOrgRepoList(org, ghFetch, controller.signal);
 
-      if (!Array.isArray(reposJson) || reposJson.length === 0) {
+      if (!finalList) {
         setScan((s) => ({
           ...s,
           phase: 'error',
@@ -713,49 +771,9 @@ export function OrgScanPage({ onBack, onAnalyze, githubToken }: Props) {
         return;
       }
 
-      // Take up to 20 repos (non-archived, non-fork preferred but include all)
-      const repoList = reposJson
-        .filter((r: Record<string, unknown>) => !r.archived && !r.fork)
-        .slice(0, 20);
+      setScan((s) => ({ ...s, phase: 'analyzing', totalRepos: finalList.length }));
 
-      // If too few after filtering, include forks
-      const finalList =
-        repoList.length < 5
-          ? reposJson.filter((r: Record<string, unknown>) => !r.archived).slice(0, 20)
-          : repoList;
-
-      setScan((s) => ({
-        ...s,
-        phase: 'analyzing',
-        totalRepos: finalList.length,
-      }));
-
-      // 2) Analyze each repo
-      const results: LightAnalysisReport[] = [];
-
-      for (const rawRepo of finalList) {
-        if (controller.signal.aborted) break;
-
-        const repoName = rawRepo.name as string;
-        setScan((s) => ({ ...s, currentRepo: repoName }));
-
-        try {
-          const report = await analyzeOrgRepo(org, rawRepo, ghFetch, controller.signal);
-          if (report) results.push(report);
-        } catch (err: unknown) {
-          // Skip repos that fail (e.g. empty repos with no tree)
-          console.warn(
-            `Failed to analyze ${org}/${repoName}:`,
-            err instanceof Error ? err.message : err,
-          );
-        }
-
-        setScan((s) => ({
-          ...s,
-          repos: [...results],
-          analyzedCount: results.length,
-        }));
-      }
+      const results = await analyzeRepoList(org, finalList, ghFetch, controller, setScan);
 
       setScan((s) => ({
         ...s,
@@ -879,18 +897,17 @@ export function OrgScanPage({ onBack, onAnalyze, githubToken }: Props) {
     ];
 
     const rows = sortedRepos.map((r) => {
-      const catScore = (key: CategoryKey) => r.categories.find((c) => c.key === key)?.score ?? 0;
       return [
         `${r.repo.owner}/${r.repo.repo}`,
         r.grade,
         r.overallScore,
-        catScore('documentation'),
-        catScore('security'),
-        catScore('cicd'),
-        catScore('dependencies'),
-        catScore('codeQuality'),
-        catScore('license'),
-        catScore('community'),
+        getCategoryScore(r.categories, 'documentation'),
+        getCategoryScore(r.categories, 'security'),
+        getCategoryScore(r.categories, 'cicd'),
+        getCategoryScore(r.categories, 'dependencies'),
+        getCategoryScore(r.categories, 'codeQuality'),
+        getCategoryScore(r.categories, 'license'),
+        getCategoryScore(r.categories, 'community'),
         r.repoInfo.language ?? '',
         r.repoInfo.stars,
         r.repoInfo.forks,
@@ -1225,11 +1242,6 @@ export function OrgScanPage({ onBack, onAnalyze, githubToken }: Props) {
                   </thead>
                   <tbody>
                     {sortedRepos.map((r, idx) => {
-                      const catScore = (key: CategoryKey) => {
-                        const cat = r.categories.find((c) => c.key === key);
-                        return cat?.score ?? 0;
-                      };
-
                       return (
                         <tr
                           key={`${r.repo.owner}/${r.repo.repo}`}
@@ -1261,13 +1273,13 @@ export function OrgScanPage({ onBack, onAnalyze, githubToken }: Props) {
                           {/* Overall */}
                           <ScoreCell score={r.overallScore} />
                           {/* Category scores */}
-                          <ScoreCell score={catScore('documentation')} />
-                          <ScoreCell score={catScore('security')} />
-                          <ScoreCell score={catScore('cicd')} />
-                          <ScoreCell score={catScore('dependencies')} />
-                          <ScoreCell score={catScore('codeQuality')} />
-                          <ScoreCell score={catScore('license')} />
-                          <ScoreCell score={catScore('community')} />
+                          <ScoreCell score={getCategoryScore(r.categories, 'documentation')} />
+                          <ScoreCell score={getCategoryScore(r.categories, 'security')} />
+                          <ScoreCell score={getCategoryScore(r.categories, 'cicd')} />
+                          <ScoreCell score={getCategoryScore(r.categories, 'dependencies')} />
+                          <ScoreCell score={getCategoryScore(r.categories, 'codeQuality')} />
+                          <ScoreCell score={getCategoryScore(r.categories, 'license')} />
+                          <ScoreCell score={getCategoryScore(r.categories, 'community')} />
                         </tr>
                       );
                     })}
@@ -1282,11 +1294,6 @@ export function OrgScanPage({ onBack, onAnalyze, githubToken }: Props) {
                 Scroll table horizontally to see all columns, or view repo cards below:
               </p>
               {sortedRepos.map((r) => {
-                const catScore = (key: CategoryKey) => {
-                  const cat = r.categories.find((c) => c.key === key);
-                  return cat?.score ?? 0;
-                };
-
                 return (
                   <div
                     key={`card-${r.repo.owner}/${r.repo.repo}`}
@@ -1322,7 +1329,7 @@ export function OrgScanPage({ onBack, onAnalyze, githubToken }: Props) {
                           ['community', 'Comm'],
                         ] as [CategoryKey, string][]
                       ).map(([key, label]) => {
-                        const s = catScore(key);
+                        const s = getCategoryScore(r.categories, key);
                         return (
                           <div key={key}>
                             <div className={`text-xs font-bold ${scoreColorClass(s)}`}>{s}</div>

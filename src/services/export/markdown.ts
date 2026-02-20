@@ -62,8 +62,8 @@ function buildLlmInsights(report: AnalysisReport): string[] {
   lines.push('');
   lines.push(report.llmInsights.summary);
   lines.push('');
-  lines.push(...buildBulletSection('AI-Identified Risks', report.llmInsights.risks, '###'));
   lines.push(
+    ...buildBulletSection('AI-Identified Risks', report.llmInsights.risks, '###'),
     ...buildBulletSection('AI Recommendations', report.llmInsights.recommendations, '###'),
   );
   return lines;

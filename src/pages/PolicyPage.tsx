@@ -175,6 +175,34 @@ function emptyPolicy(): PolicySet {
   };
 }
 
+// ─── Clean up rule fields when type changes ──────────────────────────────────
+
+function cleanRuleForTypeChange(updated: PolicyRule, newType: PolicyRule['type']): PolicyRule {
+  if (newType === 'overall-score') {
+    delete updated.category;
+    delete updated.signal;
+    if (updated.operator === 'exists' || updated.operator === 'not-exists') {
+      updated.operator = '>=';
+    }
+    updated.value ??= 60;
+  } else if (newType === 'category-score') {
+    delete updated.signal;
+    if (!updated.category) updated.category = 'documentation';
+    if (updated.operator === 'exists' || updated.operator === 'not-exists') {
+      updated.operator = '>=';
+    }
+    updated.value ??= 60;
+  } else if (newType === 'signal') {
+    delete updated.category;
+    delete updated.value;
+    if (updated.operator !== 'exists' && updated.operator !== 'not-exists') {
+      updated.operator = 'exists';
+    }
+    if (!updated.signal) updated.signal = '';
+  }
+  return updated;
+}
+
 // ─── Category options ────────────────────────────────────────────────────────
 
 const CATEGORY_OPTIONS: { value: CategoryKey; label: string }[] = [
@@ -238,7 +266,7 @@ export function PolicyPage({ onNavigate }: Props) {
 
   // ── Load saved policies from localStorage on mount ─────────────────────
   useEffect(() => {
-    setSavedPolicies(loadPolicySets());
+    setSavedPolicies(loadPolicySets()); // eslint-disable-line react-hooks/set-state-in-effect -- load once on mount
   }, []);
 
   // ── All available policies (saved + presets + defaults from engine) ─────
@@ -372,33 +400,6 @@ export function PolicyPage({ onNavigate }: Props) {
       return { ...prev, rules: prev.rules.filter((r) => r.id !== ruleId) };
     });
   }, []);
-
-  // ── Clean up rule fields when type changes ─────────────────────────────
-  function cleanRuleForTypeChange(updated: PolicyRule, newType: PolicyRule['type']): PolicyRule {
-    if (newType === 'overall-score') {
-      delete updated.category;
-      delete updated.signal;
-      if (updated.operator === 'exists' || updated.operator === 'not-exists') {
-        updated.operator = '>=';
-      }
-      updated.value ??= 60;
-    } else if (newType === 'category-score') {
-      delete updated.signal;
-      if (!updated.category) updated.category = 'documentation';
-      if (updated.operator === 'exists' || updated.operator === 'not-exists') {
-        updated.operator = '>=';
-      }
-      updated.value ??= 60;
-    } else if (newType === 'signal') {
-      delete updated.category;
-      delete updated.value;
-      if (updated.operator !== 'exists' && updated.operator !== 'not-exists') {
-        updated.operator = 'exists';
-      }
-      if (!updated.signal) updated.signal = '';
-    }
-    return updated;
-  }
 
   // ── Update a rule field ────────────────────────────────────────────────
   const updateRule = useCallback((ruleId: string, updates: Partial<PolicyRule>) => {

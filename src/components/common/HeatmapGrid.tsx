@@ -86,8 +86,10 @@ export function HeatmapGrid({ repos, categoryKeys, categoryLabels, onRepoClick }
               Repository{sortIndicator('name')}
             </th>
             {categoryKeys.map((key) => {
-              const catSortValue =
-                sortKey !== key ? 'none' : sortDir === 'asc' ? 'ascending' : 'descending';
+              let catSortValue: 'none' | 'ascending' | 'descending' = 'none';
+              if (sortKey === key) {
+                catSortValue = sortDir === 'asc' ? 'ascending' : 'descending';
+              }
               return (
                 <th
                   key={key}
