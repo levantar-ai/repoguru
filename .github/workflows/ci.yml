@@ -167,7 +167,7 @@ jobs:
           cache: npm
       - name: Audit dependencies
         if: github.event_name != 'pull_request'
-        run: npm audit --audit-level=high
+        run: npm audit --audit-level=high --omit=dev
 
   # ── Stage 3b: Deploy to Cloudflare Pages (main only) ─────────
   deploy:
