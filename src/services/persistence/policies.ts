@@ -1,6 +1,6 @@
 import type { PolicySet } from '../../types';
 
-const STORE_KEY = 'reporev-policies';
+const STORE_KEY = 'repoguru-policies';
 
 export function getSavedPolicies(): PolicySet[] {
   try {

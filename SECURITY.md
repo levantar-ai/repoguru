@@ -2,11 +2,11 @@
 
 ## Reporting a Vulnerability
 
-If you discover a security vulnerability in RepoRev, please report it responsibly.
+If you discover a security vulnerability in RepoGuru, please report it responsibly.
 
 **Please do NOT open a public GitHub issue for security vulnerabilities.**
 
-Instead, please send an email to **security@reporev.dev** with:
+Instead, please send an email to **security@repoguru.dev** with:
 
 - A description of the vulnerability
 - Steps to reproduce the issue
@@ -43,7 +43,7 @@ The following are **out of scope**:
 
 ## Security Measures
 
-RepoRev implements the following security practices:
+RepoGuru implements the following security practices:
 
 - All analysis runs client-side in the browser
 - GitHub tokens are stored using the Credential Management API with IndexedDB fallback

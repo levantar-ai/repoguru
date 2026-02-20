@@ -47,7 +47,7 @@ self.onmessage = async (e: MessageEvent<CloneMessage>) => {
 
   try {
     // Initialize in-memory filesystem
-    const fs = new LightningFS('reporev-clone', { wipe: true });
+    const fs = new LightningFS('repoguru-clone', { wipe: true });
 
     const url = `https://github.com/${owner}/${repo}.git`;
 

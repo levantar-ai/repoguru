@@ -1,6 +1,6 @@
 import type { HistoryEntry } from '../../types';
 
-const STORE_KEY = 'reporev-history';
+const STORE_KEY = 'repoguru-history';
 
 // Use localStorage for simplicity (IndexedDB upgrade would require version bump)
 export function getHistory(): HistoryEntry[] {

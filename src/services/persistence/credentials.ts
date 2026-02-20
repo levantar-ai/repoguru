@@ -2,7 +2,7 @@
 import { getDb } from './db';
 import { STORE_SETTINGS } from '../../utils/constants';
 
-const CREDENTIAL_ID = 'reporev-github-token';
+const CREDENTIAL_ID = 'repoguru-github-token';
 const IDB_KEY = 'github-token';
 
 // ── Credential Management API (Chrome, Edge) ──

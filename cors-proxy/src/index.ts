@@ -42,7 +42,7 @@ export default {
         upstreamHeaders.set(key, value);
       }
     }
-    upstreamHeaders.set('User-Agent', 'reporev-git-proxy');
+    upstreamHeaders.set('User-Agent', 'repoguru-git-proxy');
 
     const upstream = await fetch(targetUrl, {
       method: request.method,

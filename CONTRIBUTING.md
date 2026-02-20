@@ -1,6 +1,6 @@
-# Contributing to RepoRev
+# Contributing to RepoGuru
 
-Thank you for your interest in contributing to RepoRev! This document provides guidelines and instructions for contributing.
+Thank you for your interest in contributing to RepoGuru! This document provides guidelines and instructions for contributing.
 
 ## How to Contribute
 
@@ -14,8 +14,8 @@ Thank you for your interest in contributing to RepoRev! This document provides g
 
 ```bash
 # Clone your fork
-git clone https://github.com/<your-username>/reporev.git
-cd reporev
+git clone https://github.com/<your-username>/repoguru.git
+cd repoguru
 
 # Install dependencies
 npm install
@@ -54,8 +54,8 @@ npm run dev
 
 ## Reporting Issues
 
-- Use the [bug report template](https://github.com/reporev/reporev/issues/new?template=bug_report.yml) for bugs
-- Use the [feature request template](https://github.com/reporev/reporev/issues/new?template=feature_request.yml) for new ideas
+- Use the [bug report template](https://github.com/repoguru/repoguru/issues/new?template=bug_report.yml) for bugs
+- Use the [feature request template](https://github.com/repoguru/repoguru/issues/new?template=feature_request.yml) for new ideas
 
 ## Code of Conduct
 

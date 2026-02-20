@@ -3,7 +3,7 @@ import type { CloneMessage, WorkerOutMessage } from './git.worker';
 
 const TIMEOUT_MS = 120_000; // 2 minutes
 
-const CORS_PROXY = 'https://reporev-git-proxy.andy-rea.workers.dev';
+const CORS_PROXY = 'https://repoguru-git-proxy.andy-rea.workers.dev';
 
 export function cloneAndExtract(
   owner: string,

@@ -3,7 +3,7 @@ import { fetchMyRepos } from '../services/github/org';
 import { useApp } from '../context/AppContext';
 import type { RepoInfo } from '../types';
 
-const STORAGE_KEY = 'reporev:my-repos';
+const STORAGE_KEY = 'repoguru:my-repos';
 const CACHE_TTL_MS = 30 * 60 * 1000; // 30 minutes
 
 interface StoredCache {

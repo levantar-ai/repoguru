@@ -43,7 +43,7 @@ echarts.use([
   CanvasRenderer,
 ]);
 
-echarts.registerTheme('reporev', echartsTheme);
+echarts.registerTheme('repoguru', echartsTheme);
 
 interface Props {
   option: Record<string, unknown>;
@@ -61,7 +61,7 @@ export function EChartsWrapper({ option, height = '400px', className = '', onRea
   useEffect(() => {
     if (!containerRef.current) return;
 
-    const chart = echarts.init(containerRef.current, 'reporev', { renderer: 'canvas' });
+    const chart = echarts.init(containerRef.current, 'repoguru', { renderer: 'canvas' });
     chartRef.current = chart;
     setReady(true);
     if (onReady) onReady(chart);

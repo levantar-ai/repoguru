@@ -2,9 +2,9 @@
 
 ## Resources
 
-- **GitHub Issues**: For bug reports and feature requests, please use our [issue templates](https://github.com/reporev/reporev/issues/new/choose)
+- **GitHub Issues**: For bug reports and feature requests, please use our [issue templates](https://github.com/levantar-ai/repoguru/issues/new/choose)
 - **GitHub Discussions**: For questions, ideas, and general discussion
-- **Documentation**: Check the [How It Works](https://reporev.dev) page in the app
+- **Documentation**: Check the [How It Works](https://repo.guru) page in the app
 
 ## Before Opening an Issue
 

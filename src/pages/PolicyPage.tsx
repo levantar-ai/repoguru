@@ -27,7 +27,7 @@ interface Props {
 
 // ─── localStorage helpers ────────────────────────────────────────────────────
 
-const STORAGE_KEY = 'reporev:policy-sets';
+const STORAGE_KEY = 'repoguru:policy-sets';
 
 function loadPolicySets(): PolicySet[] {
   try {

@@ -1,8 +1,8 @@
-# RepoRev Architecture
+# RepoGuru Architecture
 
 ## Overview
 
-RepoRev is a fully client-side GitHub repository analyzer built with **React 19**, **TypeScript**, and **Vite**. All analysis runs in the browser — no backend server is required. The app fetches repository data via the GitHub API and runs scoring, visualization, and detection engines locally.
+RepoGuru is a fully client-side GitHub repository analyzer built with **React 19**, **TypeScript**, and **Vite**. All analysis runs in the browser — no backend server is required. The app fetches repository data via the GitHub API and runs scoring, visualization, and detection engines locally.
 
 ## Analysis Pipeline
 
