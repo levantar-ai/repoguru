@@ -42,7 +42,7 @@ export function ProgressBar({ step, progress, filesFetched, filesTotal }: Props)
       <div className="h-3 bg-surface-alt rounded-full overflow-hidden border border-border">
         <div
           className="h-full bg-gradient-to-r from-primary-500 to-neon rounded-full transition-all duration-300 ease-out"
-          style={{ width: `${progress}%`, boxShadow: '0 0 10px rgba(34, 211, 238, 0.3)' }}
+          style={{ width: `${progress}%`, boxShadow: '0 0 10px rgba(56, 189, 248, 0.3)' }}
           aria-hidden="true"
         />
       </div>

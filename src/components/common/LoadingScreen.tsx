@@ -41,7 +41,9 @@ export function LoadingScreen() {
         {/* Logo circle */}
         <div
           className="relative h-20 w-20 rounded-2xl bg-primary-500/15 flex items-center justify-center"
-          style={{ boxShadow: '0 0 40px rgba(0, 212, 255, 0.3), 0 0 80px rgba(0, 212, 255, 0.1)' }}
+          style={{
+            boxShadow: '0 0 40px rgba(56, 189, 248, 0.3), 0 0 80px rgba(56, 189, 248, 0.1)',
+          }}
         >
           <svg
             className="h-10 w-10 text-neon"
@@ -58,7 +60,7 @@ export function LoadingScreen() {
       {/* Brand name */}
       <h1 className="text-4xl font-bold tracking-tight text-text mb-3">
         {'Repo'}
-        <span className="text-neon" style={{ textShadow: '0 0 20px rgba(0, 212, 255, 0.5)' }}>
+        <span className="text-neon" style={{ textShadow: '0 0 20px rgba(56, 189, 248, 0.5)' }}>
           Rev
         </span>
       </h1>

@@ -113,8 +113,8 @@ export function RadarChart({ data, size = 300 }: Props) {
       {/* Data polygon */}
       <polygon
         points={dataPolygon}
-        fill="rgba(34, 211, 238, 0.12)"
-        stroke="#22d3ee"
+        fill="rgba(56, 189, 248, 0.12)"
+        stroke="#38bdf8"
         strokeWidth={2}
         strokeLinejoin="round"
       />
@@ -126,7 +126,7 @@ export function RadarChart({ data, size = 300 }: Props) {
           cx={p.x}
           cy={p.y}
           r={4}
-          fill="#22d3ee"
+          fill="#38bdf8"
           stroke="var(--color-surface)"
           strokeWidth={2}
         />

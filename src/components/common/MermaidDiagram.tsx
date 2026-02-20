@@ -22,7 +22,7 @@ export function MermaidDiagram({ chart }: Props) {
           primaryColor: '#1e293b',
           primaryTextColor: '#f1f5f9',
           primaryBorderColor: '#334155',
-          lineColor: '#22d3ee',
+          lineColor: '#38bdf8',
           secondaryColor: '#0f172a',
           tertiaryColor: '#1e293b',
           fontFamily: "'Inter', system-ui, sans-serif",

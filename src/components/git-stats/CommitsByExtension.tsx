@@ -37,8 +37,8 @@ export function CommitsByExtension({ commitsByExtension }: Props) {
               x2: 1,
               y2: 0,
               colorStops: [
-                { offset: 0, color: '#0891b2' },
-                { offset: 1, color: '#22d3ee' },
+                { offset: 0, color: '#0284c7' },
+                { offset: 1, color: '#38bdf8' },
               ],
             },
             borderRadius: [0, 4, 4, 0],

@@ -651,8 +651,8 @@ export function PortfolioPage({ onBack, onAnalyze, githubToken }: Props) {
           </div>
           <div className="h-3 bg-surface-alt rounded-full overflow-hidden border border-border">
             <div
-              className="h-full bg-gradient-to-r from-blue-500 to-cyan-400 rounded-full transition-all duration-300 ease-out"
-              style={{ width: `${progress}%`, boxShadow: '0 0 12px rgba(0, 212, 255, 0.4)' }}
+              className="h-full bg-gradient-to-r from-primary-500 to-neon rounded-full transition-all duration-300 ease-out"
+              style={{ width: `${progress}%`, boxShadow: '0 0 12px rgba(56, 189, 248, 0.4)' }}
             />
           </div>
         </div>

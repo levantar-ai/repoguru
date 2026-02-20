@@ -58,10 +58,10 @@ export function PunchCard({ punchCard }: Props) {
             color: (params: { value: number[] }) => {
               const ratio = params.value[2] / maxCommits;
               if (ratio === 0) return '#1e293b';
-              if (ratio < 0.25) return '#0e4d5c';
-              if (ratio < 0.5) return '#0891b2';
-              if (ratio < 0.75) return '#22d3ee';
-              return '#67e8f9';
+              if (ratio < 0.25) return '#0c4a6e';
+              if (ratio < 0.5) return '#0284c7';
+              if (ratio < 0.75) return '#38bdf8';
+              return '#7dd3fc';
             },
           },
         },

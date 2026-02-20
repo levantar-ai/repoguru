@@ -9,20 +9,20 @@
     Arial, 'Noto Sans', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji';
 
   /* ── Brand Accent ─────────────────────────────────────── */
-  --color-primary-50: #ecfeff;
-  --color-primary-100: #cffafe;
-  --color-primary-200: #a5f3fc;
-  --color-primary-300: #67e8f9;
-  --color-primary-400: #22d3ee;
-  --color-primary-500: #06b6d4;
-  --color-primary-600: #0891b2;
-  --color-primary-700: #0e7490;
-  --color-primary-800: #155e75;
-  --color-primary-900: #164e63;
+  --color-primary-50: #f0f9ff;
+  --color-primary-100: #e0f2fe;
+  --color-primary-200: #bae6fd;
+  --color-primary-300: #7dd3fc;
+  --color-primary-400: #38bdf8;
+  --color-primary-500: #0ea5e9;
+  --color-primary-600: #0284c7;
+  --color-primary-700: #0369a1;
+  --color-primary-800: #075985;
+  --color-primary-900: #0c4a6e;
 
   /* Neon / accent — slightly warmer cyan for better readability */
-  --color-neon: #22d3ee;
-  --color-neon-dim: #0891b2;
+  --color-neon: #38bdf8;
+  --color-neon-dim: #0284c7;
 
   /* ── Grade Colors ─────────────────────────────────────── */
   --color-grade-a: #34d399;
@@ -56,8 +56,8 @@
   --color-text: #0f172a;
   --color-text-secondary: #475569;
   --color-text-muted: #94a3b8;
-  --color-neon: #0891b2;
-  --color-neon-dim: #0e7490;
+  --color-neon: #0284c7;
+  --color-neon-dim: #0369a1;
   --color-grade-a: #059669;
   --color-grade-b: #65a30d;
   --color-grade-c: #d97706;
@@ -153,20 +153,20 @@ body {
 
 .neon-glow {
   box-shadow:
-    0 0 10px rgba(34, 211, 238, 0.08),
-    0 0 30px rgba(34, 211, 238, 0.04);
+    0 0 10px rgba(56, 189, 248, 0.08),
+    0 0 30px rgba(56, 189, 248, 0.04);
 }
 
 .neon-glow-strong {
   box-shadow:
-    0 0 15px rgba(34, 211, 238, 0.15),
-    0 0 45px rgba(34, 211, 238, 0.06);
+    0 0 15px rgba(56, 189, 248, 0.15),
+    0 0 45px rgba(56, 189, 248, 0.06);
 }
 
 .neon-text {
   text-shadow:
-    0 0 8px rgba(34, 211, 238, 0.3),
-    0 0 20px rgba(34, 211, 238, 0.1);
+    0 0 8px rgba(56, 189, 248, 0.3),
+    0 0 20px rgba(56, 189, 248, 0.1);
 }
 
 /* ── Card hover ──────────────────────────────────────────── */
@@ -181,7 +181,7 @@ body {
   transform: translateY(-2px);
   box-shadow:
     0 4px 20px rgba(0, 0, 0, 0.25),
-    0 0 15px rgba(34, 211, 238, 0.06);
+    0 0 15px rgba(56, 189, 248, 0.06);
   border-color: var(--color-border-bright);
 }
 
@@ -196,7 +196,7 @@ body {
 
 .bg-gradient-dark {
   background:
-    radial-gradient(ellipse 60% 40% at 50% 0%, rgba(34, 211, 238, 0.03) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 40% at 50% 0%, rgba(56, 189, 248, 0.03) 0%, transparent 60%),
     linear-gradient(180deg, #0f172a 0%, #0c1222 50%, #0f172a 100%);
 }
 
@@ -224,7 +224,7 @@ body {
 /* ── Selection ───────────────────────────────────────────── */
 
 ::selection {
-  background: rgba(34, 211, 238, 0.2);
+  background: rgba(56, 189, 248, 0.2);
   color: var(--color-text);
 }
 
@@ -244,11 +244,11 @@ body {
 /* ── Header glow border ─────────────────────────────────── */
 
 .header-glow-border {
-  background: linear-gradient(90deg, transparent, rgba(34, 211, 238, 0.3) 50%, transparent);
+  background: linear-gradient(90deg, transparent, rgba(56, 189, 248, 0.3) 50%, transparent);
 }
 
 .light .header-glow-border {
-  background: linear-gradient(90deg, transparent, rgba(8, 145, 178, 0.25) 50%, transparent);
+  background: linear-gradient(90deg, transparent, rgba(2, 132, 199, 0.25) 50%, transparent);
 }
 
 /* ── Print ───────────────────────────────────────────────── */

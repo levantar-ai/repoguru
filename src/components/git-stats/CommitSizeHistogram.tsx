@@ -56,8 +56,8 @@ export function CommitSizeHistogram({ distribution }: Props) {
               x2: 0,
               y2: 1,
               colorStops: [
-                { offset: 0, color: '#22d3ee' },
-                { offset: 1, color: '#0891b2' },
+                { offset: 0, color: '#38bdf8' },
+                { offset: 1, color: '#0284c7' },
               ],
             },
             borderRadius: [4, 4, 0, 0],

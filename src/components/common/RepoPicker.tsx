@@ -58,15 +58,26 @@ export function RepoPicker({ onSelect, disabled }: Props) {
             Add a GitHub token in <strong className="text-text-secondary">Settings</strong> (gear
             icon) to browse your repositories and scan private repos.{' '}
             <a
-              href="https://github.com/settings/tokens/new?scopes=repo,read:org&description=Repo+Guru"
+              href="https://github.com/settings/personal-access-tokens/new"
               target="_blank"
               rel="noopener noreferrer"
               className="text-neon hover:underline"
             >
-              Generate a classic token
+              Create a fine-grained token
             </a>{' '}
-            with <code className="px-1 py-0.5 rounded bg-surface-alt text-xs">repo</code> +{' '}
-            <code className="px-1 py-0.5 rounded bg-surface-alt text-xs">read:org</code> scopes.
+            with read-only access to{' '}
+            <code className="px-1 py-0.5 rounded bg-surface-alt text-xs">Contents</code> and{' '}
+            <code className="px-1 py-0.5 rounded bg-surface-alt text-xs">Metadata</code>. For org
+            scanning, also grant{' '}
+            <code className="px-1 py-0.5 rounded bg-surface-alt text-xs">
+              Organization: Members
+            </code>{' '}
+            (read). Alternatively, a classic token with{' '}
+            <code className="px-1 py-0.5 rounded bg-surface-alt text-xs">public_repo</code> scope
+            works for public repos.{' '}
+            <a href="#how-it-works" className="text-neon hover:underline">
+              See How It Works &rarr; Token Setup
+            </a>
           </span>
         </div>
       </div>

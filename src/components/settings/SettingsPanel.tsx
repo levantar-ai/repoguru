@@ -25,8 +25,9 @@ function GitHubTokenField() {
         GitHub Token
       </label>
       <p id="github-token-desc" className="text-sm text-text-muted mb-3 leading-relaxed">
-        Optional. Used as fallback when clone fails. Saved securely in your browser's password
-        manager.
+        Increases API rate limit from 60 to 5,000 req/hr. Enables private repo access and repo
+        browsing. Stored via your browser's Credential Management API with IndexedDB fallback.
+        Persists across sessions.
       </p>
       <div className="flex gap-2">
         <input

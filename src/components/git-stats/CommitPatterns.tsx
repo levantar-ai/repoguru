@@ -16,7 +16,7 @@ export function CommitPatterns({ commitMessages }: Props) {
     const colors: Record<string, string> = {
       feat: '#34d399',
       fix: '#f87171',
-      docs: '#22d3ee',
+      docs: '#38bdf8',
       style: '#f472b6',
       refactor: '#a78bfa',
       test: '#fbbf24',

@@ -1264,7 +1264,7 @@ export function PolicyPage({ onNavigate }: Props) {
             <div className="h-3 bg-surface-alt rounded-full overflow-hidden border border-border">
               <div
                 className="h-full bg-gradient-to-r from-primary-500 to-neon rounded-full transition-all duration-300 ease-out"
-                style={{ width: `${evalProgress}%`, boxShadow: '0 0 12px rgba(0, 212, 255, 0.4)' }}
+                style={{ width: `${evalProgress}%`, boxShadow: '0 0 12px rgba(56, 189, 248, 0.4)' }}
               />
             </div>
           </div>

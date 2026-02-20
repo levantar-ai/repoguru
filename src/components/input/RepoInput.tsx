@@ -62,9 +62,9 @@ export function RepoInput({ onSubmit, isLoading }: Props) {
           disabled={!value.trim() || isLoading}
           className="h-14 px-8 rounded-xl font-semibold text-lg disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200 flex items-center justify-center gap-2 sm:w-auto w-full"
           style={{
-            background: 'linear-gradient(135deg, #22d3ee 0%, #0891b2 100%)',
+            background: 'linear-gradient(135deg, #38bdf8 0%, #0284c7 100%)',
             color: '#0f172a',
-            boxShadow: '0 0 16px rgba(34,211,238,0.2), 0 4px 12px rgba(0,0,0,0.3)',
+            boxShadow: '0 0 16px rgba(56,189,248,0.2), 0 4px 12px rgba(0,0,0,0.3)',
           }}
           aria-busy={isLoading}
         >

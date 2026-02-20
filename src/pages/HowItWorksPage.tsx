@@ -89,9 +89,14 @@ export function HowItWorksPage({ onBack }: Props) {
           {[
             ['overview', 'Overview'],
             ['pipeline', 'Analysis Pipeline'],
-            ['categories', 'The 7 Categories'],
+            ['categories', 'The 8 Categories'],
             ['scoring', 'Scoring & Grading'],
             ['github-api', 'GitHub API Usage'],
+            ['token-setup', 'Token Setup Guide'],
+            ['tools', 'Tools & Features'],
+            ['tech-detection', 'Tech Detection'],
+            ['git-stats', 'Git Statistics'],
+            ['exports', 'Export Formats'],
             ['file-selection', 'File Selection Strategy'],
             ['ai-enrichment', 'AI Enrichment (Optional)'],
             ['privacy', 'Privacy & Security'],
@@ -111,10 +116,11 @@ export function HowItWorksPage({ onBack }: Props) {
         {/* Overview */}
         <Section id="overview" title="Overview">
           <p>
-            Repo Guru is a fully client-side tool that analyzes public GitHub repositories for
-            engineering best practices. It produces a "report card" with a letter grade (A through
-            F) based on 7 categories: documentation, security, CI/CD, dependencies, code quality,
-            license, and community health.
+            Repo Guru is a fully client-side tool that analyzes GitHub repositories for engineering
+            best practices. It produces a "report card" with a letter grade (A through F) based on 8
+            categories: documentation, security, CI/CD, dependencies, code quality, license,
+            community health, and OpenSSF supply-chain security. Works with public repos by default;
+            with a token, private repos you have access to can also be analyzed.
           </p>
           <p>
             Everything runs in your browser. Repo Guru makes direct calls to the GitHub REST API to
@@ -163,8 +169,8 @@ export function HowItWorksPage({ onBack }: Props) {
               },
               {
                 step: '6',
-                title: 'Run 7 Analyzers',
-                desc: 'Seven pure, synchronous analyzer functions examine the file tree and contents. Each produces a 0-100 score and a list of signals (what was found vs. what was missing). This step does not make any network calls.',
+                title: 'Run 8 Analyzers',
+                desc: 'Eight pure, synchronous analyzer functions — documentation, security, CI/CD, dependencies, code quality, license, community, and OpenSSF — examine the file tree and contents. Each produces a 0-100 score and a list of signals (what was found vs. what was missing). This step does not make any network calls.',
               },
               {
                 step: '7',
@@ -199,7 +205,7 @@ export function HowItWorksPage({ onBack }: Props) {
         </Section>
 
         {/* The 7 Categories */}
-        <Section id="categories" title="The 7 Categories">
+        <Section id="categories" title="The 8 Categories">
           <p>
             Each category examines a different aspect of repository health. Scores are based on the
             presence or absence of specific files, configurations, and patterns — called "signals."
@@ -210,7 +216,7 @@ export function HowItWorksPage({ onBack }: Props) {
           <div className="space-y-4 mt-4">
             <CategoryDoc
               name="Documentation"
-              weight="20%"
+              weight="15%"
               description="Measures how well the project is documented. Good documentation lowers the barrier for contributors and users."
               signals={[
                 'README exists',
@@ -225,7 +231,7 @@ export function HowItWorksPage({ onBack }: Props) {
 
             <CategoryDoc
               name="Security"
-              weight="15%"
+              weight="10%"
               description="Checks for security best practices: vulnerability disclosure, dependency scanning, code review enforcement, and secret hygiene."
               signals={[
                 'SECURITY.md',
@@ -306,6 +312,24 @@ export function HowItWorksPage({ onBack }: Props) {
                 'SUPPORT.md',
               ]}
             />
+
+            <CategoryDoc
+              name="OpenSSF"
+              weight="10%"
+              description="Evaluates supply-chain security using OpenSSF Scorecard criteria. Checks for practices that protect against dependency attacks, build tampering, and vulnerability exposure."
+              signals={[
+                'Token permissions (least-privilege)',
+                'Pinned dependencies',
+                'No dangerous workflows',
+                'No binary artifacts',
+                'SLSA / signed releases',
+                'Fuzzing',
+                'SBOM generation',
+                'Dependency update tool',
+                'Security policy',
+                'License detected',
+              ]}
+            />
           </div>
         </Section>
 
@@ -365,8 +389,8 @@ export function HowItWorksPage({ onBack }: Props) {
           <p className="mt-4">
             The formula is:{' '}
             <code className="px-2 py-1 rounded bg-surface-alt border border-border text-neon text-sm">
-              overall = (doc * 0.20) + (sec * 0.15) + (ci * 0.15) + (deps * 0.15) + (quality * 0.15)
-              + (license * 0.10) + (community * 0.10)
+              overall = (doc * 0.15) + (sec * 0.10) + (ci * 0.15) + (deps * 0.15) + (quality * 0.15)
+              + (license * 0.10) + (community * 0.10) + (openssf * 0.10)
             </code>
           </p>
           <p>
@@ -424,6 +448,284 @@ export function HowItWorksPage({ onBack }: Props) {
             increases to 5,000 per hour. Repo Guru tracks your remaining quota in the header and
             warns you when running low.
           </p>
+        </Section>
+
+        {/* Token Setup Guide */}
+        <Section id="token-setup" title="Token Setup Guide">
+          <p>
+            A GitHub token is optional but recommended. It raises your API rate limit from 60 to
+            5,000 requests per hour and enables private repo access and repo browsing.
+          </p>
+
+          <div className="space-y-4 mt-4">
+            <div className="p-5 rounded-xl bg-surface-alt border border-border">
+              <h4 className="text-base font-semibold text-text mb-2">
+                Fine-Grained Token (Recommended)
+              </h4>
+              <ol className="list-decimal list-inside space-y-1.5 text-sm text-text-secondary">
+                <li>
+                  Go to GitHub &rarr; Settings &rarr; Developer settings &rarr;{' '}
+                  <a
+                    href="https://github.com/settings/personal-access-tokens/new"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-neon hover:underline"
+                  >
+                    Fine-grained tokens
+                  </a>
+                </li>
+                <li>
+                  Token name:{' '}
+                  <code className="px-1 py-0.5 rounded bg-surface text-xs">Repo Guru</code>
+                </li>
+                <li>Resource owner: your account</li>
+                <li>
+                  Repository access:{' '}
+                  <strong className="text-text">Public Repositories (read-only)</strong> for
+                  public-only, or <strong className="text-text">All repositories</strong> for
+                  private access
+                </li>
+                <li>
+                  Permissions &rarr; Repository permissions:
+                  <ul className="list-disc list-inside ml-4 mt-1 space-y-0.5">
+                    <li>
+                      <strong className="text-text">Contents</strong>: Read-only (to fetch file tree
+                      and contents)
+                    </li>
+                    <li>
+                      <strong className="text-text">Metadata</strong>: Read-only (automatic, always
+                      granted)
+                    </li>
+                  </ul>
+                </li>
+                <li>
+                  For Org Scan: Organization permissions &rarr;{' '}
+                  <strong className="text-text">Members: Read-only</strong>
+                </li>
+                <li>Expiration: 90 days recommended</li>
+              </ol>
+            </div>
+
+            <div className="p-5 rounded-xl bg-surface-alt border border-border">
+              <h4 className="text-base font-semibold text-text mb-2">
+                Classic Token (Alternative)
+              </h4>
+              <ul className="list-disc list-inside space-y-1.5 text-sm text-text-secondary">
+                <li>
+                  Use <code className="px-1 py-0.5 rounded bg-surface text-xs">public_repo</code>{' '}
+                  scope for public repos only
+                </li>
+                <li>
+                  Use <code className="px-1 py-0.5 rounded bg-surface text-xs">repo</code> scope
+                  only if you need private repo access
+                </li>
+                <li>
+                  Add <code className="px-1 py-0.5 rounded bg-surface text-xs">read:org</code> for
+                  org scanning
+                </li>
+              </ul>
+            </div>
+
+            <div className="p-5 rounded-xl bg-surface-alt border border-border">
+              <h4 className="text-base font-semibold text-text mb-2">How Tokens Are Stored</h4>
+              <ul className="list-disc list-inside space-y-1.5 text-sm text-text-secondary">
+                <li>
+                  Stored via your browser's Credential Management API (Chrome, Edge) with IndexedDB
+                  fallback
+                </li>
+                <li>Click "Save" in Settings to persist across sessions</li>
+                <li>Click "Clear" to remove from all storage</li>
+                <li>
+                  Token is sent only to{' '}
+                  <code className="px-1 py-0.5 rounded bg-surface text-xs">api.github.com</code>{' '}
+                  &mdash; never to any other server
+                </li>
+              </ul>
+            </div>
+          </div>
+        </Section>
+
+        {/* Tools & Features */}
+        <Section id="tools" title="Tools & Features">
+          <p>
+            Beyond single-repo analysis, Repo Guru includes several tools for different workflows:
+          </p>
+
+          <div className="space-y-4 mt-4">
+            <div className="p-5 rounded-xl bg-surface-alt border border-border">
+              <h4 className="text-base font-semibold text-text mb-1">Single Repo Analysis</h4>
+              <p className="text-sm text-text-secondary">
+                Full 8-category analysis with signals, git statistics, tech detection, and optional
+                AI enrichment. Enter any GitHub URL or owner/repo shorthand to generate a complete
+                report card.
+              </p>
+            </div>
+
+            <div className="p-5 rounded-xl bg-surface-alt border border-border">
+              <h4 className="text-base font-semibold text-text mb-1">Org Scan</h4>
+              <p className="text-sm text-text-secondary">
+                Bulk-analyze all public repos in a GitHub organization. Uses a lightweight tree-only
+                engine (2 API calls per repo, max 20 repos). Shows a sortable table, grade
+                distribution, and category averages. Supports CSV export.
+              </p>
+            </div>
+
+            <div className="p-5 rounded-xl bg-surface-alt border border-border">
+              <h4 className="text-base font-semibold text-text mb-1">Compare</h4>
+              <p className="text-sm text-text-secondary">
+                Side-by-side comparison of two repositories. Shows head-to-head grades, category
+                breakdowns with dual progress bars, signal differences, tech stack comparison, and
+                repo stats (stars, forks, issues).
+              </p>
+            </div>
+
+            <div className="p-5 rounded-xl bg-surface-alt border border-border">
+              <h4 className="text-base font-semibold text-text mb-1">Portfolio</h4>
+              <p className="text-sm text-text-secondary">
+                Analyze a developer's GitHub profile. Shows an overall grade ring, top languages,
+                category averages, strengths, and per-repo breakdown. Uses light analysis (max 15
+                repos).
+              </p>
+            </div>
+
+            <div className="p-5 rounded-xl bg-surface-alt border border-border">
+              <h4 className="text-base font-semibold text-text mb-1">Discover</h4>
+              <p className="text-sm text-text-secondary">
+                Search and discover open-source repos by language, stars, and topic. Quick-scan any
+                result to see its grade without a full analysis. Filter and sort results.
+              </p>
+            </div>
+
+            <div className="p-5 rounded-xl bg-surface-alt border border-border">
+              <h4 className="text-base font-semibold text-text mb-1">Policy</h4>
+              <p className="text-sm text-text-secondary">
+                Create custom compliance rules or use presets (Open Source Ready, Enterprise Grade,
+                Beginner Friendly). Evaluate any repo against your policies with pass/fail per rule
+                showing actual vs expected values.
+              </p>
+            </div>
+          </div>
+        </Section>
+
+        {/* Tech Detection */}
+        <Section id="tech-detection" title="Tech Detection">
+          <p>
+            During analysis, Repo Guru identifies the technologies used in a repository by
+            inspecting manifest files, configuration, and infrastructure-as-code definitions.
+          </p>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+            <div className="p-5 rounded-xl bg-surface-alt border border-border">
+              <h4 className="text-base font-semibold text-text mb-2">Cloud Services</h4>
+              <div className="text-sm text-text-secondary space-y-1.5">
+                <p>
+                  <strong className="text-text">AWS</strong> — 100+ services detected via SDK
+                  imports, CloudFormation, Terraform, and CDK
+                </p>
+                <p>
+                  <strong className="text-text">Azure</strong> — ARM templates, Bicep, and Terraform
+                  providers
+                </p>
+                <p>
+                  <strong className="text-text">GCP</strong> — Terraform providers and SDK usage
+                </p>
+              </div>
+            </div>
+
+            <div className="p-5 rounded-xl bg-surface-alt border border-border">
+              <h4 className="text-base font-semibold text-text mb-2">Language Packages</h4>
+              <div className="text-sm text-text-secondary space-y-1.5">
+                <p>Python (requirements.txt, pyproject.toml)</p>
+                <p>Node.js (package.json)</p>
+                <p>Go (go.mod)</p>
+                <p>Java (pom.xml, build.gradle)</p>
+                <p>PHP (composer.json)</p>
+                <p>Rust (Cargo.toml)</p>
+                <p>Ruby (Gemfile)</p>
+              </div>
+            </div>
+          </div>
+        </Section>
+
+        {/* Git Statistics */}
+        <Section id="git-stats" title="Git Statistics">
+          <p>
+            When git history is available, Repo Guru extracts contributor and commit-level
+            statistics:
+          </p>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
+            <div className="p-5 rounded-xl bg-surface-alt border border-border">
+              <h4 className="text-base font-semibold text-text mb-2">Contributors</h4>
+              <p className="text-sm text-text-secondary">
+                Commits per author, lines added/deleted, bus factor (how many contributors account
+                for 50% of commits).
+              </p>
+            </div>
+            <div className="p-5 rounded-xl bg-surface-alt border border-border">
+              <h4 className="text-base font-semibold text-text mb-2">Commit Analysis</h4>
+              <p className="text-sm text-text-secondary">
+                Size distribution, conventional commits detection, and commit message quality
+                scoring.
+              </p>
+            </div>
+            <div className="p-5 rounded-xl bg-surface-alt border border-border">
+              <h4 className="text-base font-semibold text-text mb-2">Activity Patterns</h4>
+              <p className="text-sm text-text-secondary">
+                Punch card by day/hour, monthly commit distribution, and repository growth over
+                time.
+              </p>
+            </div>
+            <div className="p-5 rounded-xl bg-surface-alt border border-border">
+              <h4 className="text-base font-semibold text-text mb-2">File Churn</h4>
+              <p className="text-sm text-text-secondary">
+                Most frequently changed files, file coupling analysis (files that change together).
+              </p>
+            </div>
+          </div>
+        </Section>
+
+        {/* Export Formats */}
+        <Section id="exports" title="Export Formats">
+          <p>Analysis reports can be exported in multiple formats:</p>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mt-4">
+            {[
+              {
+                name: 'Markdown',
+                desc: 'Full formatted report for pasting into issues or PRs',
+              },
+              {
+                name: 'CSV',
+                desc: 'Category scores and signals as spreadsheet data',
+              },
+              {
+                name: 'JSON',
+                desc: 'Raw structured report data for programmatic use',
+              },
+              {
+                name: 'SBOM',
+                desc: 'CycloneDX software bill of materials',
+              },
+              {
+                name: 'Badge',
+                desc: 'Embeddable SVG grade badge (Markdown, HTML, or direct URL)',
+              },
+              {
+                name: 'Print / PDF',
+                desc: 'Browser print dialog with optimized layout',
+              },
+              {
+                name: 'Share',
+                desc: 'Native Web Share API on supported devices',
+              },
+            ].map((fmt) => (
+              <div key={fmt.name} className="p-4 rounded-xl bg-surface-alt border border-border">
+                <h4 className="text-sm font-semibold text-text mb-1">{fmt.name}</h4>
+                <p className="text-xs text-text-secondary">{fmt.desc}</p>
+              </div>
+            ))}
+          </div>
         </Section>
 
         {/* File Selection */}
@@ -522,18 +824,21 @@ export function HowItWorksPage({ onBack }: Props) {
               runs locally in your browser. File contents never leave the tab.
             </li>
             <li>
-              <strong className="text-text">Secrets in memory only</strong> — GitHub tokens and
-              Anthropic API keys are stored in React state. They are never written to localStorage,
-              IndexedDB, cookies, or any persistent storage. They are lost on page refresh.
+              <strong className="text-text">Token storage</strong> — GitHub tokens are stored via
+              the Credential Management API (Chrome/Edge) with an IndexedDB fallback, persisting
+              across sessions. Click "Clear" in Settings to remove from all storage. Your Anthropic
+              API key is kept in memory only and cleared on page refresh.
             </li>
             <li>
-              <strong className="text-text">IndexedDB for reports only</strong> — Analysis results
-              and settings (theme, LLM mode) are cached locally. No credentials are persisted.
+              <strong className="text-text">IndexedDB for reports</strong> — Analysis results and
+              settings (theme, LLM mode) are cached locally.
             </li>
             <li>
-              <strong className="text-text">Public repos only</strong> — Repo Guru only works with
-              public GitHub repositories. It cannot access private repos even with a token (the
-              token only increases rate limits).
+              <strong className="text-text">Public and private repos</strong> — Works with public
+              repos by default. With a token, private repos you have access to can also be analyzed.
+              The token is sent only to{' '}
+              <code className="px-1 py-0.5 rounded bg-surface-alt text-xs">api.github.com</code>{' '}
+              &mdash; never to any other server.
             </li>
             <li>
               <strong className="text-text">AI enrichment is opt-in</strong> — The Anthropic API

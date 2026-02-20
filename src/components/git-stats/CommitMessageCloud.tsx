@@ -36,7 +36,7 @@ export function CommitMessageCloud({ wordFrequency }: Props) {
         .range([12, Math.min(60, width / 8)]);
 
       const colorScale = d3.scaleOrdinal([
-        '#22d3ee',
+        '#38bdf8',
         '#34d399',
         '#a3e635',
         '#fbbf24',

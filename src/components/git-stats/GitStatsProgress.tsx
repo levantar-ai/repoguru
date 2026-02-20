@@ -49,7 +49,7 @@ export function GitStatsProgress({ state }: Props) {
           className="h-full bg-gradient-to-r from-primary-500 to-neon rounded-full transition-all duration-300 ease-out"
           style={{
             width: `${state.progress}%`,
-            boxShadow: '0 0 12px rgba(0, 212, 255, 0.4)',
+            boxShadow: '0 0 12px rgba(56, 189, 248, 0.4)',
           }}
         />
       </div>

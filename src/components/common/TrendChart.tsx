@@ -79,8 +79,8 @@ export function TrendChart({ entries, height = 200 }: Props) {
         ))}
 
         {/* Single dot */}
-        <circle cx={x} cy={y} r={6} fill="#22d3ee" />
-        <circle cx={x} cy={y} r={10} fill="none" stroke="#22d3ee" strokeWidth={2} opacity={0.3} />
+        <circle cx={x} cy={y} r={6} fill="#38bdf8" />
+        <circle cx={x} cy={y} r={10} fill="none" stroke="#38bdf8" strokeWidth={2} opacity={0.3} />
 
         {/* Score label */}
         <text
@@ -184,13 +184,13 @@ export function TrendChart({ entries, height = 200 }: Props) {
       ))}
 
       {/* Area fill */}
-      <path d={areaPath} fill="rgba(34, 211, 238, 0.08)" />
+      <path d={areaPath} fill="rgba(56, 189, 248, 0.08)" />
 
       {/* Line */}
       <polyline
         points={linePoints}
         fill="none"
-        stroke="#22d3ee"
+        stroke="#38bdf8"
         strokeWidth={2}
         strokeLinejoin="round"
         strokeLinecap="round"
@@ -203,7 +203,7 @@ export function TrendChart({ entries, height = 200 }: Props) {
           cx={indexToX(i)}
           cy={scoreToY(e.score)}
           r={3.5}
-          fill="#22d3ee"
+          fill="#38bdf8"
           stroke="var(--color-surface)"
           strokeWidth={2}
         />

@@ -1,5 +1,5 @@
 export const CHART_COLORS = [
-  '#22d3ee',
+  '#38bdf8',
   '#34d399',
   '#a3e635',
   '#fbbf24',
@@ -56,8 +56,8 @@ export const echartsTheme = {
       type: 'slider' as const,
       backgroundColor: '#1e293b',
       borderColor: '#334155',
-      fillerColor: 'rgba(34, 211, 238, 0.1)',
-      handleStyle: { color: '#22d3ee' },
+      fillerColor: 'rgba(56, 189, 248, 0.1)',
+      handleStyle: { color: '#38bdf8' },
       textStyle: { color: '#64748b' },
       dataBackground: {
         lineStyle: { color: '#334155' },

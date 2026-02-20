@@ -102,7 +102,7 @@ export function BusFactor({ busFactor }: Props) {
       g.append('path')
         .datum(points)
         .attr('d', area)
-        .style('fill', 'rgba(34, 211, 238, 0.1)')
+        .style('fill', 'rgba(56, 189, 248, 0.1)')
         .style('stroke', 'none');
 
       // Lorenz curve line
@@ -116,7 +116,7 @@ export function BusFactor({ busFactor }: Props) {
         .datum(points)
         .attr('d', line)
         .style('fill', 'none')
-        .style('stroke', '#22d3ee')
+        .style('stroke', '#38bdf8')
         .style('stroke-width', 2.5);
 
       // Bus factor threshold line at 50%
@@ -167,7 +167,7 @@ export function BusFactor({ busFactor }: Props) {
         .attr('cx', (d) => xScale(d[0]))
         .attr('cy', (d) => yScale(d[1]))
         .attr('r', 3)
-        .style('fill', '#22d3ee')
+        .style('fill', '#38bdf8')
         .style('stroke', '#0f172a')
         .style('stroke-width', 1.5);
     },

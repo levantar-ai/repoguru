@@ -228,7 +228,7 @@ export function Header({ onNavigate, currentPage }: Props) {
                 onClick={() => onNavigate(item.id)}
                 className={`inline-flex items-center gap-1.5 px-3.5 py-2 text-sm font-medium rounded-md transition-all duration-150 ${
                   currentPage === item.id
-                    ? 'text-neon bg-neon/12 shadow-[0_0_8px_rgba(34,211,238,0.15)]'
+                    ? 'text-neon bg-neon/12 shadow-[0_0_8px_rgba(56,189,248,0.15)]'
                     : 'text-text-secondary hover:text-text hover:bg-surface-hover'
                 }`}
                 aria-current={currentPage === item.id ? 'page' : undefined}
@@ -344,7 +344,7 @@ export function Header({ onNavigate, currentPage }: Props) {
                 }}
                 className={`inline-flex items-center gap-2 px-4 py-2.5 text-sm rounded-lg text-left transition-all duration-150 ${
                   currentPage === item.id
-                    ? 'text-neon bg-neon/12 shadow-[0_0_8px_rgba(34,211,238,0.15)]'
+                    ? 'text-neon bg-neon/12 shadow-[0_0_8px_rgba(56,189,248,0.15)]'
                     : 'text-text-secondary hover:text-text hover:bg-surface-hover'
                 }`}
                 aria-current={currentPage === item.id ? 'page' : undefined}

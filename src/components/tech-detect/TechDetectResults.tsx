@@ -65,7 +65,8 @@ interface CloudServiceSectionProps<
 function CloudServiceSection<
   T extends { service: string; via: string; source: string; sdkPackage?: string },
 >({ title, color, items, icon }: CloudServiceSectionProps<T>) {
-  const [expandedServices, setExpandedServices] = useState<Set<string>>(new Set());
+  const [selectedService, setSelectedService] = useState<string | null>(null);
+  const [showAll, setShowAll] = useState(false);
 
   const grouped = useMemo(() => {
     const map = new Map<string, T[]>();
@@ -77,21 +78,16 @@ function CloudServiceSection<
     return [...map.entries()].sort(([a], [b]) => a.localeCompare(b));
   }, [items]);
 
-  const toggleService = (service: string) => {
-    setExpandedServices((prev) => {
-      const next = new Set(prev);
-      if (next.has(service)) next.delete(service);
-      else next.add(service);
-      return next;
-    });
-  };
-
-  const expandAll = () => setExpandedServices(new Set(grouped.map(([name]) => name)));
-  const collapseAll = () => setExpandedServices(new Set());
-
   const uniqueVias = useMemo(() => [...new Set(items.map((a) => a.via))], [items]);
 
   if (items.length === 0) return null;
+
+  const CHIP_LIMIT = 12;
+  const visibleServices = showAll ? grouped : grouped.slice(0, CHIP_LIMIT);
+  const hiddenCount = grouped.length - CHIP_LIMIT;
+  const selectedItems = selectedService
+    ? (grouped.find(([name]) => name === selectedService)?.[1] ?? [])
+    : [];
 
   return (
     <section className="rounded-xl border border-border bg-surface-alt overflow-hidden">
@@ -126,78 +122,64 @@ function CloudServiceSection<
         </span>
       </div>
 
-      <div>
-        <div className="flex items-center gap-3 px-5 py-2 border-b border-border/50 text-xs text-text-muted">
-          <button onClick={expandAll} className="hover:text-neon transition-colors">
-            Expand all
-          </button>
-          <span className="text-border">|</span>
-          <button onClick={collapseAll} className="hover:text-neon transition-colors">
-            Collapse all
-          </button>
+      <div className="p-4">
+        {/* Chip grid */}
+        <div className="flex flex-wrap gap-2">
+          {visibleServices.map(([service, serviceItems]) => {
+            const isActive = selectedService === service;
+            return (
+              <button
+                key={service}
+                onClick={() => setSelectedService(isActive ? null : service)}
+                className={`px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors ${
+                  isActive
+                    ? 'bg-neon/15 border-neon/30 text-neon'
+                    : 'bg-surface-hover border-border text-text-secondary hover:border-border-bright'
+                }`}
+              >
+                {service}
+                <span className="ml-1.5 opacity-60">{serviceItems.length}</span>
+              </button>
+            );
+          })}
+          {!showAll && hiddenCount > 0 && (
+            <button
+              onClick={() => setShowAll(true)}
+              className="px-2.5 py-1 rounded-lg text-xs font-medium border border-border text-text-muted hover:text-text-secondary hover:border-border-bright transition-colors"
+            >
+              +{hiddenCount} more
+            </button>
+          )}
         </div>
 
-        {grouped.map(([service, serviceItems]) => {
-          const isExpanded = expandedServices.has(service);
-          return (
-            <div key={service} className="border-b border-border/50 last:border-b-0">
-              <button
-                onClick={() => toggleService(service)}
-                className="w-full flex items-center gap-3 px-5 py-3 text-left hover:bg-surface-hover transition-colors"
+        {/* Detail panel for selected service */}
+        {selectedService && selectedItems.length > 0 && (
+          <div className="mt-3 space-y-1">
+            {selectedItems.map((item, i) => (
+              <div
+                key={`${item.via}-${item.source}-${i}`}
+                className="flex items-center gap-3 px-3 py-2 rounded-lg bg-surface/50 text-xs"
               >
-                <ChevronIcon open={isExpanded} />
-                <span className="text-sm font-medium text-text flex-1">{service}</span>
-                <div className="flex items-center gap-2 shrink-0">
-                  {[...new Set(serviceItems.map((i) => i.via))].map((via) => {
-                    const colors = VIA_COLORS[via] || { bg: 'bg-neon/10', text: 'text-neon' };
-                    return (
-                      <span
-                        key={via}
-                        className={`px-2 py-0.5 rounded text-xs font-medium ${colors.bg} ${colors.text}`}
-                      >
-                        {VIA_LABELS[via] || via}
-                      </span>
-                    );
-                  })}
-                  <span className="text-xs text-text-muted tabular-nums">
-                    {serviceItems.length} ref{serviceItems.length !== 1 ? 's' : ''}
+                <span className="font-mono text-text-muted flex-1 truncate" title={item.source}>
+                  {item.source}
+                </span>
+                {item.sdkPackage && (
+                  <span
+                    className="font-mono text-text-muted truncate max-w-[200px]"
+                    title={item.sdkPackage}
+                  >
+                    {item.sdkPackage}
                   </span>
-                </div>
-              </button>
-
-              {isExpanded && (
-                <div className="px-5 pb-3 pl-12 space-y-1">
-                  {serviceItems.map((item, i) => (
-                    <div
-                      key={`${item.via}-${item.source}-${i}`}
-                      className="flex items-center gap-3 px-3 py-2 rounded-lg bg-surface/50 text-xs"
-                    >
-                      <span
-                        className="font-mono text-text-muted flex-1 truncate"
-                        title={item.source}
-                      >
-                        {item.source}
-                      </span>
-                      {item.sdkPackage && (
-                        <span
-                          className="font-mono text-text-muted truncate max-w-[200px]"
-                          title={item.sdkPackage}
-                        >
-                          {item.sdkPackage}
-                        </span>
-                      )}
-                      <span
-                        className={`px-1.5 py-0.5 rounded font-medium shrink-0 ${(VIA_COLORS[item.via] || { bg: 'bg-neon/10', text: 'text-neon' }).bg} ${(VIA_COLORS[item.via] || { bg: 'bg-neon/10', text: 'text-neon' }).text}`}
-                      >
-                        {VIA_LABELS[item.via] || item.via}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          );
-        })}
+                )}
+                <span
+                  className={`px-1.5 py-0.5 rounded font-medium shrink-0 ${(VIA_COLORS[item.via] || { bg: 'bg-neon/10', text: 'text-neon' }).bg} ${(VIA_COLORS[item.via] || { bg: 'bg-neon/10', text: 'text-neon' }).text}`}
+                >
+                  {VIA_LABELS[item.via] || item.via}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </section>
   );

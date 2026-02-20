@@ -17,7 +17,7 @@ export const SimpleCircles: Story = {
     height: 200,
     render: (svg, width, height) => {
       const ns = 'http://www.w3.org/2000/svg';
-      const colors = ['#06b6d4', '#34d399', '#fbbf24', '#f87171', '#a78bfa'];
+      const colors = ['#0ea5e9', '#34d399', '#fbbf24', '#f87171', '#a78bfa'];
       for (let i = 0; i < 5; i++) {
         const circle = document.createElementNS(ns, 'circle');
         circle.setAttribute('cx', String((width / 6) * (i + 1)));
