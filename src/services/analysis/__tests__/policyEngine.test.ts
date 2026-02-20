@@ -419,3 +419,16 @@ describe('DEFAULT_POLICIES', () => {
     }
   });
 });
+
+describe('unknown operator fallback', () => {
+  it('defaults to not-passed for unknown operator', () => {
+    const rule = makeRule({
+      operator: 'unknown-op' as PolicyRule['operator'],
+      value: 50,
+    });
+    const policy = makePolicy([rule]);
+    const report = makeReport({ overallScore: 72 });
+    const evaluation = evaluatePolicy(policy, report);
+    expect(evaluation.results[0].passed).toBe(false);
+  });
+});

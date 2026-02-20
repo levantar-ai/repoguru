@@ -251,4 +251,32 @@ describe('orgScanToCsv', () => {
     expect(avgLine).toContain('70');
     expect(avgLine).toContain('60');
   });
+
+  it('handles repos with missing categories gracefully', () => {
+    const result: OrgScanResult = {
+      org: 'testorg',
+      repos: [
+        {
+          ...makeLightReport('testorg', 'sparse-repo', 40, 'D'),
+          categories: [makeCategory('documentation', 'Documentation', 60)],
+        },
+      ],
+      averageScore: 40,
+      averageGrade: 'D',
+      scanDate: '2024-06-15T10:00:00Z',
+      categoryAverages: {
+        documentation: 60,
+        security: 0,
+        cicd: 0,
+        dependencies: 0,
+        codeQuality: 0,
+        license: 0,
+        community: 0,
+      },
+    };
+    const csv = orgScanToCsv(result);
+    const lines = csv.split('\n');
+    expect(lines[1]).toContain('sparse-repo');
+    expect(lines[1]).toContain('40');
+  });
 });

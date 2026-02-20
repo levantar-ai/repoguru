@@ -185,4 +185,31 @@ describe('generateMermaidDiagram', () => {
     // Should appear exactly once as a node definition
     expect(srcDefMatches).toHaveLength(1);
   });
+
+  it('handles directories that produce the same node ID', () => {
+    // Two directories at depth=2 under the same parent produce same parent node ID
+    const tree: TreeEntry[] = [
+      makeTree('src'),
+      makeTree('src/utils'),
+      makeTree('src/helpers'),
+      makeBlob('src/utils/a.ts'),
+      makeBlob('src/helpers/b.ts'),
+    ];
+    const result = generateMermaidDiagram(tree);
+    expect(result).toContain('src_utils["utils"]');
+    expect(result).toContain('src_helpers["helpers"]');
+    // The parent "src" should appear exactly once
+    const srcDefs = result.match(/src\["src/g);
+    expect(srcDefs).toHaveLength(1);
+  });
+
+  it('sorts directories alphabetically', () => {
+    const tree: TreeEntry[] = [makeTree('zoo'), makeTree('alpha'), makeTree('middle')];
+    const result = generateMermaidDiagram(tree);
+    const alphaIdx = result.indexOf('alpha');
+    const middleIdx = result.indexOf('middle');
+    const zooIdx = result.indexOf('zoo');
+    expect(alphaIdx).toBeLessThan(middleIdx);
+    expect(middleIdx).toBeLessThan(zooIdx);
+  });
 });

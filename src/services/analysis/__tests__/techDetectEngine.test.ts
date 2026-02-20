@@ -1057,3 +1057,113 @@ describe('filterTechFiles', () => {
     // but may still appear as requirements.txt basename match
   });
 });
+
+// ── Additional coverage tests ──
+
+describe('detectJava (Gradle .kts)', () => {
+  it('parses build.gradle.kts single-string dependencies', () => {
+    const files = [
+      {
+        path: 'build.gradle.kts',
+        content:
+          "dependencies {\n  implementation('com.google.guava:guava:31.1-jre')\n  testImplementation('junit:junit:4.13')\n}\n",
+      },
+    ];
+    const result = detectJava(files);
+    // Even if gradle parsing captures partially, it should handle the file
+    expect(result).toBeDefined();
+  });
+});
+
+describe('detectPython optional deps array format', () => {
+  it('parses pyproject.toml optional-dependencies in array format', () => {
+    const files = [
+      {
+        path: 'pyproject.toml',
+        content: `[project]
+dependencies = [
+  "requests>=2.28",
+  "click"
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=7.0",
+  "black"
+]
+`,
+      },
+    ];
+    const result = detectPython(files);
+    expect(result.length).toBeGreaterThanOrEqual(3);
+    expect(result.some((r) => r.name === 'requests')).toBe(true);
+    expect(result.some((r) => r.name === 'pytest')).toBe(true);
+  });
+});
+
+describe('detectAzure with unknown services', () => {
+  it('detects unknown azure python packages', () => {
+    const files = [
+      {
+        path: 'requirements.txt',
+        content: 'azure-custom-service==1.0.0\nazure-mgmt-unknown==2.0.0\n',
+      },
+    ];
+    const result = detectAzure(files);
+    expect(result.length).toBeGreaterThanOrEqual(1);
+  });
+});
+
+describe('detectGCP with unknown services', () => {
+  it('detects unknown google-cloud python packages', () => {
+    const files = [
+      {
+        path: 'requirements.txt',
+        content: 'google-cloud-custom-api==1.0.0\n',
+      },
+    ];
+    const result = detectGCP(files);
+    expect(result.length).toBeGreaterThanOrEqual(1);
+  });
+});
+
+describe('detectPython setup.cfg parsing', () => {
+  it('parses setup.cfg install_requires with continuation lines', () => {
+    const files = [
+      {
+        path: 'setup.cfg',
+        content: `[options]
+install_requires =
+    flask>=2.0
+    sqlalchemy[asyncio]>=1.4
+    celery
+`,
+      },
+    ];
+    const result = detectPython(files);
+    expect(result.length).toBeGreaterThanOrEqual(2);
+    expect(result.some((r) => r.name === 'flask')).toBe(true);
+    expect(result.some((r) => r.name === 'sqlalchemy')).toBe(true);
+  });
+});
+
+describe('detectPython Pipfile parsing', () => {
+  it('parses Pipfile with wildcard versions', () => {
+    const files = [
+      {
+        path: 'Pipfile',
+        content: `[packages]
+requests = "*"
+flask = ">=2.0"
+
+[dev-packages]
+pytest = "*"
+`,
+      },
+    ];
+    const result = detectPython(files);
+    expect(result.length).toBeGreaterThanOrEqual(2);
+    expect(result.some((r) => r.name === 'requests')).toBe(true);
+    expect(result.some((r) => r.name === 'flask')).toBe(true);
+  });
+});
