@@ -8,6 +8,7 @@ import type { GitStatsRawData } from '../../types/gitStats';
 import {
   logToCommits,
   diffCommit,
+  diffCommitFast,
   computeLanguages,
   computeWeeklyAggregates,
   sampleIndices,
@@ -85,20 +86,44 @@ self.onmessage = async (e: MessageEvent<CloneMessage>) => {
 
     postProgress('extracting-commits', 50, `Found ${logEntries.length} commits`);
 
-    // 3. Diff sampled commits for details (full content diffs for accurate line counts)
+    // 3. Diff sampled commits in parallel batches
+    //    - Fast OID-only diff for all sampled commits (file lists + status)
+    //    - Full content diff for a subset (accurate line counts for charts)
     postProgress('extracting-details', 52, 'Computing file diffs...');
 
     const maxDetails = 100;
+    const BATCH_SIZE = 8;
+    const FULL_DIFF_COUNT = 25;
     const indices = sampleIndices(logEntries.length, maxDetails);
     const commitDetails: GitStatsRawData['commitDetails'] = [];
     const diffStatsMap = new Map<string, { additions: number; deletions: number }>();
 
-    for (let i = 0; i < indices.length; i++) {
-      const entry = logEntries[indices[i]];
-      const parentOid = entry.commit.parent.length > 0 ? entry.commit.parent[0] : null;
+    // Pick which indices get full content diffs (evenly spaced subset)
+    const fullDiffIndices = new Set(
+      sampleIndices(indices.length, FULL_DIFF_COUNT).map((i) => indices[i]),
+    );
 
-      try {
-        const result = await diffCommit(fs, DIR, entry.oid, parentOid);
+    let completed = 0;
+
+    // Process in parallel batches
+    for (let batchStart = 0; batchStart < indices.length; batchStart += BATCH_SIZE) {
+      const batch = indices.slice(batchStart, batchStart + BATCH_SIZE);
+
+      const results = await Promise.allSettled(
+        batch.map(async (idx) => {
+          const entry = logEntries[idx];
+          const parentOid = entry.commit.parent.length > 0 ? entry.commit.parent[0] : null;
+          const useFull = fullDiffIndices.has(idx);
+          const result = useFull
+            ? await diffCommit(fs, DIR, entry.oid, parentOid)
+            : await diffCommitFast(fs, DIR, entry.oid, parentOid);
+          return { entry, result };
+        }),
+      );
+
+      for (const outcome of results) {
+        if (outcome.status !== 'fulfilled') continue;
+        const { entry, result } = outcome.value;
         const stats = result.stats;
 
         commitDetails.push({
@@ -134,18 +159,15 @@ self.onmessage = async (e: MessageEvent<CloneMessage>) => {
           additions: stats.additions,
           deletions: stats.deletions,
         });
-      } catch {
-        // Skip commits that fail to diff (e.g. shallow boundary)
       }
 
-      if (i % 10 === 0 || i === indices.length - 1) {
-        const percent = 52 + Math.round((i / indices.length) * 25);
-        postProgress(
-          'extracting-details',
-          percent,
-          `Diffing commits... ${i + 1}/${indices.length}`,
-        );
-      }
+      completed += batch.length;
+      const percent = 52 + Math.round((completed / indices.length) * 25);
+      postProgress(
+        'extracting-details',
+        percent,
+        `Diffing commits... ${completed}/${indices.length}`,
+      );
     }
 
     // 4. Compute aggregate stats
