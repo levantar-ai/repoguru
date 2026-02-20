@@ -116,21 +116,21 @@ interface DiffFile {
 
 // ── Helpers for computing line stats per diff status ──
 
-async function computeAddedStats(
+export async function computeAddedStats(
   entry: WalkerEntry | null,
 ): Promise<{ additions: number; deletions: number }> {
   const content = entry ? await entry.content() : null;
   return { additions: content ? countLines(content) : 0, deletions: 0 };
 }
 
-async function computeRemovedStats(
+export async function computeRemovedStats(
   entry: WalkerEntry | null,
 ): Promise<{ additions: number; deletions: number }> {
   const content = entry ? await entry.content() : null;
   return { additions: 0, deletions: content ? countLines(content) : 0 };
 }
 
-async function computeModifiedStats(
+export async function computeModifiedStats(
   parentEntry: WalkerEntry,
   currentEntry: WalkerEntry,
 ): Promise<{ additions: number; deletions: number }> {

@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef, useMemo } from 'react';
+import { getCategoryScore } from './orgScanUtils';
 import type {
   LetterGrade,
   CategoryKey,
@@ -576,11 +577,9 @@ function SortHeader({
   );
 }
 
-// ── Get a category score from a report ──────────────────────────────────────
+// ── Re-export from utility module ──────────────────────────────────────
 
-function getCategoryScore(categories: CategoryResult[], key: CategoryKey): number {
-  return categories.find((c) => c.key === key)?.score ?? 0;
-}
+// getCategoryScore is imported from orgScanUtils.ts
 
 // ── ScoreCell component (extracted outside parent to satisfy S6478) ──
 

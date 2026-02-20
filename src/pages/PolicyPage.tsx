@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef, useMemo, useEffect } from 'react';
+import { cleanRuleForTypeChange } from './policyUtils';
 import type {
   PolicySet,
   PolicyRule,
@@ -175,33 +176,7 @@ function emptyPolicy(): PolicySet {
   };
 }
 
-// ─── Clean up rule fields when type changes ──────────────────────────────────
-
-function cleanRuleForTypeChange(updated: PolicyRule, newType: PolicyRule['type']): PolicyRule {
-  if (newType === 'overall-score') {
-    delete updated.category;
-    delete updated.signal;
-    if (updated.operator === 'exists' || updated.operator === 'not-exists') {
-      updated.operator = '>=';
-    }
-    updated.value ??= 60;
-  } else if (newType === 'category-score') {
-    delete updated.signal;
-    if (!updated.category) updated.category = 'documentation';
-    if (updated.operator === 'exists' || updated.operator === 'not-exists') {
-      updated.operator = '>=';
-    }
-    updated.value ??= 60;
-  } else if (newType === 'signal') {
-    delete updated.category;
-    delete updated.value;
-    if (updated.operator !== 'exists' && updated.operator !== 'not-exists') {
-      updated.operator = 'exists';
-    }
-    if (!updated.signal) updated.signal = '';
-  }
-  return updated;
-}
+// cleanRuleForTypeChange is imported from policyUtils.ts
 
 // ─── Category options ────────────────────────────────────────────────────────
 
