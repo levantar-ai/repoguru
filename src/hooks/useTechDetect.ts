@@ -153,40 +153,16 @@ export function useTechDetect() {
             });
           });
 
-          // 3. Filter to tech-relevant files using cached tree
-          techPaths = filterTechFiles(cached.tree);
-
-          if (techPaths.length === 0) {
-            dispatch({
-              type: 'DONE',
-              result: {
-                aws: [],
-                azure: [],
-                gcp: [],
-                python: [],
-                node: [],
-                go: [],
-                java: [],
-                php: [],
-                rust: [],
-                ruby: [],
-                manifestFiles: [],
-              },
-            });
-            return;
-          }
-
-          // 4. Filter cached files by tech paths — instant, no API calls
+          // All files are already available from clone — pass everything to detectors
           dispatch({
             type: 'SET_STEP',
             step: 'fetching-files',
             progress: 55,
-            message: `Reading ${techPaths.length} files from cache...`,
+            message: `Reading ${cached.files.length} files from cache...`,
           });
 
-          const techPathSet = new Set(techPaths);
-          const matchedFiles = cached.files.filter((f) => techPathSet.has(f.path));
-          fileInputs = matchedFiles.map((f) => ({ path: f.path, content: f.content }));
+          techPaths = cached.files.map((f) => f.path);
+          fileInputs = cached.files.map((f) => ({ path: f.path, content: f.content }));
         } catch (cloneErr) {
           // Clone failed — fall back to API path if token available
           if (token) {
