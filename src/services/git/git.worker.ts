@@ -13,7 +13,6 @@ import {
   computeWeeklyAggregates,
   sampleIndices,
   countLinesOfCode,
-  isBinary,
 } from './extractors';
 
 export interface CloneMessage {
@@ -86,6 +85,8 @@ async function walkHead(fs: InstanceType<typeof LightningFS>): Promise<HeadWalkR
   let binaryFileCount = 0;
   const tree: CacheTreeEntry[] = [];
   const files: CacheFileContent[] = [];
+  const decoder = new TextDecoder();
+  const dirSet = new Set<string>();
 
   await git.walk({
     fs,
@@ -97,20 +98,9 @@ async function walkHead(fs: InstanceType<typeof LightningFS>): Promise<HeadWalkR
       if (!entry) return;
       const type = await entry.type();
 
-      if (type === 'tree') {
-        tree.push({
-          path: filepath,
-          mode: '040000',
-          type: 'tree',
-          sha: (await entry.oid()) || '',
-          size: 0,
-        });
-        return;
-      }
-
+      // Skip directory tree entries during walk — synthesize from file paths after
       if (type !== 'blob') return;
 
-      const oid = (await entry.oid()) || '';
       fileList.push(filepath);
 
       try {
@@ -124,7 +114,7 @@ async function walkHead(fs: InstanceType<typeof LightningFS>): Promise<HeadWalkR
             path: filepath,
             mode: '100644',
             type: 'blob',
-            sha: oid,
+            sha: '',
             size: content.length,
           });
         } else {
@@ -133,22 +123,33 @@ async function walkHead(fs: InstanceType<typeof LightningFS>): Promise<HeadWalkR
             path: filepath,
             mode: '100644',
             type: 'blob',
-            sha: oid,
+            sha: '',
             size: content.length,
           });
 
           // Capture text file contents for cache (skip large files)
-          if (content.length <= MAX_TEXT_FILE_SIZE && !isBinary(content)) {
-            const decoded = new TextDecoder().decode(content);
-            files.push({ path: filepath, content: decoded, size: content.length });
+          if (content.length <= MAX_TEXT_FILE_SIZE) {
+            files.push({ path: filepath, content: decoder.decode(content), size: content.length });
           }
         }
       } catch {
-        // Skip files that can't be read
-        tree.push({ path: filepath, mode: '100644', type: 'blob', sha: oid, size: 0 });
+        tree.push({ path: filepath, mode: '100644', type: 'blob', sha: '', size: 0 });
       }
     },
   });
+
+  // Synthesize directory tree entries from file paths
+  for (const filepath of fileList) {
+    let pos = filepath.indexOf('/');
+    while (pos !== -1) {
+      const dir = filepath.slice(0, pos);
+      if (!dirSet.has(dir)) {
+        dirSet.add(dir);
+        tree.push({ path: dir, mode: '040000', type: 'tree', sha: '', size: 0 });
+      }
+      pos = filepath.indexOf('/', pos + 1);
+    }
+  }
 
   return { fileList, totalLinesOfCode, binaryFileCount, tree, files };
 }
@@ -178,6 +179,7 @@ async function handleCacheOnlyClone(owner: string, repo: string, corsProxy: stri
       depth: 1,
       singleBranch: true,
       noCheckout: true,
+      noTags: true,
       corsProxy,
       onProgress: (progress) => {
         let percent = 0;
@@ -237,6 +239,7 @@ async function handleFullClone(owner: string, repo: string, corsProxy: string) {
       depth: 1000,
       singleBranch: true,
       noCheckout: true,
+      noTags: true,
       corsProxy,
       onProgress: (progress) => {
         let percent = 0;

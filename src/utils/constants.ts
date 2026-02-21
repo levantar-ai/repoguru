@@ -110,7 +110,6 @@ export const PR_TEMPLATE = '.github/PULL_REQUEST_TEMPLATE.md';
 export const PR_TEMPLATE_ALT = '.github/pull_request_template.md';
 
 export const FETCH_DELAY_MS = 100;
-export const MAX_FILES_TO_FETCH = 25;
 
 export const DEMO_REPOS = [
   {

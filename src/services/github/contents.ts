@@ -9,7 +9,6 @@ import {
   PR_TEMPLATE,
   PR_TEMPLATE_ALT,
   FETCH_DELAY_MS,
-  MAX_FILES_TO_FETCH,
 } from '../../utils/constants';
 
 function delay(ms: number): Promise<void> {
@@ -79,7 +78,7 @@ export function filterTargetFiles(tree: TreeEntry[]): string[] {
   );
 
   const combined = [...exactMatches, ...workflows, ...templates, ...others];
-  return [...new Set(combined)].slice(0, MAX_FILES_TO_FETCH);
+  return [...new Set(combined)];
 }
 
 export async function fetchFileContents(
