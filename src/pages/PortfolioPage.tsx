@@ -114,8 +114,6 @@ const TECH_DETECT_MAP: Record<string, string> = {
   'Package.swift': 'Swift',
 };
 
-const MAX_REPOS = 15;
-
 // ── Helpers ──
 
 function authHeaders(token: string): Record<string, string> {
@@ -359,19 +357,31 @@ async function fetchUserRepos(
   headers: Record<string, string>,
   signal: AbortSignal,
 ): Promise<GitHubRepoResponse[]> {
-  const reposRes = await fetch(
-    `${GITHUB_API_BASE}/users/${encodeURIComponent(trimmed)}/repos?sort=updated&per_page=30&type=owner`,
-    { headers, signal },
-  );
+  const allRepos: GitHubRepoResponse[] = [];
+  let page = 1;
+  const maxPages = 10;
 
-  if (!reposRes.ok) {
-    if (reposRes.status === 404) throw new Error(`User "${trimmed}" not found on GitHub.`);
-    if (reposRes.status === 403)
-      throw new Error('GitHub API rate limit exceeded. Add a token in Settings.');
-    throw new Error(`GitHub API error: ${reposRes.status} ${reposRes.statusText}`);
+  while (page <= maxPages) {
+    if (signal.aborted) break;
+    const reposRes = await fetch(
+      `${GITHUB_API_BASE}/users/${encodeURIComponent(trimmed)}/repos?sort=updated&per_page=100&type=owner&page=${page}`,
+      { headers, signal },
+    );
+
+    if (!reposRes.ok) {
+      if (reposRes.status === 404) throw new Error(`User "${trimmed}" not found on GitHub.`);
+      if (reposRes.status === 403)
+        throw new Error('GitHub API rate limit exceeded. Add a token in Settings.');
+      throw new Error(`GitHub API error: ${reposRes.status} ${reposRes.statusText}`);
+    }
+
+    const batch: GitHubRepoResponse[] = await reposRes.json();
+    allRepos.push(...batch);
+    if (batch.length < 100) break;
+    page++;
   }
 
-  return reposRes.json();
+  return allRepos;
 }
 
 async function analyzeSingleRepo(
@@ -510,7 +520,7 @@ export function PortfolioPage({ onAnalyze, githubToken }: Props) {
 
     try {
       const reposData = await fetchUserRepos(trimmed, headers, signal);
-      const nonForkRepos = reposData.filter((r) => !r.fork).slice(0, MAX_REPOS);
+      const nonForkRepos = reposData.filter((r) => !r.fork);
 
       if (nonForkRepos.length === 0) {
         throw new Error(`No non-fork repositories found for "${trimmed}".`);

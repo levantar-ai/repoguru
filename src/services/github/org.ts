@@ -49,12 +49,22 @@ export async function fetchUserRepos(
   token?: string,
   onRateLimit?: (info: RateLimitInfo) => void,
 ): Promise<RepoInfo[]> {
-  const raw = await githubFetch<GitHubRepoResponse[]>(
-    `/users/${encodeURIComponent(username)}/repos?per_page=30&sort=updated&type=owner`,
-    token,
-    onRateLimit,
-  );
-  return raw.map(mapToRepoInfo);
+  const allRaw: GitHubRepoResponse[] = [];
+  let page = 1;
+  const maxPages = 10;
+
+  while (page <= maxPages) {
+    const batch = await githubFetch<GitHubRepoResponse[]>(
+      `/users/${encodeURIComponent(username)}/repos?per_page=100&sort=updated&type=owner&page=${page}`,
+      token,
+      onRateLimit,
+    );
+    allRaw.push(...batch);
+    if (batch.length < 100) break;
+    page++;
+  }
+
+  return allRaw.map(mapToRepoInfo);
 }
 
 export async function fetchMyRepos(
