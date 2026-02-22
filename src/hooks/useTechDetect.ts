@@ -143,15 +143,20 @@ export function useTechDetect() {
           });
           invalidateIfDifferent(owner, repo);
 
-          const cached = await ensureCloned(owner, repo, (_step, percent, message) => {
-            const scaled = 10 + Math.round(percent * 0.4);
-            dispatch({
-              type: 'SET_STEP',
-              step: 'fetching-tree',
-              progress: scaled,
-              message,
-            });
-          });
+          const cached = await ensureCloned(
+            owner,
+            repo,
+            (_step, percent, message) => {
+              const scaled = 10 + Math.round(percent * 0.4);
+              dispatch({
+                type: 'SET_STEP',
+                step: 'fetching-tree',
+                progress: scaled,
+                message,
+              });
+            },
+            token,
+          );
 
           // All files are already available from clone — pass everything to detectors
           dispatch({

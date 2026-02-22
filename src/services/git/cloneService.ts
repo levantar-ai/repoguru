@@ -17,6 +17,7 @@ export function cloneAndExtract(
   owner: string,
   repo: string,
   onProgress: (step: string, percent: number, message: string) => void,
+  token?: string,
 ): Promise<GitStatsRawData> {
   return new Promise((resolve, reject) => {
     const worker = new Worker(new URL('./git.worker.ts', import.meta.url), { type: 'module' });
@@ -63,6 +64,7 @@ export function cloneAndExtract(
       owner,
       repo,
       corsProxy: CORS_PROXY,
+      ...(token ? { token } : {}),
     };
 
     worker.postMessage(message);
@@ -73,6 +75,7 @@ export function ensureCloned(
   owner: string,
   repo: string,
   onProgress?: (step: string, percent: number, message: string) => void,
+  token?: string,
 ): Promise<CachedRepoData> {
   // 1. Check cache — return immediately if hit
   const cached = getCache(owner, repo);
@@ -129,6 +132,7 @@ export function ensureCloned(
       owner,
       repo,
       corsProxy: CORS_PROXY,
+      ...(token ? { token } : {}),
     };
 
     worker.postMessage(message);

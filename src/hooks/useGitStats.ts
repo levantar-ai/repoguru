@@ -136,9 +136,14 @@ export function useGitStats() {
       let rawData;
 
       try {
-        rawData = await cloneAndExtract(owner, repo, (step, percent, message) => {
-          dispatch({ type: 'CLONE_PROGRESS', step, percent, message });
-        });
+        rawData = await cloneAndExtract(
+          owner,
+          repo,
+          (step, percent, message) => {
+            dispatch({ type: 'CLONE_PROGRESS', step, percent, message });
+          },
+          token,
+        );
       } catch (cloneErr) {
         // Clone failed — fall back to REST API if token is available
         if (token) {

@@ -20,6 +20,7 @@ export interface CloneMessage {
   owner: string;
   repo: string;
   corsProxy: string;
+  token?: string;
 }
 
 export interface ProgressMessage {
@@ -177,16 +178,21 @@ async function walkHead(fs: InstanceType<typeof LightningFS>): Promise<HeadWalkR
 }
 
 self.onmessage = async (e: MessageEvent<CloneMessage>) => {
-  const { type: msgType, owner, repo, corsProxy } = e.data;
+  const { type: msgType, owner, repo, corsProxy, token } = e.data;
 
   if (msgType === 'clone-cache-only') {
-    await handleCacheOnlyClone(owner, repo, corsProxy);
+    await handleCacheOnlyClone(owner, repo, corsProxy, token);
   } else {
-    await handleFullClone(owner, repo, corsProxy);
+    await handleFullClone(owner, repo, corsProxy, token);
   }
 };
 
-async function handleCacheOnlyClone(owner: string, repo: string, corsProxy: string) {
+async function handleCacheOnlyClone(
+  owner: string,
+  repo: string,
+  corsProxy: string,
+  token?: string,
+) {
   try {
     const fs = new LightningFS('repoguru-cache', { wipe: true });
     const url = `https://github.com/${owner}/${repo}.git`;
@@ -203,6 +209,7 @@ async function handleCacheOnlyClone(owner: string, repo: string, corsProxy: stri
       noCheckout: true,
       noTags: true,
       corsProxy,
+      ...(token ? { onAuth: () => ({ username: 'x-access-token', password: token }) } : {}),
       onProgress: (progress) => {
         let percent = 0;
         if (progress.total && progress.total > 0) {
@@ -243,7 +250,7 @@ async function handleCacheOnlyClone(owner: string, repo: string, corsProxy: stri
   }
 }
 
-async function handleFullClone(owner: string, repo: string, corsProxy: string) {
+async function handleFullClone(owner: string, repo: string, corsProxy: string, token?: string) {
   try {
     // Initialize in-memory filesystem
     const fs = new LightningFS('repoguru-clone', { wipe: true });
@@ -263,6 +270,7 @@ async function handleFullClone(owner: string, repo: string, corsProxy: string) {
       noCheckout: true,
       noTags: true,
       corsProxy,
+      ...(token ? { onAuth: () => ({ username: 'x-access-token', password: token }) } : {}),
       onProgress: (progress) => {
         let percent = 0;
         if (progress.total && progress.total > 0) {

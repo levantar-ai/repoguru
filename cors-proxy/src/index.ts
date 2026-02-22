@@ -37,7 +37,8 @@ export default {
       if (
         key === 'content-type' ||
         key === 'git-protocol' ||
-        key === 'accept'
+        key === 'accept' ||
+        key === 'authorization'
       ) {
         upstreamHeaders.set(key, value);
       }
@@ -85,7 +86,7 @@ function corsHeaders(origin: string): Headers {
   const headers = new Headers();
   headers.set('Access-Control-Allow-Origin', origin);
   headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  headers.set('Access-Control-Allow-Headers', 'Content-Type, Git-Protocol, Accept');
+  headers.set('Access-Control-Allow-Headers', 'Content-Type, Git-Protocol, Accept, Authorization');
   headers.set('Access-Control-Expose-Headers', 'Content-Type');
   headers.set('Vary', 'Origin');
   return headers;

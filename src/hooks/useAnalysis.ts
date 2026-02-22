@@ -74,11 +74,16 @@ export function useAnalysis() {
           dispatch({ type: 'SET_STEP', step: 'cloning', progress: 20 });
           invalidateIfDifferent(parsed.owner, parsed.repo);
 
-          const cached = await ensureCloned(parsed.owner, parsed.repo, (_step, percent) => {
-            // Scale clone progress from 20-60%
-            const scaled = 20 + Math.round(percent * 0.4);
-            dispatch({ type: 'SET_STEP', step: 'cloning', progress: scaled });
-          });
+          const cached = await ensureCloned(
+            parsed.owner,
+            parsed.repo,
+            (_step, percent) => {
+              // Scale clone progress from 20-60%
+              const scaled = 20 + Math.round(percent * 0.4);
+              dispatch({ type: 'SET_STEP', step: 'cloning', progress: scaled });
+            },
+            token,
+          );
 
           tree = cached.tree;
 
