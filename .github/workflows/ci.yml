@@ -3,7 +3,6 @@ name: CI
 on:
   push:
     branches: [main]
-    tags: ['v*']
   pull_request:
     branches: [main]
   schedule:
@@ -21,21 +20,27 @@ permissions:
   deployments: write
 
 # ┌──────────────────────────────────────────────────────────────────┐
-# │  Pipeline: Quality → Build → Security → Deploy → Release       │
+# │  Pipeline: Quality → Build → Bundle Size → Security → Deploy    │
+# │                        → Release                                │
 # │                                                                  │
 # │  Stage 1 ─ Quality Gate (parallel)                               │
 # │    lint ─┐                                                       │
-# │    typecheck ─┼──► Stage 2 ─ Build                               │
-# │    test ──┘          │                                           │
-# │                      ▼                                           │
+# │    typecheck ─┤                                                  │
+# │    test (+coverage thresholds) ─┼──► Stage 2 ─ Build             │
+# │    storybook-build ─┘                 │                          │
+# │                                       ▼                          │
+# │                             Stage 2b ─ Bundle Size               │
+# │                                       │                          │
+# │                                       ▼                          │
 # │              Stage 3 ─ Security (parallel)                       │
 # │                codeql ─┐                                         │
 # │                semgrep ─┤                                        │
 # │                sonarcloud ─┼──► Stage 3b ─ Deploy (main only)    │
-# │                dep-review ─┘      │                              │
-# │                                   ▼                              │
-# │                           Stage 4 ─ Release (tags only)          │
-# │                             build-release → provenance           │
+# │                dep-review + license ─┘      │                    │
+# │                                             ▼                    │
+# │                             Stage 4 ─ Release (semantic-release) │
+# │                                                                  │
+# │  Separate workflow: provenance.yml (on v* tags)                  │
 # └──────────────────────────────────────────────────────────────────┘
 
 jobs:
@@ -81,10 +86,22 @@ jobs:
           name: coverage
           path: coverage/
 
+  storybook-build:
+    name: '1·Storybook'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run build-storybook
+
   # ── Stage 2: Build ────────────────────────────────────────────
   build:
     name: '2·Build'
-    needs: [lint, typecheck, test]
+    needs: [lint, typecheck, test, storybook-build]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -99,10 +116,28 @@ jobs:
           name: dist-build
           path: dist/
 
+  # ── Stage 2b: Bundle Size ──────────────────────────────────────
+  bundle-size:
+    name: '2b·Bundle Size'
+    needs: [build]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - uses: actions/download-artifact@v6
+        with:
+          name: dist-build
+          path: dist
+      - run: npx size-limit
+
   # ── Stage 3: Security ─────────────────────────────────────────
   codeql:
     name: '3·CodeQL'
-    needs: [build]
+    needs: [bundle-size]
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -117,7 +152,7 @@ jobs:
 
   semgrep:
     name: '3·Semgrep'
-    needs: [build]
+    needs: [bundle-size]
     runs-on: ubuntu-latest
     container:
       image: semgrep/semgrep
@@ -131,7 +166,7 @@ jobs:
 
   sonarcloud:
     name: '3·SonarCloud'
-    needs: [build]
+    needs: [bundle-size]
     if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.actor != 'dependabot[bot]')
     runs-on: ubuntu-latest
     steps:
@@ -153,21 +188,23 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
   dependency-review:
-    name: '3·Dependency Review'
-    needs: [build]
+    name: '3·Dep Review + License'
+    needs: [bundle-size]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
       - uses: actions/dependency-review-action@v4
         if: github.event_name == 'pull_request'
       - uses: actions/setup-node@v4
-        if: github.event_name != 'pull_request'
         with:
           node-version: 20
           cache: npm
+      - run: npm ci
       - name: Audit dependencies
         if: github.event_name != 'pull_request'
         run: npm audit --audit-level=high --omit=dev
+      - name: License compliance check
+        run: npm run license:check
 
   # ── Stage 3b: Deploy to Cloudflare Pages (main only) ─────────
   deploy:
@@ -189,39 +226,23 @@ jobs:
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: pages deploy dist --project-name=repoguru
 
-  # ── Stage 4: Release (tags only) ──────────────────────────────
-  build-release:
-    name: '4·Build Release'
-    needs: [codeql, semgrep, sonarcloud]
-    if: startsWith(github.ref, 'refs/tags/v')
+  # ── Stage 4: Release (semantic-release, main only) ─────────────
+  release:
+    name: '4·Release'
+    needs: [deploy]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
-    outputs:
-      digest: ${{ steps.hash.outputs.digest }}
     steps:
       - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: npm
       - run: npm ci
-      - run: npm run build
-      - name: Compute digest
-        id: hash
-        run: |
-          cd dist
-          sha256sum -b $(find . -type f) | sort > ../checksums.txt
-          DIGEST=$(sha256sum ../checksums.txt | cut -d ' ' -f1)
-          echo "digest=$DIGEST" >> "$GITHUB_OUTPUT"
-      - uses: actions/upload-artifact@v6
-        with:
-          name: dist
-          path: dist/
-
-  provenance:
-    name: '4·SLSA Provenance'
-    needs: [build-release]
-    if: startsWith(github.ref, 'refs/tags/v')
-    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.1.0
-    with:
-      base64-subjects: ${{ needs.build-release.outputs.digest }}
-      upload-assets: true
+      - name: Semantic Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npx semantic-release

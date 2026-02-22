@@ -1,5 +1,7 @@
 interface Env {
   ALLOWED_ORIGINS: string; // comma-separated, supports wildcards: "https://*.example.com,http://localhost:5173"
+  GITHUB_CLIENT_ID: string;
+  GITHUB_CLIENT_SECRET: string;
 }
 
 export default {
@@ -21,8 +23,15 @@ export default {
     }
 
     const url = new URL(request.url);
+    const path = url.pathname;
+
+    // ── OAuth token exchange ──
+    if (path === '/api/oauth/token' && request.method === 'POST') {
+      return handleOAuthTokenExchange(request, env, origin);
+    }
+
     // Path format: /github.com/owner/repo.git/info/refs?service=...
-    const target = url.pathname.slice(1) + url.search;
+    const target = path.slice(1) + url.search;
 
     // Security: only proxy to github.com
     if (!target.startsWith('github.com/')) {
@@ -64,6 +73,77 @@ export default {
     });
   },
 };
+
+async function handleOAuthTokenExchange(
+  request: Request,
+  env: Env,
+  origin: string,
+): Promise<Response> {
+  const json = (headers: Headers) => {
+    headers.set('Content-Type', 'application/json');
+    return headers;
+  };
+
+  let body: { code?: string };
+  try {
+    body = await request.json();
+  } catch {
+    return new Response(JSON.stringify({ error: 'Invalid JSON body' }), {
+      status: 400,
+      headers: json(corsHeaders(origin)),
+    });
+  }
+
+  if (!body.code || typeof body.code !== 'string') {
+    return new Response(JSON.stringify({ error: 'Missing required field: code' }), {
+      status: 400,
+      headers: json(corsHeaders(origin)),
+    });
+  }
+
+  if (!env.GITHUB_CLIENT_ID || !env.GITHUB_CLIENT_SECRET) {
+    return new Response(JSON.stringify({ error: 'OAuth not configured on server' }), {
+      status: 500,
+      headers: json(corsHeaders(origin)),
+    });
+  }
+
+  const ghResponse = await fetch('https://github.com/login/oauth/access_token', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+      'User-Agent': 'repoguru-git-proxy',
+    },
+    body: JSON.stringify({
+      client_id: env.GITHUB_CLIENT_ID,
+      client_secret: env.GITHUB_CLIENT_SECRET,
+      code: body.code,
+    }),
+  });
+
+  if (!ghResponse.ok) {
+    return new Response(
+      JSON.stringify({ error: 'GitHub token exchange failed', status: ghResponse.status }),
+      { status: 502, headers: json(corsHeaders(origin)) },
+    );
+  }
+
+  const ghData: { access_token?: string; token_type?: string; error?: string; error_description?: string } =
+    await ghResponse.json();
+
+  if (ghData.error || !ghData.access_token) {
+    return new Response(
+      JSON.stringify({ error: ghData.error_description || ghData.error || 'Token exchange failed' }),
+      { status: 400, headers: json(corsHeaders(origin)) },
+    );
+  }
+
+  return new Response(
+    JSON.stringify({ access_token: ghData.access_token, token_type: ghData.token_type }),
+    { status: 200, headers: json(corsHeaders(origin)) },
+  );
+}
 
 function parseAllowedOrigins(raw: string | undefined): string[] {
   if (!raw) return [];

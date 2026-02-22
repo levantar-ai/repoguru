@@ -48,29 +48,11 @@ function CategoryDoc({
   );
 }
 
-interface Props {
-  onBack: () => void;
-}
-
-export function HowItWorksPage({ onBack }: Props) {
+export function HowItWorksPage() {
   return (
     <div className="w-full px-8 lg:px-12 xl:px-16 py-10">
       {/* Header */}
       <div className="mb-10">
-        <button
-          onClick={onBack}
-          className="inline-flex items-center gap-2 text-sm text-text-muted hover:text-neon transition-colors mb-6"
-        >
-          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M15 19l-7-7 7-7"
-            />
-          </svg>
-          Back to report card
-        </button>
         <h1 className="text-4xl lg:text-5xl font-bold text-text">
           How <span className="text-neon neon-text">Repo Guru</span> Works
         </h1>

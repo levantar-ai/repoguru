@@ -20,7 +20,6 @@ import { ensureCloned } from '../services/git/cloneService';
 // ── Props ──
 
 interface Props {
-  onBack: () => void;
   githubToken: string;
 }
 
@@ -81,7 +80,7 @@ function gradeGlowClass(grade: LetterGrade): string {
 
 // ── Component ──
 
-export function ComparePage({ onBack, githubToken }: Props) {
+export function ComparePage({ githubToken }: Props) {
   const [inputA, setInputA] = useState('');
   const [inputB, setInputB] = useState('');
   const [state, setState] = useState<CompareState>({
@@ -207,17 +206,6 @@ export function ComparePage({ onBack, githubToken }: Props) {
 
   return (
     <div className="w-full px-8 lg:px-12 xl:px-16 py-10">
-      {/* Back button */}
-      <button
-        onClick={onBack}
-        className="inline-flex items-center gap-2 text-sm text-text-muted hover:text-neon transition-colors mb-6"
-      >
-        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-        </svg>
-        Back
-      </button>
-
       {/* Title */}
       <div className="text-center mb-10">
         <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-text tracking-tight">

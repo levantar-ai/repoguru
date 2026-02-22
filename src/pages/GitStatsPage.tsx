@@ -22,7 +22,6 @@ import { CommitsByExtension } from '../components/git-stats/CommitsByExtension';
 import { FileCoupling } from '../components/git-stats/FileCoupling';
 
 interface Props {
-  onBack: () => void;
   initialRepo?: string | null;
 }
 
@@ -35,7 +34,7 @@ function ChartSection({ title, children }: { title: string; children: React.Reac
   );
 }
 
-export function GitStatsPage({ onBack, initialRepo }: Props) {
+export function GitStatsPage({ initialRepo }: Props) {
   const [repoInput, setRepoInput] = useState(initialRepo ?? '');
   const { state, analyze, reset } = useGitStats();
   const didAutoStart = useRef(false);
@@ -66,17 +65,6 @@ export function GitStatsPage({ onBack, initialRepo }: Props) {
 
   return (
     <div className="w-full px-8 lg:px-12 xl:px-16 py-10 sm:py-16">
-      {/* Back button */}
-      <button
-        onClick={onBack}
-        className="inline-flex items-center gap-2 text-sm text-text-muted hover:text-neon transition-colors mb-8"
-      >
-        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-        </svg>
-        Back to report card
-      </button>
-
       {/* Header */}
       <div className="text-center mb-10">
         <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-text tracking-tight">

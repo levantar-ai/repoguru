@@ -1,0 +1,44 @@
+name: SLSA Provenance
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+  actions: read
+  id-token: write
+
+jobs:
+  build-release:
+    name: Build Release Artifact
+    runs-on: ubuntu-latest
+    outputs:
+      digest: ${{ steps.hash.outputs.digest }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - name: Compute digest
+        id: hash
+        run: |
+          cd dist
+          sha256sum -b $(find . -type f) | sort > ../checksums.txt
+          DIGEST=$(sha256sum ../checksums.txt | cut -d ' ' -f1)
+          echo "digest=$DIGEST" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@v6
+        with:
+          name: dist
+          path: dist/
+
+  provenance:
+    name: SLSA Provenance
+    needs: [build-release]
+    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.1.0
+    with:
+      base64-subjects: ${{ needs.build-release.outputs.digest }}
+      upload-assets: true

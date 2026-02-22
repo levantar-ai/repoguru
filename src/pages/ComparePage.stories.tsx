@@ -13,9 +13,9 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const Default: Story = {
-  args: { onBack: () => {}, githubToken: '' },
+  args: { githubToken: '' },
 };
 
 export const WithToken: Story = {
-  args: { onBack: () => {}, githubToken: 'ghp_mock_token_for_storybook' },
+  args: { githubToken: 'ghp_mock_token_for_storybook' },
 };

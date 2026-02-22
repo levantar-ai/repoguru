@@ -16,7 +16,9 @@
     "typecheck": "tsc -b --noEmit",
     "prepare": "husky",
     "storybook": "storybook dev -p 6006",
-    "build-storybook": "storybook build"
+    "build-storybook": "storybook build",
+    "size": "npx size-limit",
+    "license:check": "npx license-checker-rseidelsohn --production --failOn 'GPL-2.0;GPL-3.0;AGPL-1.0;AGPL-3.0;SSPL-1.0;EUPL-1.1;EUPL-1.2'"
   },
   "lint-staged": {
     "*.{ts,tsx}": [
@@ -43,7 +45,12 @@
   },
   "devDependencies": {
     "@chromatic-com/storybook": "^5.0.1",
+    "@commitlint/cli": "^20.4.2",
+    "@commitlint/config-conventional": "^20.4.2",
     "@eslint/js": "^9.39.1",
+    "@semantic-release/changelog": "^6.0.3",
+    "@semantic-release/git": "^10.0.1",
+    "@size-limit/preset-app": "^12.0.0",
     "@storybook/addon-a11y": "^10.2.10",
     "@storybook/addon-docs": "^10.2.10",
     "@storybook/addon-onboarding": "^10.2.10",
@@ -69,9 +76,12 @@
     "globals": "^17.3.0",
     "husky": "^9.1.7",
     "jsdom": "^28.1.0",
+    "license-checker-rseidelsohn": "^4.4.2",
     "lint-staged": "^16.2.7",
     "playwright": "^1.58.2",
     "prettier": "^3.8.1",
+    "semantic-release": "^24.2.9",
+    "size-limit": "^12.0.0",
     "storybook": "^10.2.10",
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.48.0",

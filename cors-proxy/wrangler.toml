@@ -4,3 +4,4 @@ compatibility_date = "2024-12-01"
 
 [vars]
 ALLOWED_ORIGINS = "https://repoguru.pages.dev,https://*.repoguru.pages.dev,https://repo.guru,https://www.repo.guru,http://localhost:5173"
+GITHUB_CLIENT_ID = "Iv23liPgYDeDIuRadLZG"
