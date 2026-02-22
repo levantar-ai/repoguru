@@ -1,3 +1,9 @@
+## [0.4.1](https://github.com/levantar-ai/repoguru/compare/v0.4.0...v0.4.1) (2026-02-22)
+
+### Bug Fixes
+
+- use proxy.repo.guru custom domain for CORS proxy ([939002e](https://github.com/levantar-ai/repoguru/commit/939002efce7dcec48e102031a91cf14b4bb80a17))
+
 # [0.4.0](https://github.com/levantar-ai/repoguru/compare/v0.3.4...v0.4.0) (2026-02-22)
 
 ### Bug Fixes
