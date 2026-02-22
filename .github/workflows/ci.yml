@@ -18,6 +18,7 @@ permissions:
   actions: read
   id-token: write
   deployments: write
+  attestations: write
 
 # ┌──────────────────────────────────────────────────────────────────┐
 # │  Pipeline: Quality → Build → Bundle Size → Security → Deploy    │
@@ -41,8 +42,9 @@ permissions:
 # │                                             │                    │
 # │                                             ▼                    │
 # │                             Stage 4 ─ Release (semantic-release) │
-# │                                                                  │
-# │  Separate workflow: provenance.yml (on v* tags)                  │
+# │                                             │                    │
+# │                                             ▼                    │
+# │                             Stage 5 ─ SLSA Provenance            │
 # └──────────────────────────────────────────────────────────────────┘
 
 jobs:
@@ -275,3 +277,36 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npx semantic-release
+
+  # ── Stage 5: SLSA Provenance (main only, after release) ──────────
+  provenance-build:
+    name: '5·Provenance Build'
+    needs: [release]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    outputs:
+      base64-subjects: ${{ steps.hash.outputs.base64-subjects }}
+    steps:
+      - uses: actions/download-artifact@v6
+        with:
+          name: dist-build
+          path: dist
+      - name: Compute subject digests
+        id: hash
+        run: |
+          cd dist
+          sha256sum $(find . -type f | sort) > ../sha256sums.txt
+          echo "base64-subjects=$(base64 -w0 ../sha256sums.txt)" >> "$GITHUB_OUTPUT"
+
+  provenance:
+    name: '5·SLSA Provenance'
+    needs: [provenance-build]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    permissions:
+      contents: write
+      actions: read
+      id-token: write
+    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.1.0
+    with:
+      base64-subjects: ${{ needs.provenance-build.outputs.base64-subjects }}
+      upload-assets: true
