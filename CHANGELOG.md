@@ -1,3 +1,9 @@
+## [0.3.4](https://github.com/levantar-ai/repoguru/compare/v0.3.3...v0.3.4) (2026-02-22)
+
+### Bug Fixes
+
+- paginate user repo fetches in PortfolioPage and org service ([87bc42b](https://github.com/levantar-ai/repoguru/commit/87bc42bf21c9c91c132d7673b49737924f838bea))
+
 ## [0.3.3](https://github.com/levantar-ai/repoguru/compare/v0.3.2...v0.3.3) (2026-02-22)
 
 ### Bug Fixes
