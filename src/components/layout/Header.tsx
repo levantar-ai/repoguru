@@ -161,7 +161,7 @@ function NavIcon({ id }: { id: PageId }) {
 }
 
 const NAV_ITEMS: { id: PageId; label: string }[] = [
-  { id: 'home', label: 'Analyzer' },
+  { id: 'home', label: 'Report Card' },
   { id: 'git-stats', label: 'Git Stats' },
   { id: 'org-scan', label: 'Org Scan' },
   { id: 'compare', label: 'Compare' },

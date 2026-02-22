@@ -558,24 +558,24 @@ export function PortfolioPage({ onBack, onAnalyze, githubToken }: Props) {
   };
 
   return (
-    <div className="w-full px-8 lg:px-12 xl:px-16 py-10">
+    <div className="w-full px-8 lg:px-12 xl:px-16 py-10 sm:py-16">
       {/* Back button */}
       <button
         onClick={onBack}
-        className="inline-flex items-center gap-2 text-sm text-text-muted hover:text-neon transition-colors mb-6"
+        className="inline-flex items-center gap-2 text-sm text-text-muted hover:text-neon transition-colors mb-8"
       >
         <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
         </svg>
-        Back to analyzer
+        Back to report card
       </button>
 
       {/* Header */}
-      <div className="mb-10">
-        <h1 className="text-4xl lg:text-5xl font-bold text-text">
+      <div className="text-center mb-10">
+        <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-text tracking-tight">
           Developer <span className="text-neon neon-text">Portfolio</span>
         </h1>
-        <p className="text-lg text-text-secondary mt-3 max-w-2xl leading-relaxed">
+        <p className="mt-4 text-lg text-text-secondary max-w-2xl mx-auto leading-relaxed">
           Analyze a GitHub user's public repositories to generate a comprehensive developer profile
           with scores, language breakdown, and skill assessment.
         </p>

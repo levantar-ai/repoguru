@@ -69,7 +69,7 @@ export function HowItWorksPage({ onBack }: Props) {
               d="M15 19l-7-7 7-7"
             />
           </svg>
-          Back to analyzer
+          Back to report card
         </button>
         <h1 className="text-4xl lg:text-5xl font-bold text-text">
           How <span className="text-neon neon-text">Repo Guru</span> Works
