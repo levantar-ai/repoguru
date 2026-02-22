@@ -1,3 +1,9 @@
+## [0.4.2](https://github.com/levantar-ai/repoguru/compare/v0.4.1...v0.4.2) (2026-02-22)
+
+### Bug Fixes
+
+- **ci:** inject VITE\_ env vars during build step ([810a344](https://github.com/levantar-ai/repoguru/commit/810a3444c15204013e0aa68df0617f84d13eed58))
+
 ## [0.4.1](https://github.com/levantar-ai/repoguru/compare/v0.4.0...v0.4.1) (2026-02-22)
 
 ### Bug Fixes
