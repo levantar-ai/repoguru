@@ -1,3 +1,9 @@
+# [0.5.0](https://github.com/levantar-ai/repoguru/compare/v0.4.2...v0.5.0) (2026-02-22)
+
+### Features
+
+- **compare:** add RepoPicker to compare page ([5f57c88](https://github.com/levantar-ai/repoguru/commit/5f57c88a47a1de5d3ed3e24b4adcbb8ec373d29b))
+
 ## [0.4.2](https://github.com/levantar-ai/repoguru/compare/v0.4.1...v0.4.2) (2026-02-22)
 
 ### Bug Fixes
