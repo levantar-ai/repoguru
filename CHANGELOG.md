@@ -1,3 +1,10 @@
+## [0.3.2](https://github.com/levantar-ai/repoguru/compare/v0.3.1...v0.3.2) (2026-02-22)
+
+### Bug Fixes
+
+- move SLSA provenance into CI pipeline after release ([cec1ddf](https://github.com/levantar-ai/repoguru/commit/cec1ddf7b5eeb042474a46701458656ac8b25834))
+- remove ZAP baseline scan (passive-only, no XSS detection) ([238b9aa](https://github.com/levantar-ai/repoguru/commit/238b9aa725f97a3c8fbbbfb8afbcea9311650266))
+
 ## [0.3.1](https://github.com/levantar-ai/repoguru/compare/v0.3.0...v0.3.1) (2026-02-22)
 
 ### Bug Fixes
