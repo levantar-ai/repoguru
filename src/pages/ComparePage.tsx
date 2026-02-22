@@ -16,6 +16,7 @@ import { scoreToGrade, formatNumber, gradeColorClass } from '../utils/formatters
 import { CATEGORY_LABELS } from '../utils/constants';
 import { invalidateIfNeitherMatch } from '../services/git/repoCache';
 import { ensureCloned } from '../services/git/cloneService';
+import { RepoPicker } from '../components/common/RepoPicker';
 
 // ── Props ──
 
@@ -273,6 +274,19 @@ export function ComparePage({ githubToken }: Props) {
             </button>
           )}
         </div>
+
+        {/* Repo picker — browse your repos to fill either slot */}
+        {state.step !== 'loading' && (
+          <div className="max-w-2xl mx-auto">
+            <RepoPicker
+              onSelect={(slug) => {
+                if (!inputA.trim()) setInputA(slug);
+                else if (!inputB.trim()) setInputB(slug);
+                else setInputA(slug);
+              }}
+            />
+          </div>
+        )}
       </div>
 
       {/* Loading */}
