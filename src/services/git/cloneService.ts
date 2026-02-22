@@ -13,80 +13,37 @@ const TIMEOUT_MS = 120_000; // 2 minutes
 
 const CORS_PROXY = 'https://repoguru-git-proxy.andy-rea.workers.dev';
 
-export function cloneAndExtract(
-  owner: string,
-  repo: string,
-  onProgress: (step: string, percent: number, message: string) => void,
-  token?: string,
-): Promise<GitStatsRawData> {
-  return new Promise((resolve, reject) => {
-    const worker = new Worker(new URL('./git.worker.ts', import.meta.url), { type: 'module' });
-
-    const timeout = setTimeout(() => {
-      worker.terminate();
-      reject(new Error('Clone timed out after 2 minutes'));
-    }, TIMEOUT_MS);
-
-    worker.onmessage = (e: MessageEvent<WorkerOutMessage>) => {
-      const msg = e.data;
-
-      switch (msg.type) {
-        case 'progress':
-          onProgress(msg.step, msg.percent, msg.message);
-          break;
-
-        case 'result':
-          clearTimeout(timeout);
-          worker.terminate();
-          // Populate cache with tree/files from the full clone
-          if (msg.tree && msg.files) {
-            setCache(owner, repo, msg.tree, msg.files);
-          }
-          resolve(msg.data);
-          break;
-
-        case 'error':
-          clearTimeout(timeout);
-          worker.terminate();
-          reject(new Error(msg.message));
-          break;
-      }
-    };
-
-    worker.onerror = (err) => {
-      clearTimeout(timeout);
-      worker.terminate();
-      reject(new Error(err.message || 'Worker error'));
-    };
-
-    const message: CloneMessage = {
-      type: 'clone',
-      owner,
-      repo,
-      corsProxy: CORS_PROXY,
-      ...(token ? { token } : {}),
-    };
-
-    worker.postMessage(message);
-  });
+interface CloneOptions {
+  includeStats?: boolean;
+  token?: string;
+  onProgress?: (step: string, percent: number, message: string) => void;
 }
 
-export function ensureCloned(
+interface CloneResult {
+  cached: CachedRepoData;
+  statsData?: GitStatsRawData;
+}
+
+export function cloneRepo(
   owner: string,
   repo: string,
-  onProgress?: (step: string, percent: number, message: string) => void,
-  token?: string,
-): Promise<CachedRepoData> {
-  // 1. Check cache — return immediately if hit
+  options: CloneOptions = {},
+): Promise<CloneResult> {
+  const { includeStats, token, onProgress } = options;
+
+  // Check cache — if hit and no stats needed, return immediately
   const cached = getCache(owner, repo);
-  if (cached) return Promise.resolve(cached);
+  if (cached && !includeStats) {
+    return Promise.resolve({ cached });
+  }
 
-  // 2. Check pending clone — await if in-flight for the same repo
-  const pending = getPendingClone(owner, repo);
-  if (pending) return pending;
+  // Check pending clone — if in-flight for the same repo and no stats needed, await it
+  if (!includeStats) {
+    const pending = getPendingClone(owner, repo);
+    if (pending) return pending.then((c) => ({ cached: c }));
+  }
 
-  // 3. Launch clone-cache-only worker
-  const promise = new Promise<CachedRepoData>((resolve, reject) => {
+  const promise = new Promise<CloneResult>((resolve, reject) => {
     const worker = new Worker(new URL('./git.worker.ts', import.meta.url), { type: 'module' });
 
     const timeout = setTimeout(() => {
@@ -94,6 +51,8 @@ export function ensureCloned(
       clearPendingClone();
       reject(new Error('Clone timed out after 2 minutes'));
     }, TIMEOUT_MS);
+
+    let cachedData: CachedRepoData | null = null;
 
     worker.onmessage = (e: MessageEvent<WorkerOutMessage>) => {
       const msg = e.data;
@@ -103,12 +62,25 @@ export function ensureCloned(
           onProgress?.(msg.step, msg.percent, msg.message);
           break;
 
-        case 'cache-only-result':
+        case 'clone-done':
+          setCache(owner, repo, msg.tree, msg.files);
+          cachedData = getCache(owner, repo)!;
+          clearPendingClone();
+          // If no stats requested, resolve immediately
+          if (!includeStats) {
+            clearTimeout(timeout);
+            worker.terminate();
+            resolve({ cached: cachedData });
+          }
+          break;
+
+        case 'stats-done':
           clearTimeout(timeout);
           worker.terminate();
-          setCache(owner, repo, msg.tree, msg.files);
-          clearPendingClone();
-          resolve(getCache(owner, repo)!);
+          resolve({
+            cached: cachedData ?? getCache(owner, repo)!,
+            statsData: msg.data,
+          });
           break;
 
         case 'error':
@@ -128,18 +100,47 @@ export function ensureCloned(
     };
 
     const message: CloneMessage = {
-      type: 'clone-cache-only',
+      type: 'clone',
       owner,
       repo,
       corsProxy: CORS_PROXY,
+      includeStats,
       ...(token ? { token } : {}),
     };
 
     worker.postMessage(message);
   });
 
-  setPendingClone(owner, repo, promise);
+  // Register as pending so other non-stats callers can piggyback
+  if (!includeStats) {
+    setPendingClone(
+      owner,
+      repo,
+      promise.then((r) => r.cached),
+    );
+  }
+
   return promise;
+}
+
+export function cloneAndExtract(
+  owner: string,
+  repo: string,
+  onProgress: (step: string, percent: number, message: string) => void,
+  token?: string,
+): Promise<GitStatsRawData> {
+  return cloneRepo(owner, repo, { includeStats: true, token, onProgress }).then(
+    (r) => r.statsData!,
+  );
+}
+
+export function ensureCloned(
+  owner: string,
+  repo: string,
+  onProgress?: (step: string, percent: number, message: string) => void,
+  token?: string,
+): Promise<CachedRepoData> {
+  return cloneRepo(owner, repo, { token, onProgress }).then((r) => r.cached);
 }
 
 export type { CachedRepoData };

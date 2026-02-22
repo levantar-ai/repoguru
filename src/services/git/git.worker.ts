@@ -16,11 +16,12 @@ import {
 } from './extractors';
 
 export interface CloneMessage {
-  type: 'clone' | 'clone-cache-only';
+  type: 'clone';
   owner: string;
   repo: string;
   corsProxy: string;
   token?: string;
+  includeStats?: boolean;
 }
 
 export interface ProgressMessage {
@@ -44,17 +45,15 @@ export interface CacheFileContent {
   size: number;
 }
 
-export interface ResultMessage {
-  type: 'result';
-  data: GitStatsRawData;
+export interface CloneDoneMessage {
+  type: 'clone-done';
   tree: CacheTreeEntry[];
   files: CacheFileContent[];
 }
 
-export interface CacheOnlyResultMessage {
-  type: 'cache-only-result';
-  tree: CacheTreeEntry[];
-  files: CacheFileContent[];
+export interface StatsDoneMessage {
+  type: 'stats-done';
+  data: GitStatsRawData;
 }
 
 export interface ErrorMessage {
@@ -62,11 +61,7 @@ export interface ErrorMessage {
   message: string;
 }
 
-export type WorkerOutMessage =
-  | ProgressMessage
-  | ResultMessage
-  | CacheOnlyResultMessage
-  | ErrorMessage;
+export type WorkerOutMessage = ProgressMessage | CloneDoneMessage | StatsDoneMessage | ErrorMessage;
 
 const DIR = '/repo';
 const MAX_TEXT_FILE_SIZE = 512 * 1024; // 512KB
@@ -178,85 +173,17 @@ async function walkHead(fs: InstanceType<typeof LightningFS>): Promise<HeadWalkR
 }
 
 self.onmessage = async (e: MessageEvent<CloneMessage>) => {
-  const { type: msgType, owner, repo, corsProxy, token } = e.data;
-
-  if (msgType === 'clone-cache-only') {
-    await handleCacheOnlyClone(owner, repo, corsProxy, token);
-  } else {
-    await handleFullClone(owner, repo, corsProxy, token);
-  }
+  await handleClone(e.data);
 };
 
-async function handleCacheOnlyClone(
-  owner: string,
-  repo: string,
-  corsProxy: string,
-  token?: string,
-) {
+async function handleClone(msg: CloneMessage) {
+  const { owner, repo, corsProxy, token, includeStats } = msg;
+
   try {
-    const fs = new LightningFS('repoguru-cache', { wipe: true });
-    const url = `https://github.com/${owner}/${repo}.git`;
-
-    postProgress('cloning', 0, 'Cloning repository...');
-
-    await git.clone({
-      fs,
-      http,
-      dir: DIR,
-      url,
-      singleBranch: true,
-      noCheckout: true,
-      noTags: true,
-      corsProxy,
-      ...(token ? { onAuth: () => ({ username: 'x-access-token', password: token }) } : {}),
-      onProgress: (progress) => {
-        let percent = 0;
-        if (progress.total && progress.total > 0) {
-          percent = Math.round((progress.loaded / progress.total) * 50);
-        } else if (progress.loaded) {
-          percent = Math.min(48, Math.round(progress.loaded / 100000));
-        }
-        const phase = progress.phase || 'Downloading';
-        postProgress('cloning', percent, `${phase}... ${formatBytes(progress.loaded)}`);
-      },
-    });
-
-    postProgress('cloning', 50, 'Clone complete, reading files...');
-
-    const walkResult = await walkHead(fs);
-
-    postProgress('cloning', 95, `Done — ${walkResult.files.length} files`);
-
-    const resultMsg: CacheOnlyResultMessage = {
-      type: 'cache-only-result',
-      tree: walkResult.tree,
-      files: walkResult.files,
-    };
-    self.postMessage(resultMsg);
-
-    // Clean up
-    try {
-      await fs.promises.rmdir(DIR, { recursive: true } as unknown as undefined);
-    } catch {
-      // Cleanup failure is non-critical
-    }
-  } catch (err) {
-    const errorMsg: ErrorMessage = {
-      type: 'error',
-      message: err instanceof Error ? err.message : 'Clone failed',
-    };
-    self.postMessage(errorMsg);
-  }
-}
-
-async function handleFullClone(owner: string, repo: string, corsProxy: string, token?: string) {
-  try {
-    // Initialize in-memory filesystem
     const fs = new LightningFS('repoguru-clone', { wipe: true });
-
     const url = `https://github.com/${owner}/${repo}.git`;
 
-    // 1. Clone (noCheckout — we only need git objects, not a working tree)
+    // Phase 1: Clone + walkHead (all callers)
     postProgress('cloning', 0, 'Cloning repository...');
 
     await git.clone({
@@ -282,137 +209,135 @@ async function handleFullClone(owner: string, repo: string, corsProxy: string, t
       },
     });
 
-    postProgress('cloning', 40, 'Clone complete');
+    postProgress('cloning', 40, 'Clone complete, reading files...');
 
-    // 2. Extract commits via git.log()
-    postProgress('extracting-commits', 42, 'Reading commit history...');
-
-    const logEntries = await git.log({ fs, dir: DIR, depth: 1000 });
-    const commits = logToCommits(logEntries);
-
-    postProgress('extracting-commits', 50, `Found ${logEntries.length} commits`);
-
-    // 3. Diff ALL commits in parallel batches
-    //    - Fast OID-only diff for most commits (file lists + status, no blob reads)
-    //    - Full content diff for an evenly-spaced subset (accurate line counts for charts)
-    postProgress('extracting-details', 52, 'Computing file diffs...');
-
-    const BATCH_SIZE = 10;
-    const FULL_DIFF_COUNT = 30;
-    const totalCommits = logEntries.length;
-    const commitDetails: GitStatsRawData['commitDetails'] = [];
-    const diffStatsMap = new Map<string, { additions: number; deletions: number }>();
-
-    // Pick which commits get full content diffs (evenly spaced for chart accuracy)
-    const fullDiffIndices = new Set(sampleIndices(totalCommits, FULL_DIFF_COUNT));
-
-    let completed = 0;
-
-    for (let batchStart = 0; batchStart < totalCommits; batchStart += BATCH_SIZE) {
-      const batchEnd = Math.min(batchStart + BATCH_SIZE, totalCommits);
-
-      const results = await Promise.allSettled(
-        logEntries.slice(batchStart, batchEnd).map(async (entry, offset) => {
-          const parentOid = entry.commit.parent.length > 0 ? entry.commit.parent[0] : null;
-          const useFull = fullDiffIndices.has(batchStart + offset);
-          const result = useFull
-            ? await diffCommit(fs, DIR, entry.oid, parentOid)
-            : await diffCommitFast(fs, DIR, entry.oid, parentOid);
-          return { entry, result };
-        }),
-      );
-
-      for (const outcome of results) {
-        if (outcome.status !== 'fulfilled') continue;
-        const { entry, result } = outcome.value;
-        const stats = result.stats;
-
-        commitDetails.push({
-          sha: entry.oid,
-          commit: {
-            message: entry.commit.message,
-            author: {
-              name: entry.commit.author.name,
-              email: entry.commit.author.email,
-              date: new Date(entry.commit.author.timestamp * 1000).toISOString(),
-            },
-          },
-          author: {
-            login: entry.commit.author.name,
-            avatar_url: '',
-          },
-          stats: {
-            total: stats.total,
-            additions: stats.additions,
-            deletions: stats.deletions,
-          },
-          files: result.map((f) => ({
-            sha: f.sha,
-            filename: f.filename,
-            status: f.status,
-            additions: f.additions,
-            deletions: f.deletions,
-            changes: f.changes,
-          })),
-        });
-
-        diffStatsMap.set(entry.oid, {
-          additions: stats.additions,
-          deletions: stats.deletions,
-        });
-      }
-
-      completed += batchEnd - batchStart;
-      const percent = 52 + Math.round((completed / totalCommits) * 25);
-      postProgress(
-        'extracting-details',
-        percent,
-        `Diffing commits... ${completed}/${totalCommits}`,
-      );
-    }
-
-    // 4. Compute aggregate stats
-    postProgress('computing-stats', 80, 'Computing statistics...');
-
-    // Get file list + LOC count from HEAD tree (also extracts tree/files for cache)
     const walkResult = await walkHead(fs);
-    const languages = computeLanguages(walkResult.fileList);
 
-    postProgress(
-      'computing-stats',
-      83,
-      `${walkResult.totalLinesOfCode.toLocaleString()} lines of code, ${walkResult.binaryFileCount} binary files`,
-    );
+    postProgress('cloning', 50, `Done — ${walkResult.files.length} files`);
 
-    postProgress('computing-stats', 85, 'Building weekly aggregates...');
-
-    const aggregates = computeWeeklyAggregates(logEntries, diffStatsMap);
-
-    // 5. Assemble GitStatsRawData
-    postProgress('computing-stats', 95, 'Assembling results...');
-
-    const rawData: GitStatsRawData = {
-      commits,
-      commitDetails,
-      contributorStats: aggregates.contributorStats,
-      codeFrequency: aggregates.codeFrequency,
-      commitActivity: aggregates.commitActivity,
-      participation: null,
-      punchCard: aggregates.punchCard,
-      languages,
-      totalLinesOfCode: walkResult.totalLinesOfCode,
-      binaryFileCount: walkResult.binaryFileCount,
-    };
-
-    const resultMsg: ResultMessage = {
-      type: 'result',
-      data: rawData,
+    // Emit clone-done so non-stats callers can resolve immediately
+    const cloneDoneMsg: CloneDoneMessage = {
+      type: 'clone-done',
       tree: walkResult.tree,
       files: walkResult.files,
     };
-    self.postMessage(resultMsg);
+    self.postMessage(cloneDoneMsg);
 
-    // 6. Clean up filesystem
+    // Phase 2: Commit analysis (git stats only, opt-in)
+    if (includeStats) {
+      postProgress('extracting-commits', 52, 'Reading commit history...');
+
+      const logEntries = await git.log({ fs, dir: DIR, depth: 1000 });
+      const commits = logToCommits(logEntries);
+
+      postProgress('extracting-commits', 55, `Found ${logEntries.length} commits`);
+
+      postProgress('extracting-details', 57, 'Computing file diffs...');
+
+      const BATCH_SIZE = 10;
+      const FULL_DIFF_COUNT = 30;
+      const totalCommits = logEntries.length;
+      const commitDetails: GitStatsRawData['commitDetails'] = [];
+      const diffStatsMap = new Map<string, { additions: number; deletions: number }>();
+
+      const fullDiffIndices = new Set(sampleIndices(totalCommits, FULL_DIFF_COUNT));
+
+      let completed = 0;
+
+      for (let batchStart = 0; batchStart < totalCommits; batchStart += BATCH_SIZE) {
+        const batchEnd = Math.min(batchStart + BATCH_SIZE, totalCommits);
+
+        const results = await Promise.allSettled(
+          logEntries.slice(batchStart, batchEnd).map(async (entry, offset) => {
+            const parentOid = entry.commit.parent.length > 0 ? entry.commit.parent[0] : null;
+            const useFull = fullDiffIndices.has(batchStart + offset);
+            const result = useFull
+              ? await diffCommit(fs, DIR, entry.oid, parentOid)
+              : await diffCommitFast(fs, DIR, entry.oid, parentOid);
+            return { entry, result };
+          }),
+        );
+
+        for (const outcome of results) {
+          if (outcome.status !== 'fulfilled') continue;
+          const { entry, result } = outcome.value;
+          const stats = result.stats;
+
+          commitDetails.push({
+            sha: entry.oid,
+            commit: {
+              message: entry.commit.message,
+              author: {
+                name: entry.commit.author.name,
+                email: entry.commit.author.email,
+                date: new Date(entry.commit.author.timestamp * 1000).toISOString(),
+              },
+            },
+            author: {
+              login: entry.commit.author.name,
+              avatar_url: '',
+            },
+            stats: {
+              total: stats.total,
+              additions: stats.additions,
+              deletions: stats.deletions,
+            },
+            files: result.map((f) => ({
+              sha: f.sha,
+              filename: f.filename,
+              status: f.status,
+              additions: f.additions,
+              deletions: f.deletions,
+              changes: f.changes,
+            })),
+          });
+
+          diffStatsMap.set(entry.oid, {
+            additions: stats.additions,
+            deletions: stats.deletions,
+          });
+        }
+
+        completed += batchEnd - batchStart;
+        const percent = 57 + Math.round((completed / totalCommits) * 25);
+        postProgress(
+          'extracting-details',
+          percent,
+          `Diffing commits... ${completed}/${totalCommits}`,
+        );
+      }
+
+      postProgress('computing-stats', 85, 'Computing statistics...');
+
+      const languages = computeLanguages(walkResult.fileList);
+
+      postProgress('computing-stats', 90, 'Building weekly aggregates...');
+
+      const aggregates = computeWeeklyAggregates(logEntries, diffStatsMap);
+
+      postProgress('computing-stats', 95, 'Assembling results...');
+
+      const rawData: GitStatsRawData = {
+        commits,
+        commitDetails,
+        contributorStats: aggregates.contributorStats,
+        codeFrequency: aggregates.codeFrequency,
+        commitActivity: aggregates.commitActivity,
+        participation: null,
+        punchCard: aggregates.punchCard,
+        languages,
+        totalLinesOfCode: walkResult.totalLinesOfCode,
+        binaryFileCount: walkResult.binaryFileCount,
+      };
+
+      const statsDoneMsg: StatsDoneMessage = {
+        type: 'stats-done',
+        data: rawData,
+      };
+      self.postMessage(statsDoneMsg);
+    }
+
+    // Clean up filesystem
     try {
       await fs.promises.rmdir(DIR, { recursive: true } as unknown as undefined);
     } catch {
