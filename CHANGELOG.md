@@ -1,3 +1,13 @@
+# [0.4.0](https://github.com/levantar-ai/repoguru/compare/v0.3.4...v0.4.0) (2026-02-22)
+
+### Bug Fixes
+
+- stop filtering out archived repos and forks from org scan ([17271c9](https://github.com/levantar-ai/repoguru/commit/17271c9bef76b7485d3907e186f9e6bec08790a3))
+
+### Features
+
+- preserve page state across navigation with display:none ([b934550](https://github.com/levantar-ai/repoguru/commit/b93455037773f73fe0cd2504865720bb0855a5aa))
+
 ## [0.3.4](https://github.com/levantar-ai/repoguru/compare/v0.3.3...v0.3.4) (2026-02-22)
 
 ### Bug Fixes
