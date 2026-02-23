@@ -14,6 +14,7 @@ export function startOAuthFlow(): void {
 
   const params = new URLSearchParams({
     client_id: GITHUB_CLIENT_ID,
+    scope: 'repo read:org',
     state,
   });
 
