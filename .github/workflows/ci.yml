@@ -134,7 +134,7 @@ jobs:
           node-version: 20
           cache: npm
       - run: npm ci
-      - uses: actions/download-artifact@v6
+      - uses: actions/download-artifact@v8
         with:
           name: dist-build
           path: dist
@@ -222,7 +222,7 @@ jobs:
       cancel-in-progress: true
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/download-artifact@v6
+      - uses: actions/download-artifact@v8
         with:
           name: dist-build
           path: dist
@@ -262,7 +262,7 @@ jobs:
     outputs:
       base64-subjects: ${{ steps.hash.outputs.base64-subjects }}
     steps:
-      - uses: actions/download-artifact@v6
+      - uses: actions/download-artifact@v8
         with:
           name: dist-build
           path: dist
