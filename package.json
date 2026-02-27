@@ -37,7 +37,7 @@
     "d3-cloud": "^1.2.8",
     "echarts": "^6.0.0",
     "idb": "^8.0.3",
-    "isomorphic-git": "^1.37.1",
+    "isomorphic-git": "^1.37.2",
     "mermaid": "^11.12.3",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
