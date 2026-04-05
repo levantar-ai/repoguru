@@ -1,3 +1,9 @@
+## [0.8.1](https://github.com/levantar-ai/repoguru/compare/v0.8.0...v0.8.1) (2026-04-05)
+
+### Bug Fixes
+
+- handle GitHub App installation callback and fix refresh ([0b64c74](https://github.com/levantar-ai/repoguru/commit/0b64c74cd431f6fa86c6c04f9d359ca34f590047))
+
 # [0.8.0](https://github.com/levantar-ai/repoguru/compare/v0.7.0...v0.8.0) (2026-04-05)
 
 ### Features
