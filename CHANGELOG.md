@@ -1,3 +1,15 @@
+# [0.7.0](https://github.com/levantar-ai/repoguru/compare/v0.6.0...v0.7.0) (2026-04-05)
+
+### Bug Fixes
+
+- downgrade mermaid to v10 to resolve high-severity audit findings ([205625a](https://github.com/levantar-ai/repoguru/commit/205625a8673d8f5c826ea5ae2c01a1a4898ef763)), closes [hi#severity](https://github.com/hi/issues/severity)
+- npm audit fix — resolve dependency vulnerabilities ([04346ee](https://github.com/levantar-ai/repoguru/commit/04346ee000d4a9e05fc9b5a42723b9bf1ef9c910))
+- resolve TS error in useMyRepos onRate callback type ([5c67225](https://github.com/levantar-ai/repoguru/commit/5c67225e97b2650b43a62825e85d9ee377ec4fdb))
+
+### Features
+
+- add GitHub App installation flow for org-level access control ([8fc89c4](https://github.com/levantar-ai/repoguru/commit/8fc89c48285a8d44e2ae9726cc5d07d3f73a0c7e))
+
 # [0.6.0](https://github.com/levantar-ai/repoguru/compare/v0.5.0...v0.6.0) (2026-02-23)
 
 ### Bug Fixes
