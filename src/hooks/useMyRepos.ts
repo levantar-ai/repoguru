@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { fetchMyRepos, fetchInstallations, fetchInstallationRepos } from '../services/github/org';
 import { useApp } from '../context/AppContext';
-import type { RepoInfo } from '../types';
+import type { RepoInfo, RateLimitInfo } from '../types';
 import type { GitHubInstallation } from '../services/github/types';
 
 const STORAGE_KEY = 'repoguru:my-repos';
@@ -111,11 +111,7 @@ export function useMyRepos() {
       setLoading(true);
       setError(null);
 
-      const onRate = (
-        info: Parameters<typeof appDispatch>[0] extends { type: 'SET_RATE_LIMIT'; info: infer I }
-          ? I
-          : never,
-      ) => appDispatch({ type: 'SET_RATE_LIMIT', info });
+      const onRate = (info: RateLimitInfo) => appDispatch({ type: 'SET_RATE_LIMIT', info });
 
       // Try installation-based fetch first; fall back to classic /user/repos
       fetchInstallations(token, onRate)
