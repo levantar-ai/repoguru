@@ -12,6 +12,11 @@ import type {
   DetectedTestingTool,
 } from '../../types/techDetect';
 import { TechIcon } from './TechIcon';
+import { TechExecutiveSummary } from './TechExecutiveSummary';
+import { CICDCoverageChart } from './CICDCoverageChart';
+import { QualityCoverageChart } from './QualityCoverageChart';
+import { PackagesByEcosystem } from './PackagesByEcosystem';
+import { ResourceFileMatrix } from './ResourceFileMatrix';
 
 interface Props {
   result: TechDetectResult;
@@ -757,8 +762,20 @@ export function TechDetectResults({ result }: Props) {
     );
   }
 
+  const hasPackages =
+    result.node.length > 0 ||
+    result.python.length > 0 ||
+    result.go.length > 0 ||
+    result.java.length > 0 ||
+    result.php.length > 0 ||
+    result.rust.length > 0 ||
+    result.ruby.length > 0;
+
   return (
     <div className="space-y-6">
+      {/* Executive Summary */}
+      <TechExecutiveSummary result={result} />
+
       {/* Cloud sections */}
       {hasCloud && (
         <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
@@ -797,6 +814,30 @@ export function TechDetectResults({ result }: Props) {
 
       {/* Testing & Quality */}
       {hasTesting && <TestingSection result={result} />}
+
+      {/* CI/CD and Quality coverage charts side by side */}
+      {(hasCicd || hasTesting) && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {hasCicd && <CICDCoverageChart cicd={result.cicd} />}
+          {hasTesting && <QualityCoverageChart testing={result.testing} />}
+        </div>
+      )}
+
+      {/* Packages by ecosystem donut */}
+      {hasPackages && (
+        <PackagesByEcosystem
+          node={result.node}
+          python={result.python}
+          go={result.go}
+          java={result.java}
+          php={result.php}
+          rust={result.rust}
+          ruby={result.ruby}
+        />
+      )}
+
+      {/* Resource / File Matrix for cloud services */}
+      {hasCloud && <ResourceFileMatrix aws={result.aws} azure={result.azure} gcp={result.gcp} />}
 
       {/* All libraries table (collapsed by default) */}
       {hasLibraries && <LibrariesTable result={result} />}

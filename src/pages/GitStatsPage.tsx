@@ -20,6 +20,26 @@ import { CommitsByMonth } from '../components/git-stats/CommitsByMonth';
 import { CommitsByYear } from '../components/git-stats/CommitsByYear';
 import { CommitsByExtension } from '../components/git-stats/CommitsByExtension';
 import { FileCoupling } from '../components/git-stats/FileCoupling';
+import { CommitsByHour } from '../components/git-stats/CommitsByHour';
+import { CommitsByDomain } from '../components/git-stats/CommitsByDomain';
+import { TimezoneChart } from '../components/git-stats/TimezoneChart';
+import { CumulativeFiles } from '../components/git-stats/CumulativeFiles';
+import { FileOperationsChart } from '../components/git-stats/FileOperationsChart';
+import { LOCOverTime } from '../components/git-stats/LOCOverTime';
+import { TagHistory } from '../components/git-stats/TagHistory';
+import { LinesByExtTime } from '../components/git-stats/LinesByExtTime';
+import { AuthorOfYear } from '../components/git-stats/AuthorOfYear';
+import { AuthorOfMonth } from '../components/git-stats/AuthorOfMonth';
+import { LinesStatsTable } from '../components/git-stats/LinesStatsTable';
+import { SequentialCouplingTable } from '../components/git-stats/SequentialCouplingTable';
+import { TopActivePeriods } from '../components/git-stats/TopActivePeriods';
+import { HotspotBubble } from '../components/git-stats/HotspotBubble';
+import { HotspotTreemap } from '../components/git-stats/HotspotTreemap';
+import { CodeOwnership } from '../components/git-stats/CodeOwnership';
+import { AuthorTimelines } from '../components/git-stats/AuthorTimelines';
+import { ContributorNetwork } from '../components/git-stats/ContributorNetwork';
+import { ExecutiveSummary } from '../components/git-stats/ExecutiveSummary';
+import { RadarHealthCard } from '../components/git-stats/RadarHealthCard';
 
 interface Props {
   initialRepo?: string | null;
@@ -212,6 +232,15 @@ export function GitStatsPage({ initialRepo }: Props) {
             </button>
           </div>
 
+          {/* Executive Summary */}
+          <ExecutiveSummary
+            radarMetrics={state.analysis.radarMetrics}
+            totalCommits={state.analysis.totalCommits}
+            contributors={state.analysis.contributors.length}
+            busFactor={state.analysis.busFactor.busFactor}
+            repoAgeDays={state.analysis.repoAgeDays}
+          />
+
           {/* Overview Cards */}
           <StatsOverviewCards analysis={state.analysis} />
 
@@ -219,6 +248,13 @@ export function GitStatsPage({ initialRepo }: Props) {
           {state.analysis.commitActivity && state.analysis.commitActivity.length > 0 && (
             <ChartSection title="Commit Activity (Last 52 Weeks)">
               <CommitHeatmap commitActivity={state.analysis.commitActivity} />
+            </ChartSection>
+          )}
+
+          {/* Radar Health */}
+          {state.analysis.radarMetrics.length > 0 && (
+            <ChartSection title="Repository Health">
+              <RadarHealthCard radarMetrics={state.analysis.radarMetrics} />
             </ChartSection>
           )}
 
@@ -238,12 +274,61 @@ export function GitStatsPage({ initialRepo }: Props) {
             )}
           </div>
 
+          {/* LOC Over Time */}
+          {state.analysis.locOverTime.length > 0 && (
+            <ChartSection title="Lines of Code Over Time">
+              <LOCOverTime locOverTime={state.analysis.locOverTime} />
+            </ChartSection>
+          )}
+
+          {/* Cumulative Files + File Operations */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {state.analysis.cumulativeFiles.length > 0 && (
+              <ChartSection title="Cumulative Files Over Time">
+                <CumulativeFiles cumulativeFiles={state.analysis.cumulativeFiles} />
+              </ChartSection>
+            )}
+            {state.analysis.fileOperations.length > 0 && (
+              <ChartSection title="File Operations">
+                <FileOperationsChart fileOperations={state.analysis.fileOperations} />
+              </ChartSection>
+            )}
+          </div>
+
+          {/* Lines by Extension Over Time */}
+          {state.analysis.linesByExtTime && (
+            <ChartSection title="Lines Changed by Language Over Time">
+              <LinesByExtTime linesByExtTime={state.analysis.linesByExtTime} />
+            </ChartSection>
+          )}
+
           {/* Contributor Breakdown */}
           {state.analysis.contributors.length > 0 && (
             <ChartSection title="Contributors">
               <ContributorBreakdown contributors={state.analysis.contributors} />
             </ChartSection>
           )}
+
+          {/* Author Timelines */}
+          {state.analysis.authorTimelines.length > 0 && (
+            <ChartSection title="Author Activity Over Time">
+              <AuthorTimelines authorTimelines={state.analysis.authorTimelines} />
+            </ChartSection>
+          )}
+
+          {/* Author of Year + Month */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {state.analysis.authorOfYear.length > 0 && (
+              <ChartSection title="Author of the Year">
+                <AuthorOfYear authorOfYear={state.analysis.authorOfYear} />
+              </ChartSection>
+            )}
+            {state.analysis.authorOfMonth.length > 0 && (
+              <ChartSection title="Author of the Month">
+                <AuthorOfMonth authorOfMonth={state.analysis.authorOfMonth} />
+              </ChartSection>
+            )}
+          </div>
 
           {/* Punch Card + Commit Size */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -288,16 +373,30 @@ export function GitStatsPage({ initialRepo }: Props) {
             <FileChurnTable fileChurn={state.analysis.fileChurn} />
           </ChartSection>
 
-          {/* Commits by Weekday + Month */}
+          {/* Commits by Weekday + Hour */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {state.analysis.commitsByWeekday.some((c) => c > 0) && (
               <ChartSection title="Commits by Day of Week">
                 <CommitsByWeekday commitsByWeekday={state.analysis.commitsByWeekday} />
               </ChartSection>
             )}
+            {state.analysis.commitsByHour.some((c) => c > 0) && (
+              <ChartSection title="Commits by Hour of Day">
+                <CommitsByHour commitsByHour={state.analysis.commitsByHour} />
+              </ChartSection>
+            )}
+          </div>
+
+          {/* Commits by Month + Domain */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {state.analysis.commitsByMonth.some((c) => c > 0) && (
               <ChartSection title="Commits by Month">
                 <CommitsByMonth commitsByMonth={state.analysis.commitsByMonth} />
+              </ChartSection>
+            )}
+            {state.analysis.commitsByDomain.length > 0 && (
+              <ChartSection title="Commits by Email Domain">
+                <CommitsByDomain commitsByDomain={state.analysis.commitsByDomain} />
               </ChartSection>
             )}
           </div>
@@ -316,12 +415,76 @@ export function GitStatsPage({ initialRepo }: Props) {
             )}
           </div>
 
+          {/* Timezone */}
+          {state.analysis.timezoneData.length > 0 && (
+            <ChartSection title="Contributor Timezones">
+              <TimezoneChart timezoneData={state.analysis.timezoneData} />
+            </ChartSection>
+          )}
+
+          {/* Hotspots */}
+          {state.analysis.hotspots.length > 0 && (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <ChartSection title="Hotspot Map">
+                <HotspotBubble hotspots={state.analysis.hotspots} />
+              </ChartSection>
+              <ChartSection title="Hotspot Treemap">
+                <HotspotTreemap hotspots={state.analysis.hotspots} />
+              </ChartSection>
+            </div>
+          )}
+
+          {/* Code Ownership */}
+          {state.analysis.codeOwnership.length > 0 && (
+            <ChartSection title="Code Ownership">
+              <CodeOwnership codeOwnership={state.analysis.codeOwnership} />
+            </ChartSection>
+          )}
+
           {/* File Coupling */}
           {state.analysis.fileCoupling.length > 0 && (
             <ChartSection title="File Coupling (Co-changed Files)">
               <FileCoupling fileCoupling={state.analysis.fileCoupling} />
             </ChartSection>
           )}
+
+          {/* Sequential Coupling */}
+          {state.analysis.sequentialCoupling.length > 0 && (
+            <ChartSection title="Change Cascades (Sequential Coupling)">
+              <SequentialCouplingTable sequentialCoupling={state.analysis.sequentialCoupling} />
+            </ChartSection>
+          )}
+
+          {/* Contributor Network */}
+          {state.analysis.contributorNodes.length > 0 && (
+            <ChartSection title="Contributor Network">
+              <ContributorNetwork
+                nodes={state.analysis.contributorNodes}
+                edges={state.analysis.contributorEdges}
+              />
+            </ChartSection>
+          )}
+
+          {/* Tag History */}
+          {state.analysis.tagHistory.length > 0 && (
+            <ChartSection title="Tag / Release History">
+              <TagHistory tagHistory={state.analysis.tagHistory} />
+            </ChartSection>
+          )}
+
+          {/* Lines Stats + Top Active Periods */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {state.analysis.linesStatsSummary.length > 0 && (
+              <ChartSection title="Lines Changed Statistics">
+                <LinesStatsTable linesStatsSummary={state.analysis.linesStatsSummary} />
+              </ChartSection>
+            )}
+            {state.analysis.topActivePeriods.length > 0 && (
+              <ChartSection title="Most Active Periods">
+                <TopActivePeriods topActivePeriods={state.analysis.topActivePeriods} />
+              </ChartSection>
+            )}
+          </div>
         </div>
       )}
 

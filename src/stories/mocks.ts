@@ -517,6 +517,115 @@ export function makeGitStatsAnalysis(overrides?: Partial<GitStatsAnalysis>): Git
     fileCoupling: makeFileCoupling(),
     firstCommitDate: '2022-03-15T08:00:00Z',
     repoAgeDays: 1040,
+    commitsByHour: [
+      2, 1, 0, 0, 0, 1, 3, 8, 25, 42, 55, 48, 35, 45, 52, 48, 38, 30, 18, 12, 8, 5, 4, 2,
+    ],
+    commitsByDomain: [
+      { domain: 'gmail.com', count: 180 },
+      { domain: 'company.com', count: 150 },
+      { domain: 'users.noreply.github.com', count: 95 },
+      { domain: 'outlook.com', count: 30 },
+    ],
+    authorOfYear: [
+      { period: '2024', authorName: 'Alice', commits: 95, totalAuthors: 12 },
+      { period: '2023', authorName: 'Bob', commits: 88, totalAuthors: 15 },
+      { period: '2022', authorName: 'Alice', commits: 65, totalAuthors: 8 },
+    ],
+    authorOfMonth: [
+      { period: '2024-12', authorName: 'Alice', commits: 18, totalAuthors: 5 },
+      { period: '2024-11', authorName: 'Bob', commits: 15, totalAuthors: 6 },
+      { period: '2024-10', authorName: 'Alice', commits: 22, totalAuthors: 4 },
+    ],
+    authorTimelines: [
+      {
+        authorName: 'Alice',
+        points: [
+          ['2024-10', 22],
+          ['2024-11', 12],
+          ['2024-12', 18],
+        ],
+      },
+      {
+        authorName: 'Bob',
+        points: [
+          ['2024-10', 15],
+          ['2024-11', 15],
+          ['2024-12', 10],
+        ],
+      },
+    ],
+    contributorNodes: [
+      { id: 'Alice', name: 'Alice' },
+      { id: 'Bob', name: 'Bob' },
+      { id: 'Charlie', name: 'Charlie' },
+    ],
+    contributorEdges: [
+      { source: 'Alice', target: 'Bob', weight: 45 },
+      { source: 'Alice', target: 'Charlie', weight: 20 },
+      { source: 'Bob', target: 'Charlie', weight: 15 },
+    ],
+    codeOwnership: [
+      { path: 'src/components', ownerName: 'Alice', lines: 12000 },
+      { path: 'src/services', ownerName: 'Bob', lines: 8500 },
+      { path: 'src/utils', ownerName: 'Charlie', lines: 3200 },
+    ],
+    timezoneData: [
+      { offset: -5, count: 180 },
+      { offset: 0, count: 150 },
+      { offset: 1, count: 95 },
+      { offset: 5, count: 30 },
+    ],
+    sequentialCoupling: [
+      { files: ['src/App.tsx'], occurrences: 12, avgSpanHours: 2.5, confidence: 0.8 },
+      { files: ['src/index.ts'], occurrences: 8, avgSpanHours: 1.2, confidence: 0.6 },
+    ],
+    linesByExtTime: {
+      months: ['2024-10', '2024-11', '2024-12'],
+      extensions: ['ts', 'tsx', 'css'],
+      data: [
+        [500, 600, 450],
+        [400, 350, 300],
+        [100, 120, 80],
+      ],
+    },
+    linesStatsSummary: [
+      { label: 'Per Commit', min: 1, max: 2500, avg: 85, median: 32, total: 41000 },
+    ],
+    cumulativeFiles: [
+      { date: '2022-03', count: 45 },
+      { date: '2023-06', count: 120 },
+      { date: '2024-12', count: 185 },
+    ],
+    fileOperations: [
+      { operation: 'modified', count: 3200 },
+      { operation: 'added', count: 850 },
+      { operation: 'removed', count: 320 },
+      { operation: 'renamed', count: 95 },
+    ],
+    tagHistory: [],
+    locOverTime: [
+      { date: '2022-03-15', loc: 1000 },
+      { date: '2023-06-15', loc: 45000 },
+      { date: '2024-12-15', loc: 84500 },
+    ],
+    radarMetrics: [
+      { label: 'Activity', value: 0.48 },
+      { label: 'Team Size', value: 0.6 },
+      { label: 'Bus Factor', value: 0.4 },
+      { label: 'Code Balance', value: 0.72 },
+      { label: 'Commit Hygiene', value: 0.55 },
+      { label: 'Recency', value: 0.9 },
+    ],
+    hotspots: [
+      { path: 'src/App.tsx', commits: 45, distinctAuthors: 8, totalChurn: 3200 },
+      { path: 'src/index.ts', commits: 38, distinctAuthors: 5, totalChurn: 2100 },
+      { path: 'package.json', commits: 35, distinctAuthors: 12, totalChurn: 800 },
+    ],
+    topActivePeriods: [
+      { period: '2024-03', commits: 65, insertions: 8500, deletions: 3200 },
+      { period: '2023-11', commits: 58, insertions: 7200, deletions: 2800 },
+      { period: '2024-07', commits: 52, insertions: 6800, deletions: 2500 },
+    ],
     ...overrides,
   };
 }

@@ -10,6 +10,17 @@ import type {
   PunchCardData,
   WeeklyActivity,
   LanguageEntry,
+  AuthorOfPeriod,
+  AuthorTimeline,
+  ContributorNode,
+  ContributorEdge,
+  OwnershipEntry,
+  ChangeChain,
+  ExtMonthlyChurn,
+  LinesStatsSummary,
+  RadarMetric,
+  HotspotEntry,
+  ActivePeriod,
 } from '../../types/gitStats';
 
 // ── Stopwords for word frequency ──
@@ -557,6 +568,469 @@ function computeRepoAgeDays(firstCommitDate: string): number {
   return Math.floor((now - first) / (1000 * 60 * 60 * 24));
 }
 
+// ── Commits by Hour ──
+
+function buildCommitsByHour(raw: GitStatsRawData): number[] {
+  const hours = new Array(24).fill(0);
+  for (const c of raw.commits) {
+    hours[new Date(c.commit.author.date).getUTCHours()]++;
+  }
+  return hours;
+}
+
+// ── Commits by Email Domain ──
+
+function buildCommitsByDomain(raw: GitStatsRawData): { domain: string; count: number }[] {
+  const domainMap = new Map<string, number>();
+  for (const c of raw.commits) {
+    const email = c.commit.author.email;
+    const domain = email.includes('@') ? email.split('@')[1].toLowerCase() : 'unknown';
+    domainMap.set(domain, (domainMap.get(domain) || 0) + 1);
+  }
+  return [...domainMap.entries()]
+    .map(([domain, count]) => ({ domain, count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 12);
+}
+
+// ── Author of Year / Month ──
+
+function buildAuthorOfPeriod(
+  raw: GitStatsRawData,
+  keyFn: (date: Date) => string,
+  limit?: number,
+): AuthorOfPeriod[] {
+  const periodMap = new Map<string, Map<string, number>>();
+  for (const c of raw.commits) {
+    const d = new Date(c.commit.author.date);
+    const key = keyFn(d);
+    const name = c.commit.author.name;
+    if (!periodMap.has(key)) periodMap.set(key, new Map());
+    const authors = periodMap.get(key)!;
+    authors.set(name, (authors.get(name) || 0) + 1);
+  }
+
+  const results: AuthorOfPeriod[] = [];
+  for (const [period, authors] of periodMap) {
+    let topAuthor = '';
+    let topCount = 0;
+    for (const [name, count] of authors) {
+      if (count > topCount) {
+        topAuthor = name;
+        topCount = count;
+      }
+    }
+    results.push({ period, authorName: topAuthor, commits: topCount, totalAuthors: authors.size });
+  }
+
+  results.sort((a, b) => b.period.localeCompare(a.period));
+  return limit ? results.slice(0, limit) : results;
+}
+
+function buildAuthorOfYear(raw: GitStatsRawData): AuthorOfPeriod[] {
+  return buildAuthorOfPeriod(raw, (d) => String(d.getFullYear()));
+}
+
+function buildAuthorOfMonth(raw: GitStatsRawData): AuthorOfPeriod[] {
+  return buildAuthorOfPeriod(
+    raw,
+    (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`,
+    24,
+  );
+}
+
+// ── Author Timelines ──
+
+function buildAuthorTimelines(raw: GitStatsRawData, topN: number = 5): AuthorTimeline[] {
+  const authorCounts = new Map<string, number>();
+  for (const c of raw.commits) {
+    const name = c.commit.author.name;
+    authorCounts.set(name, (authorCounts.get(name) || 0) + 1);
+  }
+  const topAuthors = [...authorCounts.entries()]
+    .sort(([, a], [, b]) => b - a)
+    .slice(0, topN)
+    .map(([name]) => name);
+
+  const topSet = new Set(topAuthors);
+  const timelineMap = new Map<string, Map<string, number>>();
+  for (const name of topAuthors) timelineMap.set(name, new Map());
+
+  for (const c of raw.commits) {
+    const name = c.commit.author.name;
+    if (!topSet.has(name)) continue;
+    const d = new Date(c.commit.author.date);
+    const month = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    const months = timelineMap.get(name)!;
+    months.set(month, (months.get(month) || 0) + 1);
+  }
+
+  return topAuthors.map((name) => ({
+    authorName: name,
+    points: [...timelineMap.get(name)!.entries()].sort(([a], [b]) => a.localeCompare(b)),
+  }));
+}
+
+// ── Contributor Network ──
+
+function buildContributorNetwork(raw: GitStatsRawData): {
+  nodes: ContributorNode[];
+  edges: ContributorEdge[];
+} {
+  if (raw.commitDetails.length === 0) return { nodes: [], edges: [] };
+
+  // Map files to authors who touched them
+  const fileAuthors = new Map<string, Set<string>>();
+  for (const detail of raw.commitDetails) {
+    if (!detail.files) continue;
+    const author = detail.author?.login || detail.commit.author.name;
+    for (const f of detail.files) {
+      if (!fileAuthors.has(f.filename)) fileAuthors.set(f.filename, new Set());
+      fileAuthors.get(f.filename)!.add(author);
+    }
+  }
+
+  // Build edges: authors who share files
+  const edgeMap = new Map<string, number>();
+  for (const authors of fileAuthors.values()) {
+    const arr = [...authors];
+    for (let i = 0; i < arr.length; i++) {
+      for (let j = i + 1; j < arr.length; j++) {
+        const key = [arr[i], arr[j]].sort().join('|||');
+        edgeMap.set(key, (edgeMap.get(key) || 0) + 1);
+      }
+    }
+  }
+
+  // Top edges by weight
+  const edges: ContributorEdge[] = [...edgeMap.entries()]
+    .map(([key, weight]) => {
+      const [source, target] = key.split('|||');
+      return { source, target, weight };
+    })
+    .sort((a, b) => b.weight - a.weight)
+    .slice(0, 50);
+
+  // Nodes from edges
+  const nodeSet = new Set<string>();
+  for (const e of edges) {
+    nodeSet.add(e.source);
+    nodeSet.add(e.target);
+  }
+  const nodes: ContributorNode[] = [...nodeSet].map((id) => ({ id, name: id }));
+
+  return { nodes, edges };
+}
+
+// ── Code Ownership ──
+
+function buildCodeOwnership(raw: GitStatsRawData): OwnershipEntry[] {
+  if (raw.commitDetails.length === 0) return [];
+
+  const dirOwnership = new Map<string, Map<string, number>>();
+  for (const detail of raw.commitDetails) {
+    if (!detail.files) continue;
+    const author = detail.author?.login || detail.commit.author.name;
+    for (const f of detail.files) {
+      const parts = f.filename.split('/');
+      const dir = parts.length > 1 ? parts.slice(0, 2).join('/') : parts[0];
+      if (!dirOwnership.has(dir)) dirOwnership.set(dir, new Map());
+      const authors = dirOwnership.get(dir)!;
+      authors.set(author, (authors.get(author) || 0) + f.additions);
+    }
+  }
+
+  const results: OwnershipEntry[] = [];
+  for (const [path, authors] of dirOwnership) {
+    let topAuthor = '';
+    let topLines = 0;
+    let totalLines = 0;
+    for (const [name, lines] of authors) {
+      totalLines += lines;
+      if (lines > topLines) {
+        topAuthor = name;
+        topLines = lines;
+      }
+    }
+    if (totalLines > 0) results.push({ path, ownerName: topAuthor, lines: totalLines });
+  }
+
+  return results.sort((a, b) => b.lines - a.lines).slice(0, 50);
+}
+
+// ── Timezone Data ──
+
+function buildTimezoneData(raw: GitStatsRawData): { offset: number; count: number }[] {
+  // GitHub normalizes to UTC, so we approximate from commit hour patterns
+  // Group by UTC hour and report as-is
+  const hourCounts = new Map<number, number>();
+  for (const c of raw.commits) {
+    const hour = new Date(c.commit.author.date).getUTCHours();
+    // Estimate timezone: assume most work happens 9-17 local time
+    // offset = hour - 13 (midpoint of workday)
+    const offset = hour >= 13 ? hour - 13 : hour - 13 + 24;
+    const normalizedOffset = offset > 12 ? offset - 24 : offset;
+    hourCounts.set(normalizedOffset, (hourCounts.get(normalizedOffset) || 0) + 1);
+  }
+  return [...hourCounts.entries()]
+    .map(([offset, count]) => ({ offset, count }))
+    .sort((a, b) => a.offset - b.offset);
+}
+
+// ── Sequential Coupling ──
+
+function buildSequentialCoupling(raw: GitStatsRawData): ChangeChain[] {
+  if (raw.commitDetails.length < 2) return [];
+
+  // Sort commits by date
+  const sorted = [...raw.commitDetails]
+    .filter((d) => d.files && d.files.length > 0)
+    .sort(
+      (a, b) => new Date(a.commit.author.date).getTime() - new Date(b.commit.author.date).getTime(),
+    );
+
+  // Track file pairs in consecutive commits within 24h
+  const chainMap = new Map<string, { count: number; spans: number[] }>();
+  for (let i = 0; i < sorted.length - 1; i++) {
+    const curr = sorted[i];
+    const next = sorted[i + 1];
+    const span =
+      (new Date(next.commit.author.date).getTime() - new Date(curr.commit.author.date).getTime()) /
+      3600000;
+    if (span > 24) continue;
+
+    const currFiles = new Set(curr.files!.map((f) => f.filename));
+    const nextFiles = new Set(next.files!.map((f) => f.filename));
+
+    // Find files that appear in both consecutive commits
+    for (const f of currFiles) {
+      if (nextFiles.has(f)) {
+        const key = f;
+        const entry = chainMap.get(key) || { count: 0, spans: [] };
+        entry.count++;
+        entry.spans.push(span);
+        chainMap.set(key, entry);
+      }
+    }
+  }
+
+  return [...chainMap.entries()]
+    .filter(([, v]) => v.count >= 3)
+    .map(([file, v]) => ({
+      files: [file],
+      occurrences: v.count,
+      avgSpanHours: v.spans.reduce((a, b) => a + b, 0) / v.spans.length,
+      confidence: Math.min(v.count / 10, 1.0),
+    }))
+    .sort((a, b) => b.occurrences - a.occurrences)
+    .slice(0, 20);
+}
+
+// ── Lines by Extension Over Time ──
+
+function buildLinesByExtTime(raw: GitStatsRawData): ExtMonthlyChurn | null {
+  if (raw.commitDetails.length === 0) return null;
+
+  const monthExtMap = new Map<string, Map<string, number>>();
+  for (const detail of raw.commitDetails) {
+    if (!detail.files) continue;
+    const d = new Date(detail.commit.author.date);
+    const month = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    if (!monthExtMap.has(month)) monthExtMap.set(month, new Map());
+    const exts = monthExtMap.get(month)!;
+    for (const f of detail.files) {
+      const dotIndex = f.filename.lastIndexOf('.');
+      const ext = dotIndex > 0 ? f.filename.slice(dotIndex + 1) : 'other';
+      exts.set(ext, (exts.get(ext) || 0) + f.additions + f.deletions);
+    }
+  }
+
+  const months = [...monthExtMap.keys()].sort();
+  const allExts = new Set<string>();
+  for (const exts of monthExtMap.values()) {
+    for (const ext of exts.keys()) allExts.add(ext);
+  }
+
+  // Top 8 extensions by total churn
+  const extTotals = new Map<string, number>();
+  for (const exts of monthExtMap.values()) {
+    for (const [ext, count] of exts) {
+      extTotals.set(ext, (extTotals.get(ext) || 0) + count);
+    }
+  }
+  const extensions = [...extTotals.entries()]
+    .sort(([, a], [, b]) => b - a)
+    .slice(0, 8)
+    .map(([ext]) => ext);
+
+  const data = extensions.map((ext) => months.map((m) => monthExtMap.get(m)?.get(ext) || 0));
+
+  return { months, extensions, data };
+}
+
+// ── Lines Stats Summary ──
+
+function buildLinesStatsSummary(raw: GitStatsRawData): LinesStatsSummary[] {
+  if (raw.commitDetails.length === 0) return [];
+
+  const perCommit = raw.commitDetails.map((d) => d.stats.additions + d.stats.deletions);
+  perCommit.sort((a, b) => a - b);
+
+  const sum = perCommit.reduce((a, b) => a + b, 0);
+  const median = perCommit[Math.floor(perCommit.length / 2)];
+
+  return [
+    {
+      label: 'Per Commit',
+      min: perCommit[0],
+      max: perCommit[perCommit.length - 1],
+      avg: Math.round(sum / perCommit.length),
+      median,
+      total: sum,
+    },
+  ];
+}
+
+// ── Cumulative Files ──
+
+function buildCumulativeFiles(raw: GitStatsRawData): { date: string; count: number }[] {
+  if (raw.commitDetails.length === 0) return [];
+
+  const sorted = [...raw.commitDetails].sort(
+    (a, b) => new Date(a.commit.author.date).getTime() - new Date(b.commit.author.date).getTime(),
+  );
+
+  const seen = new Set<string>();
+  const monthMap = new Map<string, number>();
+
+  for (const detail of sorted) {
+    if (!detail.files) continue;
+    for (const f of detail.files) {
+      if (f.status !== 'removed') seen.add(f.filename);
+      else seen.delete(f.filename);
+    }
+    const d = new Date(detail.commit.author.date);
+    const month = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    monthMap.set(month, seen.size);
+  }
+
+  return [...monthMap.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([date, count]) => ({ date, count }));
+}
+
+// ── File Operations ──
+
+function buildFileOperations(raw: GitStatsRawData): { operation: string; count: number }[] {
+  const ops = new Map<string, number>();
+  for (const detail of raw.commitDetails) {
+    if (!detail.files) continue;
+    for (const f of detail.files) {
+      const op = f.status || 'modified';
+      ops.set(op, (ops.get(op) || 0) + 1);
+    }
+  }
+  return [...ops.entries()]
+    .map(([operation, count]) => ({ operation, count }))
+    .sort((a, b) => b.count - a.count);
+}
+
+// ── LOC Over Time ──
+
+function buildLocOverTime(raw: GitStatsRawData): { date: string; loc: number }[] {
+  if (!raw.codeFrequency || raw.codeFrequency.length === 0) return [];
+
+  let cumulative = 0;
+  return raw.codeFrequency.map(([timestamp, additions, deletions]) => {
+    cumulative += additions + deletions; // deletions are negative
+    return {
+      date: new Date(timestamp * 1000).toISOString().split('T')[0],
+      loc: cumulative,
+    };
+  });
+}
+
+// ── Radar Metrics ──
+
+function buildRadarMetrics(
+  raw: GitStatsRawData,
+  contributors: ContributorSummary[],
+  busFactor: BusFactorData,
+  commitMessages: CommitMessageStats,
+): RadarMetric[] {
+  const totalCommits = raw.commits.length;
+  const totalAuthors = contributors.length;
+
+  // Activity: normalized by 1000 commits
+  const activity = Math.min(totalCommits / 1000, 1.0);
+
+  // Team Size: normalized by 20 authors
+  const teamSize = Math.min(totalAuthors / 20, 1.0);
+
+  // Bus Factor: normalized by 5
+  const busFactorScore = Math.min(busFactor.busFactor / 5, 1.0);
+
+  // Code Balance: how balanced are insertions vs deletions
+  const totalIns = raw.commitDetails.reduce((s, d) => s + d.stats.additions, 0);
+  const totalDel = raw.commitDetails.reduce((s, d) => s + d.stats.deletions, 0);
+  const total = totalIns + totalDel;
+  const codeBalance = total > 0 ? 1.0 - Math.abs(totalIns - totalDel) / total : 0.5;
+
+  // Commit Hygiene: conventional commit adoption
+  const commitHygiene = Math.min(commitMessages.conventionalPercentage / 100, 1.0);
+
+  // Recency: days since last commit (1.0 = today, 0.0 = 365+ days ago)
+  const lastDate =
+    raw.commits.length > 0
+      ? Math.max(...raw.commits.map((c) => new Date(c.commit.author.date).getTime()))
+      : Date.now();
+  const daysSinceLast = (Date.now() - lastDate) / 86400000;
+  const recency = Math.max(0, 1.0 - daysSinceLast / 365);
+
+  return [
+    { label: 'Activity', value: Math.round(activity * 100) / 100 },
+    { label: 'Team Size', value: Math.round(teamSize * 100) / 100 },
+    { label: 'Bus Factor', value: Math.round(busFactorScore * 100) / 100 },
+    { label: 'Code Balance', value: Math.round(codeBalance * 100) / 100 },
+    { label: 'Commit Hygiene', value: Math.round(commitHygiene * 100) / 100 },
+    { label: 'Recency', value: Math.round(recency * 100) / 100 },
+  ];
+}
+
+// ── Hotspots ──
+
+function buildHotspots(fileChurn: FileChurnEntry[]): HotspotEntry[] {
+  return fileChurn.slice(0, 30).map((f) => ({
+    path: f.filename,
+    commits: f.changeCount,
+    distinctAuthors: f.contributors.length,
+    totalChurn: f.totalAdditions + f.totalDeletions,
+  }));
+}
+
+// ── Top Active Periods ──
+
+function buildTopActivePeriods(raw: GitStatsRawData): ActivePeriod[] {
+  const monthMap = new Map<string, { commits: number; insertions: number; deletions: number }>();
+
+  for (const detail of raw.commitDetails) {
+    const d = new Date(detail.commit.author.date);
+    const month = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    const entry = monthMap.get(month) || { commits: 0, insertions: 0, deletions: 0 };
+    entry.commits++;
+    entry.insertions += detail.stats.additions;
+    entry.deletions += detail.stats.deletions;
+    monthMap.set(month, entry);
+  }
+
+  return [...monthMap.entries()]
+    .map(([period, stats]) => ({ period, ...stats }))
+    .sort(
+      (a, b) => b.commits + b.insertions + b.deletions - (a.commits + a.insertions + a.deletions),
+    )
+    .slice(0, 10);
+}
+
 // ── Main analysis function ──
 
 export function analyzeGitStats(
@@ -581,6 +1055,23 @@ export function analyzeGitStats(
   const fileCoupling = buildFileCoupling(rawData);
   const firstCommitDate = computeFirstCommitDate(rawData);
   const repoAgeDays = computeRepoAgeDays(firstCommitDate);
+  const commitsByHour = buildCommitsByHour(rawData);
+  const commitsByDomain = buildCommitsByDomain(rawData);
+  const authorOfYear = buildAuthorOfYear(rawData);
+  const authorOfMonth = buildAuthorOfMonth(rawData);
+  const authorTimelines = buildAuthorTimelines(rawData);
+  const network = buildContributorNetwork(rawData);
+  const codeOwnership = buildCodeOwnership(rawData);
+  const timezoneData = buildTimezoneData(rawData);
+  const sequentialCoupling = buildSequentialCoupling(rawData);
+  const linesByExtTime = buildLinesByExtTime(rawData);
+  const linesStatsSummary = buildLinesStatsSummary(rawData);
+  const cumulativeFiles = buildCumulativeFiles(rawData);
+  const fileOperations = buildFileOperations(rawData);
+  const locOverTime = buildLocOverTime(rawData);
+  const radarMetrics = buildRadarMetrics(rawData, contributors, busFactor, commitMessages);
+  const hotspots = buildHotspots(fileChurn);
+  const topActivePeriods = buildTopActivePeriods(rawData);
 
   return {
     owner,
@@ -607,5 +1098,24 @@ export function analyzeGitStats(
     fileCoupling,
     firstCommitDate,
     repoAgeDays,
+    commitsByHour,
+    commitsByDomain,
+    authorOfYear,
+    authorOfMonth,
+    authorTimelines,
+    contributorNodes: network.nodes,
+    contributorEdges: network.edges,
+    codeOwnership,
+    timezoneData,
+    sequentialCoupling,
+    linesByExtTime,
+    linesStatsSummary,
+    cumulativeFiles,
+    fileOperations,
+    tagHistory: [],
+    locOverTime,
+    radarMetrics,
+    hotspots,
+    topActivePeriods,
   };
 }
