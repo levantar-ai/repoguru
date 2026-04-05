@@ -1,3 +1,9 @@
+# [0.8.0](https://github.com/levantar-ai/repoguru/compare/v0.7.0...v0.8.0) (2026-04-05)
+
+### Features
+
+- auto-open org picker after first GitHub sign-in ([0846d12](https://github.com/levantar-ai/repoguru/commit/0846d12594a9037f5b8f1d5a9c698b7d1207fd51))
+
 # [0.7.0](https://github.com/levantar-ai/repoguru/compare/v0.6.0...v0.7.0) (2026-04-05)
 
 ### Bug Fixes
