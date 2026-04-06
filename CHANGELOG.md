@@ -1,3 +1,13 @@
+# [0.9.0](https://github.com/levantar-ai/repoguru/compare/v0.8.1...v0.9.0) (2026-04-06)
+
+### Bug Fixes
+
+- use localeCompare for string sorts (SonarCloud S2871) ([cc53805](https://github.com/levantar-ai/repoguru/commit/cc5380597cfa0473d540c59e6b3c751bccfb721b))
+
+### Features
+
+- add 26 new visualizations to match CLI report output ([3831d9a](https://github.com/levantar-ai/repoguru/commit/3831d9a6e18bca51826ec727bddff18d63118a4f))
+
 ## [0.8.1](https://github.com/levantar-ai/repoguru/compare/v0.8.0...v0.8.1) (2026-04-05)
 
 ### Bug Fixes
