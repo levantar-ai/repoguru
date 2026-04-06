@@ -70,8 +70,8 @@ export function ResourceFileMatrix({ aws, azure, gcp }: Props) {
       serviceSet.add(e.service);
       fileSet.add(e.source);
     }
-    const serviceList = [...serviceSet].sort();
-    const fileList = [...fileSet].sort();
+    const serviceList = [...serviceSet].sort((a, b) => a.localeCompare(b));
+    const fileList = [...fileSet].sort((a, b) => a.localeCompare(b));
 
     // Build lookup: service -> source -> provider
     const lookup = new Map<string, Map<string, string>>();

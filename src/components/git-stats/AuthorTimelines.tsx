@@ -17,7 +17,7 @@ export function AuthorTimelines({ authorTimelines }: Props) {
         monthSet.add(month);
       }
     }
-    const months = Array.from(monthSet).sort();
+    const months = Array.from(monthSet).sort((a, b) => a.localeCompare(b));
 
     const series = authorTimelines.map((at, i) => {
       const lookup = new Map(at.points);

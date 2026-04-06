@@ -696,7 +696,7 @@ function buildContributorNetwork(raw: GitStatsRawData): {
     const arr = [...authors];
     for (let i = 0; i < arr.length; i++) {
       for (let j = i + 1; j < arr.length; j++) {
-        const key = [arr[i], arr[j]].sort().join('|||');
+        const key = [arr[i], arr[j]].sort((a, b) => a.localeCompare(b)).join('|||');
         edgeMap.set(key, (edgeMap.get(key) || 0) + 1);
       }
     }
@@ -845,7 +845,7 @@ function buildLinesByExtTime(raw: GitStatsRawData): ExtMonthlyChurn | null {
     }
   }
 
-  const months = [...monthExtMap.keys()].sort();
+  const months = [...monthExtMap.keys()].sort((a, b) => a.localeCompare(b));
   const allExts = new Set<string>();
   for (const exts of monthExtMap.values()) {
     for (const ext of exts.keys()) allExts.add(ext);
