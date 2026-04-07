@@ -1,3 +1,9 @@
+## [0.11.2](https://github.com/levantar-ai/repoguru/compare/v0.11.1...v0.11.2) (2026-04-07)
+
+### Bug Fixes
+
+- revert batch size to 25, checkpoint every 4th batch ([fa8b236](https://github.com/levantar-ai/repoguru/commit/fa8b236bfa05be1046a31050595c0f80628abc7e))
+
 ## [0.11.1](https://github.com/levantar-ai/repoguru/compare/v0.11.0...v0.11.1) (2026-04-07)
 
 ### Bug Fixes
