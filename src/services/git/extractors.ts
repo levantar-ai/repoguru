@@ -209,6 +209,9 @@ async function diffSingleTree(
 
 // ── Diff a single commit against its parent ──
 
+/** Max changed files to collect per commit before bailing out of the tree walk */
+const MAX_DIFF_FILES = 200;
+
 export async function diffCommit(
   fs: FsClient,
   dir: string,
@@ -233,6 +236,7 @@ export async function diffCommit(
     trees,
     map: async (filepath: string, entries: (WalkerEntry | null)[] | null) => {
       if (!entries || filepath === '.') return;
+      if (files.length >= MAX_DIFF_FILES) return null; // bail — prune subtree
       const result = await diffFn(entries, filepath);
       if (result) files.push(result);
     },
@@ -334,6 +338,7 @@ export async function diffCommitFast(
     trees,
     map: async (filepath: string, entries: (WalkerEntry | null)[] | null) => {
       if (!entries || filepath === '.') return;
+      if (files.length >= MAX_DIFF_FILES) return null; // bail — prune subtree
       const result = await diffFn(entries, filepath);
       if (result) files.push(result);
     },

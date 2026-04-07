@@ -5,6 +5,7 @@ import {
   STORE_REPORTS,
   STORE_RECENT,
   STORE_SETTINGS,
+  STORE_CHECKPOINTS,
 } from '../../utils/constants';
 
 let dbPromise: Promise<IDBPDatabase> | null = null;
@@ -21,6 +22,9 @@ export function getDb(): Promise<IDBPDatabase> {
         }
         if (!db.objectStoreNames.contains(STORE_SETTINGS)) {
           db.createObjectStore(STORE_SETTINGS);
+        }
+        if (!db.objectStoreNames.contains(STORE_CHECKPOINTS)) {
+          db.createObjectStore(STORE_CHECKPOINTS, { keyPath: 'key' });
         }
       },
     });

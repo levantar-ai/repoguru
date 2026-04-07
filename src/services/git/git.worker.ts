@@ -23,6 +23,10 @@ export interface CloneMessage {
   token?: string;
   includeStats?: boolean;
   depth?: number;
+  /** When resuming, skip this many batches of diffs */
+  resumeFromBatch?: number;
+  /** Serialised diffStats from checkpoint — used to seed diffStatsMap on resume */
+  resumeDiffStats?: [string, { additions: number; deletions: number }][];
 }
 
 export interface ProgressMessage {
@@ -56,6 +60,16 @@ export interface CloneDoneMessage {
 export interface StatsDoneMessage {
   type: 'stats-done';
   data: GitStatsRawData;
+  /** When true, data.commitDetails only contains freshly-diffed batches (not resumed ones) */
+  partial?: boolean;
+}
+
+export interface BatchDoneMessage {
+  type: 'batch-done';
+  batchIndex: number;
+  totalCommits: number;
+  commitDetails: GitStatsRawData['commitDetails'];
+  diffStats: [string, { additions: number; deletions: number }][];
 }
 
 export interface ErrorMessage {
@@ -63,7 +77,12 @@ export interface ErrorMessage {
   message: string;
 }
 
-export type WorkerOutMessage = ProgressMessage | CloneDoneMessage | StatsDoneMessage | ErrorMessage;
+export type WorkerOutMessage =
+  | ProgressMessage
+  | CloneDoneMessage
+  | StatsDoneMessage
+  | BatchDoneMessage
+  | ErrorMessage;
 
 const DIR = '/repo';
 const MAX_TEXT_FILE_SIZE = 512 * 1024; // 512KB
@@ -289,25 +308,63 @@ async function handleClone(msg: CloneMessage) {
 
       postProgress('extracting-commits', 55, 100, `Found ${logEntries.length} commits`);
 
-      postProgress('extracting-details', 57, 0, 'Computing file diffs...');
+      const resumeFromBatch = msg.resumeFromBatch ?? 0;
+      const isResuming = resumeFromBatch > 0;
 
-      const BATCH_SIZE = 25;
-      const FULL_DIFF_COUNT = 30;
+      if (isResuming) {
+        postProgress('extracting-details', 57, 0, `Resuming from batch ${resumeFromBatch}...`);
+      } else {
+        postProgress('extracting-details', 57, 0, 'Computing file diffs...');
+      }
+
+      const BATCH_SIZE = 50;
+      const FULL_DIFF_COUNT = 15;
       const totalCommits = logEntries.length;
       const commitDetails: GitStatsRawData['commitDetails'] = [];
       const diffStatsMap = new Map<string, { additions: number; deletions: number }>();
 
+      // On resume, seed diffStatsMap with checkpointed entries
+      if (msg.resumeDiffStats) {
+        for (const [sha, stats] of msg.resumeDiffStats) {
+          diffStatsMap.set(sha, stats);
+        }
+      }
+
+      // Pre-compute which commits are merges (>1 parent) — always use fast diff
+      const mergeSet = new Set<number>();
+      for (let i = 0; i < logEntries.length; i++) {
+        if (logEntries[i].commit.parent.length > 1) mergeSet.add(i);
+      }
+
       const fullDiffIndices = new Set(sampleIndices(totalCommits, FULL_DIFF_COUNT));
 
       let completed = 0;
+      let batchNumber = 0;
 
       for (let batchStart = 0; batchStart < totalCommits; batchStart += BATCH_SIZE) {
         const batchEnd = Math.min(batchStart + BATCH_SIZE, totalCommits);
 
+        // Skip already-completed batches on resume
+        if (batchNumber < resumeFromBatch) {
+          batchNumber++;
+          completed += batchEnd - batchStart;
+          const overall = 57 + Math.round((completed / totalCommits) * 25);
+          const subPct = Math.round((completed / totalCommits) * 100);
+          postProgress(
+            'extracting-details',
+            overall,
+            subPct,
+            `Skipping completed batch ${batchNumber}/${Math.ceil(totalCommits / BATCH_SIZE)}`,
+          );
+          continue;
+        }
+
         const results = await Promise.allSettled(
           logEntries.slice(batchStart, batchEnd).map(async (entry, offset) => {
+            const idx = batchStart + offset;
             const parentOid = entry.commit.parent.length > 0 ? entry.commit.parent[0] : null;
-            const useFull = fullDiffIndices.has(batchStart + offset);
+            // Merges always get fast diff — they're expensive and redundant
+            const useFull = !mergeSet.has(idx) && fullDiffIndices.has(idx);
             const result = useFull
               ? await diffCommit(fs, DIR, entry.oid, parentOid)
               : await diffCommitFast(fs, DIR, entry.oid, parentOid);
@@ -315,12 +372,15 @@ async function handleClone(msg: CloneMessage) {
           }),
         );
 
+        const batchDetails: GitStatsRawData['commitDetails'] = [];
+        const batchDiffStats: [string, { additions: number; deletions: number }][] = [];
+
         for (const outcome of results) {
           if (outcome.status !== 'fulfilled') continue;
           const { entry, result } = outcome.value;
           const stats = result.stats;
 
-          commitDetails.push({
+          const detail = {
             sha: entry.oid,
             commit: {
               message: entry.commit.message,
@@ -347,14 +407,32 @@ async function handleClone(msg: CloneMessage) {
               deletions: f.deletions,
               changes: f.changes,
             })),
-          });
+          };
+
+          batchDetails.push(detail);
+          commitDetails.push(detail);
 
           diffStatsMap.set(entry.oid, {
             additions: stats.additions,
             deletions: stats.deletions,
           });
+          batchDiffStats.push([
+            entry.oid,
+            { additions: stats.additions, deletions: stats.deletions },
+          ]);
         }
 
+        // Post batch results for checkpointing on main thread
+        const batchDoneMsg: BatchDoneMessage = {
+          type: 'batch-done',
+          batchIndex: batchNumber,
+          totalCommits,
+          commitDetails: batchDetails,
+          diffStats: batchDiffStats,
+        };
+        self.postMessage(batchDoneMsg);
+
+        batchNumber++;
         completed += batchEnd - batchStart;
         const overall = 57 + Math.round((completed / totalCommits) * 25);
         const subPct = Math.round((completed / totalCommits) * 100);
@@ -392,6 +470,7 @@ async function handleClone(msg: CloneMessage) {
       const statsDoneMsg: StatsDoneMessage = {
         type: 'stats-done',
         data: rawData,
+        partial: isResuming,
       };
       self.postMessage(statsDoneMsg);
     }

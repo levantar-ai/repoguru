@@ -8,6 +8,11 @@ import {
   clearPendingClone,
 } from './repoCache';
 import type { CachedRepoData } from './repoCache';
+import {
+  loadCheckpoint,
+  appendBatchToCheckpoint,
+  clearCheckpoint,
+} from '../persistence/checkpointStore';
 
 const TIMEOUT_MS = 120_000; // 2 min for file-only clones
 const STATS_TIMEOUT_MS = 300_000; // 5 min for history + diff extraction
@@ -44,74 +49,124 @@ export function cloneRepo(
     if (pending) return pending.then((c) => ({ cached: c }));
   }
 
-  const promise = new Promise<CloneResult>((resolve, reject) => {
-    const worker = new Worker(new URL('./git.worker.ts', import.meta.url), { type: 'module' });
+  const promise = (async () => {
+    // Check for an existing checkpoint to resume from
+    let resumeFromBatch: number | undefined;
+    let resumeDiffStats: [string, { additions: number; deletions: number }][] | undefined;
+    let checkpointDetails: GitStatsRawData['commitDetails'] | undefined;
 
-    const timeoutMs = includeStats ? STATS_TIMEOUT_MS : TIMEOUT_MS;
-    const timeout = setTimeout(() => {
-      worker.terminate();
-      clearPendingClone();
-      reject(new Error(`Clone timed out after ${timeoutMs / 60_000} minutes`));
-    }, timeoutMs);
+    if (includeStats) {
+      const checkpoint = await loadCheckpoint(owner, repo);
+      if (checkpoint && checkpoint.completedBatchIndex > 0) {
+        resumeFromBatch = checkpoint.completedBatchIndex;
+        resumeDiffStats = checkpoint.diffStats;
+        checkpointDetails = checkpoint.commitDetails;
+        onProgress?.(
+          'extracting-details',
+          57,
+          0,
+          `Resuming — ${checkpoint.completedBatchIndex * 25} commits already processed`,
+        );
+      }
+    }
 
-    let cachedData: CachedRepoData | null = null;
+    return new Promise<CloneResult>((resolve, reject) => {
+      const worker = new Worker(new URL('./git.worker.ts', import.meta.url), { type: 'module' });
 
-    worker.onmessage = (e: MessageEvent<WorkerOutMessage>) => {
-      const msg = e.data;
+      const timeoutMs = includeStats ? STATS_TIMEOUT_MS : TIMEOUT_MS;
+      const timeout = setTimeout(() => {
+        worker.terminate();
+        clearPendingClone();
+        reject(new Error(`Clone timed out after ${timeoutMs / 60_000} minutes`));
+      }, timeoutMs);
 
-      switch (msg.type) {
-        case 'progress':
-          onProgress?.(msg.step, msg.percent, msg.subPercent, msg.message);
-          break;
+      let cachedData: CachedRepoData | null = null;
 
-        case 'clone-done':
-          setCache(owner, repo, msg.tree, msg.files);
-          cachedData = getCache(owner, repo)!;
-          clearPendingClone();
-          // If no stats requested, resolve immediately
-          if (!includeStats) {
+      worker.onmessage = (e: MessageEvent<WorkerOutMessage>) => {
+        const msg = e.data;
+
+        switch (msg.type) {
+          case 'progress':
+            onProgress?.(msg.step, msg.percent, msg.subPercent, msg.message);
+            break;
+
+          case 'clone-done':
+            setCache(owner, repo, msg.tree, msg.files);
+            cachedData = getCache(owner, repo)!;
+            clearPendingClone();
+            // If no stats requested, resolve immediately
+            if (!includeStats) {
+              clearTimeout(timeout);
+              worker.terminate();
+              resolve({ cached: cachedData });
+            }
+            break;
+
+          case 'batch-done':
+            // Fire-and-forget: save batch to IndexedDB for crash recovery
+            appendBatchToCheckpoint(
+              owner,
+              repo,
+              msg.commitDetails,
+              msg.diffStats,
+              msg.batchIndex + 1,
+              msg.totalCommits,
+            ).catch(() => {});
+            break;
+
+          case 'stats-done': {
             clearTimeout(timeout);
             worker.terminate();
-            resolve({ cached: cachedData });
+
+            let statsData = msg.data;
+
+            // Merge checkpoint data when resuming
+            if (msg.partial && checkpointDetails) {
+              statsData = {
+                ...statsData,
+                commitDetails: [...checkpointDetails, ...statsData.commitDetails],
+              };
+            }
+
+            // Clear checkpoint on success (fire-and-forget)
+            clearCheckpoint(owner, repo).catch(() => {});
+
+            resolve({
+              cached: cachedData ?? getCache(owner, repo)!,
+              statsData,
+            });
+            break;
           }
-          break;
 
-        case 'stats-done':
-          clearTimeout(timeout);
-          worker.terminate();
-          resolve({
-            cached: cachedData ?? getCache(owner, repo)!,
-            statsData: msg.data,
-          });
-          break;
+          case 'error':
+            clearTimeout(timeout);
+            worker.terminate();
+            clearPendingClone();
+            reject(new Error(msg.message));
+            break;
+        }
+      };
 
-        case 'error':
-          clearTimeout(timeout);
-          worker.terminate();
-          clearPendingClone();
-          reject(new Error(msg.message));
-          break;
-      }
-    };
+      worker.onerror = (err) => {
+        clearTimeout(timeout);
+        worker.terminate();
+        clearPendingClone();
+        reject(new Error(err.message || 'Worker error'));
+      };
 
-    worker.onerror = (err) => {
-      clearTimeout(timeout);
-      worker.terminate();
-      clearPendingClone();
-      reject(new Error(err.message || 'Worker error'));
-    };
+      const message: CloneMessage = {
+        type: 'clone',
+        owner,
+        repo,
+        corsProxy: CORS_PROXY,
+        includeStats,
+        ...(token ? { token } : {}),
+        ...(resumeFromBatch != null ? { resumeFromBatch, resumeDiffStats } : {}),
+      };
 
-    const message: CloneMessage = {
-      type: 'clone',
-      owner,
-      repo,
-      corsProxy: CORS_PROXY,
-      includeStats,
-      ...(token ? { token } : {}),
-    };
-
-    worker.postMessage(message);
-  });
+      worker.postMessage(message);
+    });
+  })();
 
   // Register as pending so other non-stats callers can piggyback
   if (!includeStats) {

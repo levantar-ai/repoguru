@@ -130,7 +130,8 @@ export const DEMO_REPOS = [
 ] as const;
 
 export const IDB_NAME = 'repoguru';
-export const IDB_VERSION = 1;
+export const IDB_VERSION = 2;
 export const STORE_REPORTS = 'reports';
 export const STORE_RECENT = 'recent';
 export const STORE_SETTINGS = 'settings';
+export const STORE_CHECKPOINTS = 'checkpoints';
