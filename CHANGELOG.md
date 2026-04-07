@@ -1,3 +1,13 @@
+# [0.10.0](https://github.com/levantar-ai/repoguru/compare/v0.9.0...v0.10.0) (2026-04-07)
+
+### Bug Fixes
+
+- update vite to patch path traversal vulnerability ([0b5b3a3](https://github.com/levantar-ai/repoguru/commit/0b5b3a3974c6ce09679a9355b3bde7cb868712c3))
+
+### Features
+
+- add checkpoint/resume and speed up diffing ([34cc520](https://github.com/levantar-ai/repoguru/commit/34cc520b365f6679dafc617541f97ed742a90799))
+
 # [0.9.0](https://github.com/levantar-ai/repoguru/compare/v0.8.1...v0.9.0) (2026-04-06)
 
 ### Bug Fixes
