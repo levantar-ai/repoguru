@@ -3,6 +3,7 @@ import { reportToMarkdown } from '../../services/export/markdown';
 import { reportToCsv } from '../../services/export/csv';
 import { sbomToJson } from '../../services/export/sbom';
 import { useClipboard } from '../../hooks/useClipboard';
+import { trackEvent } from '../../utils/analytics';
 
 interface Props {
   report: AnalysisReport;
@@ -49,6 +50,10 @@ export function EnhancedExport({ report }: Props) {
       ),
       action: () => {
         copy(reportToMarkdown(report));
+        trackEvent('report_export', {
+          format: 'markdown',
+          repo: `${report.repo.owner}/${report.repo.repo}`,
+        });
       },
       actionLabel: 'Copy',
     },
@@ -68,6 +73,10 @@ export function EnhancedExport({ report }: Props) {
       ),
       action: () => {
         copy(reportToCsv(report));
+        trackEvent('report_export', {
+          format: 'csv',
+          repo: `${report.repo.owner}/${report.repo.repo}`,
+        });
       },
       actionLabel: 'Copy',
     },
@@ -87,6 +96,10 @@ export function EnhancedExport({ report }: Props) {
       ),
       action: () => {
         copy(JSON.stringify(report, null, 2));
+        trackEvent('report_export', {
+          format: 'json',
+          repo: `${report.repo.owner}/${report.repo.repo}`,
+        });
       },
       actionLabel: 'Copy',
     },
@@ -107,6 +120,10 @@ export function EnhancedExport({ report }: Props) {
       action: () => {
         const filename = `${report.repo.owner}-${report.repo.repo}-sbom.json`;
         downloadFile(sbomToJson(report), filename, 'application/json');
+        trackEvent('report_export', {
+          format: 'sbom',
+          repo: `${report.repo.owner}/${report.repo.repo}`,
+        });
       },
       actionLabel: 'Download',
     },
@@ -124,7 +141,13 @@ export function EnhancedExport({ report }: Props) {
           />
         </svg>
       ),
-      action: () => window.print(),
+      action: () => {
+        trackEvent('report_export', {
+          format: 'print',
+          repo: `${report.repo.owner}/${report.repo.repo}`,
+        });
+        window.print();
+      },
       actionLabel: 'Print',
     },
   ];

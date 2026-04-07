@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import type { PageId } from '../../types';
 import { ThemeToggle } from './ThemeToggle';
 import { useApp } from '../../context/AppContext';
+import { trackEvent } from '../../utils/analytics';
 
 interface Props {
   onNavigate: (page: PageId) => void;
@@ -225,7 +226,10 @@ export function Header({ onNavigate, currentPage }: Props) {
             {NAV_ITEMS.map((item) => (
               <button
                 key={item.id}
-                onClick={() => onNavigate(item.id)}
+                onClick={() => {
+                  trackEvent('tool_switch', { target: item.id });
+                  onNavigate(item.id);
+                }}
                 className={`inline-flex items-center gap-1.5 px-3.5 py-2 text-sm font-medium rounded-md transition-all duration-150 ${
                   currentPage === item.id
                     ? 'text-neon bg-neon/12 shadow-[0_0_8px_rgba(56,189,248,0.15)]'
@@ -339,6 +343,7 @@ export function Header({ onNavigate, currentPage }: Props) {
               <button
                 key={item.id}
                 onClick={() => {
+                  trackEvent('tool_switch', { target: item.id });
                   onNavigate(item.id);
                   setMobileMenuOpen(false);
                 }}

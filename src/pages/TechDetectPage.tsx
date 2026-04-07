@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
+import { trackEvent } from '../utils/analytics';
 import { parseErrorWithTip } from '../utils/humanizeError';
 import { useTechDetect } from '../hooks/useTechDetect';
 import { TechDetectResults } from '../components/tech-detect/TechDetectResults';
@@ -221,7 +222,10 @@ export function TechDetectPage({ initialRepo }: Props) {
         <div className="space-y-6">
           <div className="flex items-center justify-end">
             <button
-              onClick={reset}
+              onClick={() => {
+                trackEvent('new_analysis', { tool: 'tech-detect' });
+                reset();
+              }}
               className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg border border-border hover:bg-surface-hover hover:border-border-bright text-text-secondary hover:text-neon transition-all"
             >
               <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">

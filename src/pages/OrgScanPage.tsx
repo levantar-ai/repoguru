@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef, useMemo } from 'react';
+import { trackEvent } from '../utils/analytics';
 import { getCategoryScore } from './orgScanUtils';
 import type {
   LetterGrade,
@@ -813,6 +814,8 @@ export function OrgScanPage({ onAnalyze, githubToken }: Props) {
     const org = orgInput.trim();
     if (!org) return;
 
+    trackEvent('org_scan_start', { org });
+
     abortRef.current?.abort();
     const controller = new AbortController();
     abortRef.current = controller;
@@ -843,6 +846,7 @@ export function OrgScanPage({ onAnalyze, githubToken }: Props) {
 
       const results = await analyzeRepoList(org, finalList, ghFetch, controller, setScan);
 
+      trackEvent('org_scan_complete', { org, repo_count: results.length });
       setScan((s) => ({
         ...s,
         phase: 'done',
@@ -863,6 +867,7 @@ export function OrgScanPage({ onAnalyze, githubToken }: Props) {
   // ── Reset ────────────────────────────────────────────────────────────────
 
   const resetScan = useCallback(() => {
+    trackEvent('new_analysis', { tool: 'org-scan' });
     abortRef.current?.abort();
     setScan(initialScanState);
   }, []);

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { LetterGrade } from '../../types';
 import { useClipboard } from '../../hooks/useClipboard';
+import { trackEvent } from '../../utils/analytics';
 
 interface Props {
   owner: string;
@@ -112,7 +113,10 @@ export function BadgeGenerator({ owner, repo, grade, score }: Props) {
         {tabs.map((tab) => (
           <button
             key={tab.key}
-            onClick={() => setActiveTab(tab.key)}
+            onClick={() => {
+              setActiveTab(tab.key);
+              trackEvent('badge_tab', { format: tab.key, repo: `${owner}/${repo}` });
+            }}
             className={`px-3 py-2 text-xs font-medium transition-colors border-b-2 -mb-[1px] ${
               activeTab === tab.key
                 ? 'text-neon border-neon'
@@ -139,7 +143,10 @@ export function BadgeGenerator({ owner, repo, grade, score }: Props) {
           {snippets[activeTab]}
         </pre>
         <button
-          onClick={() => copy(snippets[activeTab])}
+          onClick={() => {
+            copy(snippets[activeTab]);
+            trackEvent('badge_copy', { format: activeTab, repo: `${owner}/${repo}` });
+          }}
           className="absolute top-2 right-2 px-2.5 py-1 text-xs font-medium rounded-md border border-border bg-surface-alt hover:bg-surface-hover hover:border-neon/30 text-text-secondary transition-all"
           aria-label={`Copy ${activeTab} badge code`}
         >

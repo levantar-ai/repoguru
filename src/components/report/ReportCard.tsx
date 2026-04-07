@@ -13,6 +13,7 @@ import { TrendChart } from '../common/TrendChart';
 import { MermaidDiagram } from '../common/MermaidDiagram';
 import { formatDate, formatNumber } from '../../utils/formatters';
 import { getRepoHistory } from '../../services/persistence/history';
+import { trackEvent } from '../../utils/analytics';
 
 interface Props {
   report: AnalysisReport;
@@ -69,7 +70,13 @@ export function ReportCard({ report, onNewAnalysis }: Props) {
           </div>
         </div>
         <button
-          onClick={onNewAnalysis}
+          onClick={() => {
+            trackEvent('new_analysis', {
+              tool: 'report-card',
+              repo: `${report.repo.owner}/${report.repo.repo}`,
+            });
+            onNewAnalysis();
+          }}
           className="no-print shrink-0 px-5 py-2.5 text-sm font-medium rounded-lg border border-border bg-surface-alt hover:bg-surface-hover hover:border-neon/30 transition-all duration-200"
         >
           New Analysis

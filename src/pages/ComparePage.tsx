@@ -17,6 +17,7 @@ import { CATEGORY_LABELS } from '../utils/constants';
 import { invalidateIfNeitherMatch } from '../services/git/repoCache';
 import { ensureCloned } from '../services/git/cloneService';
 import { RepoPicker } from '../components/common/RepoPicker';
+import { trackEvent } from '../utils/analytics';
 
 // ── Props ──
 
@@ -161,6 +162,8 @@ export function ComparePage({ githubToken }: Props) {
   const handleCompare = useCallback(async () => {
     if (!inputA.trim() || !inputB.trim()) return;
 
+    trackEvent('compare_start', { repo_a: inputA.trim(), repo_b: inputB.trim() });
+
     setState({
       step: 'loading',
       progress: 'Starting comparison...',
@@ -185,6 +188,7 @@ export function ComparePage({ githubToken }: Props) {
       const reportA = await analyzeRepo(inputA.trim(), 'Repo A', setProgress);
       const reportB = await analyzeRepo(inputB.trim(), 'Repo B', setProgress);
 
+      trackEvent('compare_complete', { repo_a: inputA.trim(), repo_b: inputB.trim() });
       setState({ step: 'done', progress: '', reportA, reportB, error: null });
     } catch (err) {
       setState({
@@ -199,6 +203,7 @@ export function ComparePage({ githubToken }: Props) {
   }, [inputA, inputB, githubToken]);
 
   const handleReset = useCallback(() => {
+    trackEvent('new_analysis', { tool: 'compare' });
     setState({ step: 'idle', progress: '', reportA: null, reportB: null, error: null });
     setExpandedCategories(new Set());
   }, []);
