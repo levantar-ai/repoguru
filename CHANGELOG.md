@@ -1,3 +1,9 @@
+## [0.11.1](https://github.com/levantar-ai/repoguru/compare/v0.11.0...v0.11.1) (2026-04-07)
+
+### Bug Fixes
+
+- handle 401 by clearing expired token and prompting reconnect ([f3c2a3a](https://github.com/levantar-ai/repoguru/commit/f3c2a3a7263da0742340603b391b5143a11a4125))
+
 # [0.11.0](https://github.com/levantar-ai/repoguru/compare/v0.10.0...v0.11.0) (2026-04-07)
 
 ### Features
