@@ -9,6 +9,7 @@ import {
   logToCommits,
   diffCommit,
   diffCommitFast,
+  createDiffCache,
   computeLanguages,
   computeWeeklyAggregates,
   sampleIndices,
@@ -297,6 +298,13 @@ async function handleClone(msg: CloneMessage) {
       const commitDetails: GitStatsRawData['commitDetails'] = [];
       const diffStatsMap = new Map<string, { additions: number; deletions: number }>();
 
+      // Shared object cache across every diff in this scan. Adjacent commits
+      // reuse ~all of their tree structure (most trees don't change between
+      // commits), so a shared cache turns the vast majority of tree reads
+      // into memory hits instead of IndexedDB round-trips. This is where the
+      // big speed win comes from — latency on each individual read dominates.
+      const diffCache = createDiffCache();
+
       // Pre-compute which commits are merges (>1 parent) — always use fast diff
       const mergeSet = new Set<number>();
       for (let i = 0; i < logEntries.length; i++) {
@@ -317,8 +325,8 @@ async function handleClone(msg: CloneMessage) {
             // Merges always get fast diff — they're expensive and redundant
             const useFull = !mergeSet.has(idx) && fullDiffIndices.has(idx);
             const result = useFull
-              ? await diffCommit(fs, DIR, entry.oid, parentOid)
-              : await diffCommitFast(fs, DIR, entry.oid, parentOid);
+              ? await diffCommit(fs, DIR, entry.oid, parentOid, diffCache)
+              : await diffCommitFast(fs, DIR, entry.oid, parentOid, diffCache);
             return { entry, result };
           }),
         );

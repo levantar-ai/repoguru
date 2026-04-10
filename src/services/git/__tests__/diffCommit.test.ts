@@ -10,7 +10,7 @@ import git from 'isomorphic-git';
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
-import { diffCommit, diffCommitFast } from '../extractors';
+import { diffCommit, diffCommitFast, createDiffCache } from '../extractors';
 
 let dir: string;
 const commits: { sha: string; parent: string | null; label: string }[] = [];
@@ -172,6 +172,31 @@ describe('diffCommitFast (native tree diff, OID-only)', () => {
       expect(f.status).toBe('added');
       expect(f.additions).toBe(1);
       expect(f.deletions).toBe(0);
+    }
+  });
+});
+
+describe('shared cache across commits', () => {
+  it('produces identical results when one cache is reused for every call', async () => {
+    // Running every commit through a single shared cache should give byte-
+    // for-byte identical output to running each with a fresh cache. This is
+    // the hot path in git.worker.ts — regression-proofs that cache reuse
+    // never leaks state between commits.
+    const sharedCache = createDiffCache();
+
+    for (const c of commits) {
+      const fresh = await diffCommit(fs as never, dir, c.sha, c.parent);
+      const shared = await diffCommit(fs as never, dir, c.sha, c.parent, sharedCache);
+      expect(shared.map((f) => f.filename).sort()).toEqual(fresh.map((f) => f.filename).sort());
+      expect(shared.stats).toEqual(fresh.stats);
+    }
+
+    // Run the same sequence again — every call should now be a pure cache
+    // hit for tree reads and still produce identical results.
+    for (const c of commits) {
+      const shared = await diffCommitFast(fs as never, dir, c.sha, c.parent, sharedCache);
+      const fresh = await diffCommitFast(fs as never, dir, c.sha, c.parent);
+      expect(shared.map((f) => f.filename).sort()).toEqual(fresh.map((f) => f.filename).sort());
     }
   });
 });

@@ -70,8 +70,11 @@ async function nativeTreeDiff(dir, oldOid, newOid, prefix, out, cache) {
   }
 }
 
-async function diffCommitFastNative(dir, oid, parentOid) {
-  const cache = {};
+async function diffCommitFastNativeFreshCache(dir, oid, parentOid) {
+  return diffCommitFastNativeWithCache(dir, oid, parentOid, {});
+}
+
+async function diffCommitFastNativeWithCache(dir, oid, parentOid, cache) {
   const files = [];
   const { commit: newCommit } = await git.readCommit({ fs, dir, oid, cache });
   if (parentOid) {
@@ -145,10 +148,24 @@ const runBatch = async (label, fn) => {
 
 // Warmup so cold-cache bias doesn't skew results
 await runBatch('warmup             ', diffCommitFastOld);
-const nativeRun = await runBatch('NATIVE tree diff   ', diffCommitFastNative);
 const oldRun = await runBatch('OLD walk (no prune)', diffCommitFastOld);
+const nativeRun = await runBatch('NATIVE (fresh cache)', diffCommitFastNativeFreshCache);
 
-console.log(`\nSpeedup: ${(oldRun.ms / nativeRun.ms).toFixed(1)}× (native vs old walk)`);
+// Shared-cache variant: one cache reused across every commit in the batch
+const sharedCache = {};
+const sharedRun = await runBatch('NATIVE (shared cache)', (dir, oid, parentOid) =>
+  diffCommitFastNativeWithCache(dir, oid, parentOid, sharedCache),
+);
+
+console.log(
+  `\nFresh speedup:  ${(oldRun.ms / nativeRun.ms).toFixed(1)}× (native fresh vs old walk)`,
+);
+console.log(
+  `Shared speedup: ${(oldRun.ms / sharedRun.ms).toFixed(1)}× (native shared vs old walk)`,
+);
+console.log(
+  `Shared-vs-fresh: ${(nativeRun.ms / sharedRun.ms).toFixed(1)}× (cache reuse win)`,
+);
 
 const mismatches = nativeRun.counts.filter((n, i) => n !== oldRun.counts[i]);
 if (mismatches.length > 0) {

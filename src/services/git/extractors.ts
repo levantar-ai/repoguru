@@ -432,19 +432,29 @@ async function commitToTreeOid(
 }
 
 // ── Diff a single commit against its parent ──────────────────────────────
+//
+// The `cache` parameter should be shared across every diff in a session —
+// adjacent commits reuse ~all of their tree structure, so a shared cache
+// turns subsequent tree reads into memory lookups instead of IndexedDB
+// round-trips. Sharing the cache across a 1000-commit diff phase is the
+// single biggest win after eliminating the walker overhead.
+
+export function createDiffCache(): object {
+  return {};
+}
 
 export async function diffCommit(
   fs: FsClient,
   dir: string,
   oid: string,
   parentOid: string | null,
+  cache: ObjectCache = createDiffCache(),
 ): Promise<
   GitHubCommitDetailResponse['files'] & {
     stats: { additions: number; deletions: number; total: number };
   }
 > {
   const files: DiffFile[] = [];
-  const cache: ObjectCache = {};
 
   const newTreeOid = await commitToTreeOid(fs, dir, oid, cache);
 
@@ -476,13 +486,13 @@ export async function diffCommitFast(
   dir: string,
   oid: string,
   parentOid: string | null,
+  cache: ObjectCache = createDiffCache(),
 ): Promise<
   GitHubCommitDetailResponse['files'] & {
     stats: { additions: number; deletions: number; total: number };
   }
 > {
   const files: DiffFile[] = [];
-  const cache: ObjectCache = {};
 
   const newTreeOid = await commitToTreeOid(fs, dir, oid, cache);
 
