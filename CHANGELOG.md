@@ -1,3 +1,9 @@
+## [0.11.4](https://github.com/levantar-ai/repoguru/compare/v0.11.3...v0.11.4) (2026-04-10)
+
+### Bug Fixes
+
+- share object cache across all diffs — 63× speedup on large repos ([e2c7fca](https://github.com/levantar-ai/repoguru/commit/e2c7fca897f5704c61a6735b2537223fb69b191a))
+
 ## [0.11.3](https://github.com/levantar-ai/repoguru/compare/v0.11.2...v0.11.3) (2026-04-09)
 
 ### Bug Fixes
