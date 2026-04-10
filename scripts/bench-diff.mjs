@@ -163,9 +163,7 @@ console.log(
 console.log(
   `Shared speedup: ${(oldRun.ms / sharedRun.ms).toFixed(1)}× (native shared vs old walk)`,
 );
-console.log(
-  `Shared-vs-fresh: ${(nativeRun.ms / sharedRun.ms).toFixed(1)}× (cache reuse win)`,
-);
+console.log(`Shared-vs-fresh: ${(nativeRun.ms / sharedRun.ms).toFixed(1)}× (cache reuse win)`);
 
 const mismatches = nativeRun.counts.filter((n, i) => n !== oldRun.counts[i]);
 if (mismatches.length > 0) {
