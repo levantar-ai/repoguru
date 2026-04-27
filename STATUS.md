@@ -1,6 +1,8 @@
 # Unification status
 
-Updated 2026-04-27.
+Updated 2026-04-27. Workspace is now a single git repo (the previous
+per-subproject `.git` dirs in `repoguru/` and `repoguru-spec/` have been
+removed; this is the source of truth).
 
 ## Snapshot
 
@@ -31,10 +33,12 @@ chart accepts `card={false}` so a host that already supplies card chrome
 - [x] `@repoguru/core` — types + `RepoAnalyzer` port + `runAnalyzer` helper.
 - [x] `@repoguru/desktop-adapter` — `GrpcAnalyzer`, every wire→canonical mapper, smoke test.
 - [x] `@repoguru/browser-adapter` — `BrowserAnalyzer`, every mapper, smoke test.
-- [x] `@repoguru/ui` — `ChartCard`, `echartsTheme`, and 5 lifted charts (each with optional `card` chrome):
+- [x] `@repoguru/ui` — `ChartCard`, `echartsTheme`, and 7 lifted charts (each with optional `card` chrome):
   - `CommitsByWeekdayChart` (`PatternsSection.commitsByWeekday`)
   - `CommitsByMonthChart` (`PatternsSection.commitsByMonth`)
   - `CommitsByHourChart` (`PatternsSection.commitsByHour`)
+  - `CommitsByYearChart` (`PatternsSection.commitsByYear`)
+  - `LanguageBreakdownChart` (`PatternsSection.languageBreakdown`)
   - `BusFactorChart` (`HealthSection.busFactor`)
   - `HealthRadarChart` (`HealthSection.radarMetrics`)
 - [x] **Desktop side**: `GitStats.tsx` consumes all 5 lifted charts from
@@ -42,11 +46,14 @@ chart accepts `card={false}` so a host that already supplies card chrome
   `repoguru-spec/.../components/charts/` have been deleted.
 - [x] **Browser side**: `BrowserAnalyzer` is wired into the in-browser
   app's `useGitStats`. The hook now exposes a `canonical: GitStatsData`
-  slice alongside the legacy `analysis`. The 5 corresponding browser
+  slice alongside the legacy `analysis`. The 7 corresponding browser
   components (`CommitsByWeekday`, `CommitsByMonth`, `CommitsByHour`,
-  `BusFactor`, `RadarHealthCard`) embed the lifted charts internally
-  with `card={false}`; `BusFactor` and `RadarHealthCard` source their
-  props from `state.canonical.health.*` in `GitStatsPage.tsx`.
+  `CommitsByYear`, `LanguageBreakdown`, `BusFactor`, `RadarHealthCard`)
+  embed the lifted charts internally with `card={false}`. Components
+  that need it (`BusFactor`, `RadarHealthCard`, `LanguageBreakdown`)
+  source their props from `state.canonical.*` in `GitStatsPage.tsx`.
+  `LanguageBreakdown` keeps its host-local treemap fallback alongside
+  the lifted donut.
 - [x] `pnpm typecheck` green across all 6 in-scope workspace packages.
 - [x] Both adapter smoke tests pass.
 
@@ -78,12 +85,11 @@ consume the shared chart for any lifted concept:
 Ranked by lift complexity:
 
 - **Trivial** (numeric array or simple object input):
-  `CommitsByYearChart`, `CommitSizeHistogram`, `ConventionalCommitsChart`,
-  `RepoGrowthChart`.
+  `CommitSizeHistogram`, `ConventionalCommitsChart`, `RepoGrowthChart`.
 - **Medium** (light aggregation or structural mapping):
-  `CodeFrequencyChart`, `PunchCardChart`, `LanguageBreakdownChart`,
-  `TimezoneChart`, `FileChurnTable`, `FileCouplingTable`,
-  `TagHistoryChart`, `RadarChart`.
+  `CodeFrequencyChart`, `PunchCardChart`, `TimezoneChart`,
+  `FileChurnTable`, `FileCouplingTable`, `TagHistoryChart`,
+  `RadarChart`.
 - **Hard** (stateful layout, force simulation, or specialized rendering):
   `WordCloudChart`, `ContributorChart`, `CommitHeatmap`.
 
