@@ -19,9 +19,9 @@ import {
   CommitsByHourChart,
   CommitsByMonthChart,
   CommitsByWeekdayChart,
+  CommitsByYearChart,
   HealthRadarChart,
 } from '@repoguru/ui';
-import { CommitsByYearChart } from '@/components/charts/CommitsByYearChart';
 import { LanguageBreakdownChart } from '@/components/charts/LanguageBreakdownChart';
 import { WordCloudChart } from '@/components/charts/WordCloudChart';
 import { TimezoneChart } from '@/components/charts/TimezoneChart';
@@ -175,7 +175,9 @@ export function GitStats() {
           {data.weekly_activity && <CommitHeatmap weeklyActivity={data.weekly_activity} />}
           {data.timeseries && <CodeFrequencyChart timeseries={data.timeseries} />}
           {data.cumulative_files && <RepoGrowthChart data={data.cumulative_files} />}
-          {data.commits_by_year && <CommitsByYearChart data={data.commits_by_year} />}
+          {canonical?.patterns?.commitsByYear && (
+            <CommitsByYearChart data={canonical.patterns.commitsByYear} />
+          )}
           {data.tag_history && <TagHistoryChart tags={data.tag_history} />}
         </div>
       )}

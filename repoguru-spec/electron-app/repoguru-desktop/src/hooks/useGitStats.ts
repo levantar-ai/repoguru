@@ -27,7 +27,6 @@ export interface GitStatsData {
   // patterns
   commits_by_weekday: number[];
   commits_by_month: number[];
-  commits_by_year: Record<string, number>;
   commits_by_hour: number[];
   punch_card: Array<[number, number, number]>;
   commit_size_histogram: Array<[string, number]>;
