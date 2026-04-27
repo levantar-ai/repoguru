@@ -3,17 +3,18 @@ import type {
   RepoInfo,
   TreeEntry,
   LightAnalysisReport,
-  CategoryKey,
-  Signal,
   TechStackItem,
-  LetterGrade,
 } from '../types';
+import {
+  CompareView,
+  computeDeltasFromReports,
+  type ReportCardData,
+} from '@repoguru/ui';
 import { parseRepoUrl } from '../services/github/parser';
 import { githubFetch } from '../services/github/client';
 import { runLightAnalysis } from '../services/analysis/lightEngine';
 import type { GitHubRepoResponse, GitHubTreeResponse } from '../services/github/types';
-import { scoreToGrade, formatNumber, gradeColorClass } from '../utils/formatters';
-import { CATEGORY_LABELS } from '../utils/constants';
+import { formatNumber } from '../utils/formatters';
 import { invalidateIfNeitherMatch } from '../services/git/repoCache';
 import { ensureCloned } from '../services/git/cloneService';
 import { RepoPicker } from '../components/common/RepoPicker';
@@ -39,17 +40,6 @@ interface CompareState {
 
 // ── Helpers ──
 
-const CATEGORY_ORDER: CategoryKey[] = [
-  'documentation',
-  'security',
-  'cicd',
-  'dependencies',
-  'codeQuality',
-  'license',
-  'community',
-  'openssf',
-];
-
 function mapGitHubRepoToRepoInfo(raw: GitHubRepoResponse): RepoInfo {
   return {
     owner: raw.full_name.split('/')[0],
@@ -69,15 +59,34 @@ function mapGitHubRepoToRepoInfo(raw: GitHubRepoResponse): RepoInfo {
   };
 }
 
-function scoreColorClass(score: number): string {
-  const grade = scoreToGrade(score);
-  return gradeColorClass(grade);
-}
-
-function gradeGlowClass(grade: LetterGrade): string {
-  if (grade === 'A') return 'text-grade-a neon-glow-strong';
-  if (grade === 'B') return 'text-grade-b';
-  return gradeColorClass(grade);
+function lightReportToReportCardData(r: LightAnalysisReport): ReportCardData {
+  return {
+    repo: { owner: r.repo.owner, repo: r.repo.repo },
+    grade: r.grade,
+    overallScore: r.overallScore,
+    categories: r.categories.map((c) => ({
+      key: c.key,
+      label: c.label,
+      score: c.score,
+      weight: c.weight,
+      signals: c.signals.map((s) => ({
+        name: s.name,
+        found: s.found,
+        details: s.details,
+      })),
+    })),
+    strengths: [],
+    risks: [],
+    nextSteps: [],
+    analyzedAt: r.analyzedAt,
+    repoInfo: {
+      description: r.repoInfo.description,
+      stars: r.repoInfo.stars,
+      forks: r.repoInfo.forks,
+      openIssues: r.repoInfo.openIssues,
+      archived: r.repoInfo.archived,
+    },
+  };
 }
 
 // ── Component ──
@@ -92,16 +101,6 @@ export function ComparePage({ githubToken }: Props) {
     reportB: null,
     error: null,
   });
-  const [expandedCategories, setExpandedCategories] = useState<Set<CategoryKey>>(new Set());
-
-  const toggleCategory = useCallback((key: CategoryKey) => {
-    setExpandedCategories((prev) => {
-      const next = new Set(prev);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
-      return next;
-    });
-  }, []);
 
   // ── Fetch a single repo ──
 
@@ -123,7 +122,6 @@ export function ComparePage({ githubToken }: Props) {
 
     let tree: TreeEntry[];
 
-    // Try clone-first approach
     try {
       setProgress(`Cloning ${label}...`);
       const cached = await ensureCloned(parsed.owner, parsed.repo, (_step, _percent, message) => {
@@ -131,7 +129,6 @@ export function ComparePage({ githubToken }: Props) {
       });
       tree = cached.tree;
     } catch (cloneErr) {
-      // Fallback to API if token available
       if (token) {
         console.warn(`Clone failed for ${label}, falling back to API:`, cloneErr);
         const branch = parsed.branch || repoInfo.defaultBranch;
@@ -175,7 +172,6 @@ export function ComparePage({ githubToken }: Props) {
     try {
       const setProgress = (msg: string) => setState((prev) => ({ ...prev, progress: msg }));
 
-      // Parse both repos upfront for cache invalidation
       const parsedA = parseRepoUrl(inputA.trim());
       const parsedB = parseRepoUrl(inputB.trim());
       if (parsedA && parsedB) {
@@ -205,14 +201,12 @@ export function ComparePage({ githubToken }: Props) {
   const handleReset = useCallback(() => {
     trackEvent('new_analysis', { tool: 'compare' });
     setState({ step: 'idle', progress: '', reportA: null, reportB: null, error: null });
-    setExpandedCategories(new Set());
   }, []);
 
   // ── Render ──
 
   return (
     <div className="w-full px-8 lg:px-12 xl:px-16 py-10">
-      {/* Title */}
       <div className="text-center mb-10">
         <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-text tracking-tight">
           Compare <span className="text-neon neon-glow">Repositories</span>
@@ -222,7 +216,6 @@ export function ComparePage({ githubToken }: Props) {
         </p>
       </div>
 
-      {/* Input area */}
       <div className="mb-8">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
           <div>
@@ -283,7 +276,6 @@ export function ComparePage({ githubToken }: Props) {
         </div>
       </div>
 
-      {/* Loading */}
       {state.step === 'loading' && (
         <div className="text-center py-16">
           <div className="inline-flex items-center gap-3 px-6 py-4 rounded-xl bg-surface-alt border border-border">
@@ -312,7 +304,6 @@ export function ComparePage({ githubToken }: Props) {
         </div>
       )}
 
-      {/* Error */}
       {state.step === 'error' && state.error && (
         <div className="max-w-2xl mx-auto mb-8 px-5 py-4 rounded-xl bg-grade-f/10 border border-grade-f/25">
           <div className="flex items-start gap-3">
@@ -337,304 +328,45 @@ export function ComparePage({ githubToken }: Props) {
         </div>
       )}
 
-      {/* Results */}
-      {state.step === 'done' && state.reportA && state.reportB && (
-        <CompareResults
-          reportA={state.reportA}
-          reportB={state.reportB}
-          expandedCategories={expandedCategories}
-          onToggleCategory={toggleCategory}
-        />
-      )}
+      {state.step === 'done' && state.reportA && state.reportB && (() => {
+        const cardA = lightReportToReportCardData(state.reportA);
+        const cardB = lightReportToReportCardData(state.reportB);
+        const deltas = computeDeltasFromReports(cardA, cardB);
+        const scoreDelta = cardA.overallScore - cardB.overallScore;
+        const winner: 'a' | 'b' | 'tie' = scoreDelta > 0 ? 'a' : scoreDelta < 0 ? 'b' : 'tie';
+        const nameA = `${cardA.repo.owner}/${cardA.repo.repo}`;
+        const nameB = `${cardB.repo.owner}/${cardB.repo.repo}`;
+        return (
+          <CompareView
+            reportA={cardA}
+            reportB={cardB}
+            deltas={deltas}
+            winner={winner}
+            scoreDelta={scoreDelta}
+            extras={
+              <>
+                <TechStackComparison
+                  techA={state.reportA.techStack}
+                  techB={state.reportB.techStack}
+                  nameA={nameA}
+                  nameB={nameB}
+                />
+                <StatsComparison
+                  reportA={state.reportA}
+                  reportB={state.reportB}
+                  nameA={nameA}
+                  nameB={nameB}
+                />
+              </>
+            }
+          />
+        );
+      })()}
     </div>
   );
 }
 
-// ── Results display ──
-
-function CompareResults({
-  reportA,
-  reportB,
-  expandedCategories,
-  onToggleCategory,
-}: {
-  reportA: LightAnalysisReport;
-  reportB: LightAnalysisReport;
-  expandedCategories: Set<CategoryKey>;
-  onToggleCategory: (key: CategoryKey) => void;
-}) {
-  const nameA = `${reportA.repo.owner}/${reportA.repo.repo}`;
-  const nameB = `${reportB.repo.owner}/${reportB.repo.repo}`;
-  const diff = reportA.overallScore - reportB.overallScore;
-
-  return (
-    <div className="space-y-8">
-      {/* Header row */}
-      <div className="flex items-center justify-center gap-4 sm:gap-6 text-center">
-        <h2 className="text-lg sm:text-xl font-bold text-text truncate max-w-[40%]">{nameA}</h2>
-        <span className="text-text-muted text-sm font-medium shrink-0">vs</span>
-        <h2 className="text-lg sm:text-xl font-bold text-text truncate max-w-[40%]">{nameB}</h2>
-      </div>
-
-      {/* Grade circles */}
-      <div className="flex items-center justify-center gap-6 sm:gap-12">
-        <GradeDisplay
-          grade={reportA.grade}
-          score={reportA.overallScore}
-          label={reportA.repo.repo}
-          isWinner={diff > 0}
-        />
-        <div className="text-2xl text-text-muted font-light">vs</div>
-        <GradeDisplay
-          grade={reportB.grade}
-          score={reportB.overallScore}
-          label={reportB.repo.repo}
-          isWinner={diff < 0}
-        />
-      </div>
-
-      {/* Winner banner */}
-      <WinnerBanner nameA={nameA} nameB={nameB} diff={diff} />
-
-      {/* Category comparison */}
-      <div className="p-5 sm:p-6 rounded-2xl bg-surface-alt border border-border">
-        <h3 className="text-lg font-semibold text-text mb-5">Category Breakdown</h3>
-        <div className="space-y-1">
-          {CATEGORY_ORDER.map((key) => {
-            const catA = reportA.categories.find((c) => c.key === key);
-            const catB = reportB.categories.find((c) => c.key === key);
-            if (!catA || !catB) return null;
-            return (
-              <CategoryRow
-                key={key}
-                categoryKey={key}
-                label={CATEGORY_LABELS[key]}
-                scoreA={catA.score}
-                scoreB={catB.score}
-                signalsA={catA.signals}
-                signalsB={catB.signals}
-                isExpanded={expandedCategories.has(key)}
-                onToggle={() => onToggleCategory(key)}
-              />
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Tech stack comparison */}
-      <TechStackComparison
-        techA={reportA.techStack}
-        techB={reportB.techStack}
-        nameA={nameA}
-        nameB={nameB}
-      />
-
-      {/* Stats comparison */}
-      <StatsComparison reportA={reportA} reportB={reportB} nameA={nameA} nameB={nameB} />
-    </div>
-  );
-}
-
-// ── Grade circle ──
-
-function GradeDisplay({
-  grade,
-  score,
-  label,
-  isWinner,
-}: {
-  grade: LetterGrade;
-  score: number;
-  label: string;
-  isWinner: boolean;
-}) {
-  return (
-    <div className="flex flex-col items-center gap-2">
-      <div
-        className={`
-          w-20 h-20 sm:w-24 sm:h-24 rounded-full flex flex-col items-center justify-center
-          border-2 transition-all
-          ${isWinner ? 'border-neon/60 bg-neon/10 neon-glow' : 'border-border bg-surface-alt'}
-        `}
-      >
-        <span className={`text-2xl sm:text-3xl font-bold ${gradeGlowClass(grade)}`}>{grade}</span>
-        <span className={`text-xs sm:text-sm font-medium ${scoreColorClass(score)}`}>
-          {score}/100
-        </span>
-      </div>
-      <span className="text-xs text-text-muted truncate max-w-[100px] sm:max-w-[140px]">
-        {label}
-      </span>
-    </div>
-  );
-}
-
-// ── Winner banner ──
-
-function WinnerBanner({ nameA, nameB, diff }: { nameA: string; nameB: string; diff: number }) {
-  if (diff === 0) {
-    return (
-      <div className="text-center py-3 px-6 rounded-xl bg-neon/10 border border-neon/25">
-        <span className="text-neon font-bold text-lg neon-glow">It's a tie!</span>
-        <p className="text-sm text-text-secondary mt-1">Both repositories scored equally.</p>
-      </div>
-    );
-  }
-
-  const winner = diff > 0 ? nameA : nameB;
-  const margin = Math.abs(diff);
-
-  return (
-    <div className="text-center py-3 px-6 rounded-xl bg-neon/10 border border-neon/25">
-      <span className="text-neon font-bold text-lg neon-glow">{winner}</span>
-      <span className="text-text-secondary text-lg"> wins by </span>
-      <span className="text-neon font-bold text-lg">{margin}</span>
-      <span className="text-text-secondary text-lg"> point{margin !== 1 ? 's' : ''}</span>
-    </div>
-  );
-}
-
-// ── Category row with dual bar ──
-
-function CategoryRow({
-  categoryKey: _categoryKey, // eslint-disable-line @typescript-eslint/no-unused-vars -- reserved for future use
-  label,
-  scoreA,
-  scoreB,
-  signalsA,
-  signalsB,
-  isExpanded,
-  onToggle,
-}: {
-  categoryKey: CategoryKey;
-  label: string;
-  scoreA: number;
-  scoreB: number;
-  signalsA: Signal[];
-  signalsB: Signal[];
-  isExpanded: boolean;
-  onToggle: () => void;
-}) {
-  const aWins = scoreA > scoreB;
-  const bWins = scoreB > scoreA;
-
-  // Find signals that differ between the two repos
-  const diffSignals: { name: string; foundA: boolean; foundB: boolean }[] = [];
-  const allSignalNames = new Set([...signalsA.map((s) => s.name), ...signalsB.map((s) => s.name)]);
-  for (const name of allSignalNames) {
-    const sigA = signalsA.find((s) => s.name === name);
-    const sigB = signalsB.find((s) => s.name === name);
-    const foundA = sigA?.found ?? false;
-    const foundB = sigB?.found ?? false;
-    if (foundA !== foundB) {
-      diffSignals.push({ name, foundA, foundB });
-    }
-  }
-
-  return (
-    <div className="rounded-xl overflow-hidden">
-      {/* Main row */}
-      <button
-        onClick={onToggle}
-        className="w-full px-3 sm:px-4 py-3 flex items-center gap-2 sm:gap-3 hover:bg-surface-hover rounded-xl transition-colors group"
-      >
-        {/* Score A */}
-        <span
-          className={`text-sm sm:text-base font-bold w-10 text-right shrink-0 ${aWins ? 'text-neon' : scoreColorClass(scoreA)}`}
-        >
-          {scoreA}
-        </span>
-
-        {/* Dual bar */}
-        <div className="flex-1 flex items-center gap-0.5 min-w-0">
-          {/* Left bar (A) — grows from right to left */}
-          <div className="flex-1 h-3 sm:h-4 rounded-l-full bg-surface-hover overflow-hidden flex justify-end">
-            <div
-              className={`h-full rounded-l-full transition-all duration-500 ${aWins ? 'bg-neon/60 neon-glow' : 'bg-text-muted/30'}`}
-              style={{ width: `${scoreA}%` }}
-            />
-          </div>
-          {/* Right bar (B) — grows from left to right */}
-          <div className="flex-1 h-3 sm:h-4 rounded-r-full bg-surface-hover overflow-hidden flex justify-start">
-            <div
-              className={`h-full rounded-r-full transition-all duration-500 ${bWins ? 'bg-neon/60 neon-glow' : 'bg-text-muted/30'}`}
-              style={{ width: `${scoreB}%` }}
-            />
-          </div>
-        </div>
-
-        {/* Score B */}
-        <span
-          className={`text-sm sm:text-base font-bold w-10 text-left shrink-0 ${bWins ? 'text-neon' : scoreColorClass(scoreB)}`}
-        >
-          {scoreB}
-        </span>
-
-        {/* Expand icon */}
-        <svg
-          className={`h-4 w-4 text-text-muted shrink-0 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-        >
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-        </svg>
-      </button>
-
-      {/* Category label centered below the bar */}
-      <div className="text-center -mt-1 mb-1">
-        <span className="text-xs sm:text-sm text-text-secondary font-medium">{label}</span>
-        {diffSignals.length > 0 && (
-          <span className="ml-1.5 text-xs text-text-muted">
-            ({diffSignals.length} diff{diffSignals.length !== 1 ? 's' : ''})
-          </span>
-        )}
-      </div>
-
-      {/* Expandable signal diff */}
-      {isExpanded && diffSignals.length > 0 && (
-        <div className="mx-3 sm:mx-4 mb-3 p-3 sm:p-4 rounded-lg bg-surface-hover border border-border">
-          <h4 className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-2">
-            Signal Differences
-          </h4>
-          <div className="space-y-1.5">
-            {diffSignals.map((sig) => (
-              <div key={sig.name} className="flex items-center text-sm gap-2">
-                <span className="w-5 text-center shrink-0">
-                  {sig.foundA ? (
-                    <span className="text-grade-a">+</span>
-                  ) : (
-                    <span className="text-grade-f">-</span>
-                  )}
-                </span>
-                <span className="flex-1 text-text-secondary truncate">{sig.name}</span>
-                <span className="w-5 text-center shrink-0">
-                  {sig.foundB ? (
-                    <span className="text-grade-a">+</span>
-                  ) : (
-                    <span className="text-grade-f">-</span>
-                  )}
-                </span>
-              </div>
-            ))}
-          </div>
-          <div className="flex justify-between text-xs text-text-muted mt-2 pt-2 border-t border-border">
-            <span>Repo A</span>
-            <span>Repo B</span>
-          </div>
-        </div>
-      )}
-
-      {isExpanded && diffSignals.length === 0 && (
-        <div className="mx-3 sm:mx-4 mb-3 p-3 rounded-lg bg-surface-hover border border-border">
-          <p className="text-sm text-text-muted text-center">No signal differences in {label}.</p>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ── Tech stack comparison ──
+// ── Browser-only host extras (CLI doesn't surface tech-stack or repo stats via Compare RPC). ──
 
 function TechStackComparison({
   techA,
@@ -651,7 +383,6 @@ function TechStackComparison({
     <div className="p-5 sm:p-6 rounded-2xl bg-surface-alt border border-border">
       <h3 className="text-lg font-semibold text-text mb-4">Tech Stack</h3>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* Repo A */}
         <div className="p-4 rounded-xl bg-surface-hover border border-border">
           <h4 className="text-sm font-medium text-text-secondary mb-3 truncate">{nameA}</h4>
           {techA.length === 0 ? (
@@ -668,7 +399,6 @@ function TechStackComparison({
             </div>
           )}
         </div>
-        {/* Repo B */}
         <div className="p-4 rounded-xl bg-surface-hover border border-border">
           <h4 className="text-sm font-medium text-text-secondary mb-3 truncate">{nameB}</h4>
           {techB.length === 0 ? (
@@ -693,22 +423,17 @@ function TechStackComparison({
 function TechBadge({ item, highlighted }: { item: TechStackItem; highlighted: boolean }) {
   return (
     <span
-      className={`
-        inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-medium
-        ${
-          highlighted
-            ? 'bg-neon/15 border border-neon/30 text-neon'
-            : 'bg-surface-alt border border-border text-text-secondary'
-        }
-      `}
+      className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-medium ${
+        highlighted
+          ? 'bg-neon/15 border border-neon/30 text-neon'
+          : 'bg-surface-alt border border-border text-text-secondary'
+      }`}
     >
       {item.name}
       <span className="ml-1 text-text-muted">({item.category})</span>
     </span>
   );
 }
-
-// ── Stats comparison ──
 
 function StatsComparison({
   reportA,
@@ -721,18 +446,16 @@ function StatsComparison({
   nameA: string;
   nameB: string;
 }) {
-  const stats: { label: string; valueA: string; valueB: string; higherWins?: boolean }[] = [
+  const stats: { label: string; valueA: string; valueB: string }[] = [
     {
       label: 'Stars',
       valueA: formatNumber(reportA.repoInfo.stars),
       valueB: formatNumber(reportB.repoInfo.stars),
-      higherWins: true,
     },
     {
       label: 'Forks',
       valueA: formatNumber(reportA.repoInfo.forks),
       valueB: formatNumber(reportB.repoInfo.forks),
-      higherWins: true,
     },
     {
       label: 'Open Issues',
@@ -760,14 +483,12 @@ function StatsComparison({
     <div className="p-5 sm:p-6 rounded-2xl bg-surface-alt border border-border">
       <h3 className="text-lg font-semibold text-text mb-4">Repository Stats</h3>
 
-      {/* Header */}
       <div className="grid grid-cols-3 gap-2 sm:gap-4 pb-3 border-b border-border mb-1">
         <div className="text-sm font-medium text-text-secondary truncate text-center">{nameA}</div>
         <div className="text-sm font-medium text-text-muted text-center">Metric</div>
         <div className="text-sm font-medium text-text-secondary truncate text-center">{nameB}</div>
       </div>
 
-      {/* Rows */}
       {stats.map((stat) => (
         <div
           key={stat.label}

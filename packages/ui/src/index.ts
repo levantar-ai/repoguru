@@ -63,6 +63,8 @@ export { ReportCardView } from './views/ReportCardView.js';
 export type { ReportCardViewProps } from './views/ReportCardView.js';
 export { TechDetectView } from './views/TechDetectView.js';
 export type { TechDetectViewProps } from './views/TechDetectView.js';
+export { CompareView, computeDeltasFromReports } from './views/CompareView.js';
+export type { CompareViewProps, CompareDelta } from './views/CompareView.js';
 export {
   scoreToGrade,
   gradeAdjective,
