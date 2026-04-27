@@ -1,11 +1,58 @@
 import { useState } from 'react';
+import {
+  OrgScanView,
+  type OrgScanItem,
+  type OrgScanSummary,
+  type Grade,
+} from '@repoguru/ui';
 import { useOrgScan } from '@/hooks/useOrgScan';
-import { LetterGrade } from '@/components/report/LetterGrade';
 import { useGithubToken } from '@/hooks/useGithubToken';
 
-const GRADE_COLORS: Record<string, string> = {
-  A: '#22c55e', B: '#84cc16', C: '#eab308', D: '#f97316', F: '#ef4444',
-};
+function asGrade(g: string): Grade {
+  if (g === 'A' || g === 'B' || g === 'C' || g === 'D' || g === 'F') return g;
+  return 'F';
+}
+
+interface RepoScoreWire {
+  repo_name: string;
+  overall_score: number;
+  grade: string;
+  categories: Array<{ key: string; label: string; score: number }>;
+}
+
+function repoScoreToOrgScanItem(r: RepoScoreWire): OrgScanItem {
+  // The CLI emits `repo_name` as a single "owner/repo" string.
+  const slash = r.repo_name.indexOf('/');
+  const owner = slash >= 0 ? r.repo_name.slice(0, slash) : '';
+  const repo = slash >= 0 ? r.repo_name.slice(slash + 1) : r.repo_name;
+  return {
+    repo: { owner, repo },
+    grade: asGrade(r.grade),
+    overallScore: r.overall_score,
+    categories: r.categories.map((c) => ({
+      key: c.key,
+      label: c.label,
+      score: c.score,
+    })),
+  };
+}
+
+function buildSummary(
+  items: OrgScanItem[],
+  averageScore: number,
+  averageGrade: Grade,
+): OrgScanSummary {
+  const dist: Partial<Record<Grade, number>> = {};
+  for (const item of items) {
+    dist[item.grade] = (dist[item.grade] ?? 0) + 1;
+  }
+  return {
+    totalRepos: items.length,
+    averageScore,
+    averageGrade,
+    gradeDistribution: dist,
+  };
+}
 
 export function OrgScan() {
   const [orgName, setOrgName] = useState('');
@@ -17,7 +64,6 @@ export function OrgScan() {
   const { scanning, progress, error, startOrgScan } = useOrgScan();
   const { token: savedToken, isSet: hasToken } = useGithubToken();
 
-  // Use saved token from Settings, allow override
   const effectiveToken = tokenOverride || savedToken;
 
   const handleScan = () => {
@@ -33,21 +79,20 @@ export function OrgScan() {
     });
   };
 
-  const repoScores = progress?.repo_scores || [];
+  const repoScores = (progress?.repo_scores ?? []) as RepoScoreWire[];
   const isDone = progress?.phase === 'done';
-
-  // Grade distribution
-  const gradeDist = repoScores.reduce(
-    (acc, r) => { acc[r.grade] = (acc[r.grade] || 0) + 1; return acc; },
-    {} as Record<string, number>,
-  );
+  const items = repoScores.map(repoScoreToOrgScanItem);
+  const summary = isDone
+    ? buildSummary(items, progress?.average_score ?? 0, asGrade(progress?.average_grade ?? 'C'))
+    : undefined;
 
   return (
     <div className="p-8 max-w-5xl mx-auto">
       <h2 className="text-2xl font-bold text-white mb-2">Organization Scan</h2>
-      <p className="text-sm text-gray-500 mb-6">Scan all repositories in a GitHub organization or user portfolio.</p>
+      <p className="text-sm text-gray-500 mb-6">
+        Scan all repositories in a GitHub organization or user portfolio.
+      </p>
 
-      {/* Input form */}
       <div className="rounded-lg border border-gray-800 bg-gray-900/50 p-4 mb-6 space-y-4">
         <div className="grid grid-cols-2 gap-4">
           <div>
@@ -82,15 +127,30 @@ export function OrgScan() {
 
         <div className="flex items-center gap-6 text-xs text-gray-400">
           <label className="flex items-center gap-1.5 cursor-pointer">
-            <input type="checkbox" checked={isUser} onChange={(e) => setIsUser(e.target.checked)} className="rounded border-gray-600" />
+            <input
+              type="checkbox"
+              checked={isUser}
+              onChange={(e) => setIsUser(e.target.checked)}
+              className="rounded border-gray-600"
+            />
             User portfolio (not org)
           </label>
           <label className="flex items-center gap-1.5 cursor-pointer">
-            <input type="checkbox" checked={skipForks} onChange={(e) => setSkipForks(e.target.checked)} className="rounded border-gray-600" />
+            <input
+              type="checkbox"
+              checked={skipForks}
+              onChange={(e) => setSkipForks(e.target.checked)}
+              className="rounded border-gray-600"
+            />
             Skip forks
           </label>
           <label className="flex items-center gap-1.5 cursor-pointer">
-            <input type="checkbox" checked={skipArchived} onChange={(e) => setSkipArchived(e.target.checked)} className="rounded border-gray-600" />
+            <input
+              type="checkbox"
+              checked={skipArchived}
+              onChange={(e) => setSkipArchived(e.target.checked)}
+              className="rounded border-gray-600"
+            />
             Skip archived
           </label>
           <div className="flex items-center gap-1.5">
@@ -115,19 +175,24 @@ export function OrgScan() {
       </div>
 
       {error && (
-        <div className="mb-4 text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-4 py-3">{error}</div>
+        <div className="mb-4 text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-4 py-3">
+          {error}
+        </div>
       )}
 
-      {/* Progress */}
       {scanning && progress && (
         <div className="mb-6 rounded-lg border border-gray-800 bg-gray-900/50 p-4">
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm text-gray-300">
-              {progress.phase === 'listing' ? 'Listing repositories...' :
-               progress.phase === 'cloning' ? `Cloning ${progress.repo_name}...` :
-               progress.phase === 'scanning' ? `Scanning ${progress.repo_name}...` :
-               progress.phase === 'scoring' ? `Scoring ${progress.repo_name}...` :
-               'Complete'}
+              {progress.phase === 'listing'
+                ? 'Listing repositories...'
+                : progress.phase === 'cloning'
+                  ? `Cloning ${progress.repo_name}...`
+                  : progress.phase === 'scanning'
+                    ? `Scanning ${progress.repo_name}...`
+                    : progress.phase === 'scoring'
+                      ? `Scoring ${progress.repo_name}...`
+                      : 'Complete'}
             </span>
             <span className="text-xs text-gray-500 tabular-nums">
               {progress.repos_completed}/{progress.repos_total}
@@ -136,81 +201,15 @@ export function OrgScan() {
           <div className="h-2 rounded-full bg-gray-800 overflow-hidden">
             <div
               className="h-full rounded-full bg-sky-500 transition-all duration-300"
-              style={{ width: `${progress.repos_total ? (progress.repos_completed / progress.repos_total) * 100 : 0}%` }}
+              style={{
+                width: `${progress.repos_total ? (progress.repos_completed / progress.repos_total) * 100 : 0}%`,
+              }}
             />
           </div>
         </div>
       )}
 
-      {/* Results table */}
-      {repoScores.length > 0 && (
-        <>
-          {/* Summary */}
-          {isDone && (
-            <div className="grid grid-cols-3 gap-4 mb-6">
-              <div className="rounded-lg border border-gray-800 bg-gray-900/50 p-4 text-center">
-                <div className="text-2xl font-bold text-white">{repoScores.length}</div>
-                <div className="text-xs text-gray-500">Repositories</div>
-              </div>
-              <div className="rounded-lg border border-gray-800 bg-gray-900/50 p-4 text-center">
-                <div className="text-2xl font-bold" style={{ color: GRADE_COLORS[progress?.average_grade || 'C'] }}>
-                  {progress?.average_grade || '-'}
-                </div>
-                <div className="text-xs text-gray-500">Average Grade ({Math.round(progress?.average_score || 0)})</div>
-              </div>
-              <div className="rounded-lg border border-gray-800 bg-gray-900/50 p-4">
-                <div className="flex items-center justify-center gap-3">
-                  {['A', 'B', 'C', 'D', 'F'].map((g) => (
-                    <div key={g} className="text-center">
-                      <div className="text-sm font-bold" style={{ color: GRADE_COLORS[g] }}>{gradeDist[g] || 0}</div>
-                      <div className="text-[10px] text-gray-600">{g}</div>
-                    </div>
-                  ))}
-                </div>
-                <div className="text-xs text-gray-500 text-center mt-1">Distribution</div>
-              </div>
-            </div>
-          )}
-
-          {/* Repo list */}
-          <div className="rounded-lg border border-gray-800 bg-gray-900/50 overflow-hidden">
-            <table className="w-full">
-              <thead>
-                <tr className="text-xs text-gray-500 border-b border-gray-800">
-                  <th className="text-left px-4 py-2 font-medium">Repository</th>
-                  <th className="text-center px-4 py-2 font-medium">Grade</th>
-                  <th className="text-right px-4 py-2 font-medium">Score</th>
-                  <th className="px-4 py-2 font-medium" />
-                </tr>
-              </thead>
-              <tbody>
-                {repoScores.map((repo) => (
-                  <tr key={repo.repo_name} className="border-b border-gray-800/50 hover:bg-gray-800/30">
-                    <td className="px-4 py-2.5 text-sm text-gray-200">{repo.repo_name}</td>
-                    <td className="px-4 py-2.5 text-center">
-                      <LetterGrade grade={repo.grade} score={repo.overall_score} size="sm" />
-                    </td>
-                    <td className="px-4 py-2.5 text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <div className="w-20 h-1.5 rounded-full bg-gray-800 overflow-hidden">
-                          <div
-                            className="h-full rounded-full"
-                            style={{ width: `${repo.overall_score}%`, backgroundColor: GRADE_COLORS[repo.grade] }}
-                          />
-                        </div>
-                        <span className="text-xs text-gray-400 tabular-nums w-6">{repo.overall_score}</span>
-                      </div>
-                    </td>
-                    <td className="px-4 py-2.5 text-right">
-                      <span className="text-[10px] text-gray-600">{repo.categories?.length || 0} cats</span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </>
-      )}
+      {items.length > 0 && <OrgScanView items={items} summary={summary} />}
     </div>
   );
 }

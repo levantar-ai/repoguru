@@ -18,6 +18,32 @@ import {
   CATEGORY_LABELS,
   GRADE_THRESHOLDS,
 } from '../utils/constants';
+import { OrgScanView, type OrgScanItem } from '@repoguru/ui';
+
+const ORG_SCAN_CATEGORY_ORDER: { key: CategoryKey; label: string }[] = [
+  { key: 'documentation', label: 'Docs' },
+  { key: 'security', label: 'Security' },
+  { key: 'cicd', label: 'CI/CD' },
+  { key: 'dependencies', label: 'Deps' },
+  { key: 'codeQuality', label: 'Quality' },
+  { key: 'license', label: 'License' },
+  { key: 'community', label: 'Community' },
+  { key: 'openssf', label: 'OpenSSF' },
+];
+
+function reportToOrgScanItem(r: LightAnalysisReport): OrgScanItem {
+  return {
+    repo: { owner: r.repo.owner, repo: r.repo.repo },
+    grade: r.grade,
+    overallScore: r.overallScore,
+    language: r.repoInfo.language ?? undefined,
+    categories: ORG_SCAN_CATEGORY_ORDER.map(({ key, label }) => ({
+      key,
+      label,
+      score: getCategoryScore(r.categories, key),
+    })),
+  };
+}
 
 // ─── Props ───────────────────────────────────────────────────────────────────
 
@@ -42,14 +68,6 @@ function scoreColorClass(score: number): string {
   if (score >= 55) return 'text-grade-c';
   if (score >= 40) return 'text-grade-d';
   return 'text-grade-f';
-}
-
-function scoreBgClass(score: number): string {
-  if (score >= 85) return 'bg-grade-a/15';
-  if (score >= 70) return 'bg-grade-b/15';
-  if (score >= 55) return 'bg-grade-c/15';
-  if (score >= 40) return 'bg-grade-d/15';
-  return 'bg-grade-f/15';
 }
 
 function gradeTextClass(grade: LetterGrade): string {
@@ -567,11 +585,6 @@ function runLightAnalysis(
   };
 }
 
-// ─── Sort types ──────────────────────────────────────────────────────────────
-
-type SortField = 'name' | 'grade' | 'overall' | CategoryKey;
-type SortDir = 'asc' | 'desc';
-
 // ─── Scan state ──────────────────────────────────────────────────────────────
 
 interface ScanState {
@@ -593,72 +606,6 @@ const initialScanState: ScanState = {
   currentRepo: '',
   error: null,
 };
-
-// ── Sort header helper component (extracted outside parent to avoid re-creation) ──
-
-function SortHeader({
-  field,
-  label,
-  className = '',
-  sortField,
-  sortDir,
-  onToggleSort,
-}: Readonly<{
-  field: SortField;
-  label: string;
-  className?: string;
-  sortField: SortField;
-  sortDir: SortDir;
-  onToggleSort: (field: SortField) => void;
-}>) {
-  return (
-    <th
-      className={`py-3 px-3 text-left text-xs font-semibold uppercase tracking-wider text-text-secondary cursor-pointer select-none hover:text-neon transition-colors whitespace-nowrap ${className}`}
-      onClick={() => onToggleSort(field)}
-    >
-      <span className="inline-flex items-center gap-1">
-        {label}
-        {sortField === field && (
-          <svg className="h-3 w-3 text-neon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            {sortDir === 'desc' ? (
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2.5}
-                d="M19 9l-7 7-7-7"
-              />
-            ) : (
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2.5}
-                d="M5 15l7-7 7 7"
-              />
-            )}
-          </svg>
-        )}
-      </span>
-    </th>
-  );
-}
-
-// ── Re-export from utility module ──────────────────────────────────────
-
-// getCategoryScore is imported from orgScanUtils.ts
-
-// ── ScoreCell component (extracted outside parent to satisfy S6478) ──
-
-function ScoreCell({ score }: Readonly<{ score: number }>) {
-  return (
-    <td className={`py-3 px-3 font-medium ${scoreColorClass(score)}`}>
-      <span
-        className={`inline-block px-2 py-0.5 rounded-md text-xs font-semibold ${scoreBgClass(score)} ${scoreColorClass(score)}`}
-      >
-        {score}
-      </span>
-    </td>
-  );
-}
 
 // ── Analyze a single repo from org scan (extracted to reduce nesting depth) ──
 
@@ -777,8 +724,6 @@ async function analyzeRepoList(
 export function OrgScanPage({ onAnalyze, githubToken }: Props) {
   const [orgInput, setOrgInput] = useState('');
   const [scan, setScan] = useState<ScanState>(initialScanState);
-  const [sortField, setSortField] = useState<SortField>('overall');
-  const [sortDir, setSortDir] = useState<SortDir>('desc');
   const abortRef = useRef<AbortController | null>(null);
 
   // ── GitHub fetch helper ──────────────────────────────────────────────────
@@ -872,46 +817,11 @@ export function OrgScanPage({ onAnalyze, githubToken }: Props) {
     setScan(initialScanState);
   }, []);
 
-  // ── Sort logic ───────────────────────────────────────────────────────────
-
-  const toggleSort = useCallback((field: SortField) => {
-    setSortField((prev) => {
-      if (prev === field) {
-        setSortDir((d) => (d === 'desc' ? 'asc' : 'desc'));
-        return prev;
-      }
-      setSortDir('desc');
-      return field;
-    });
-  }, []);
-
-  const sortedRepos = useMemo(() => {
-    const repos = [...scan.repos];
-    repos.sort((a, b) => {
-      let av: number | string;
-      let bv: number | string;
-
-      if (sortField === 'name') {
-        av = a.repo.repo.toLowerCase();
-        bv = b.repo.repo.toLowerCase();
-      } else if (sortField === 'grade' || sortField === 'overall') {
-        av = a.overallScore;
-        bv = b.overallScore;
-      } else {
-        // Category key
-        const aCat = a.categories.find((c) => c.key === sortField);
-        const bCat = b.categories.find((c) => c.key === sortField);
-        av = aCat?.score ?? 0;
-        bv = bCat?.score ?? 0;
-      }
-
-      if (typeof av === 'string' && typeof bv === 'string') {
-        return sortDir === 'asc' ? av.localeCompare(bv) : bv.localeCompare(av);
-      }
-      return sortDir === 'asc' ? (av as number) - (bv as number) : (bv as number) - (av as number);
-    });
-    return repos;
-  }, [scan.repos, sortField, sortDir]);
+  // OrgScanView owns its own sort UX. The host pre-orders by overall score
+  // descending so the CSV export and any host-rendered slices stay stable.
+  const orderedRepos = useMemo(() => {
+    return [...scan.repos].sort((a, b) => b.overallScore - a.overallScore);
+  }, [scan.repos]);
 
   // ── Summary stats ────────────────────────────────────────────────────────
 
@@ -971,7 +881,7 @@ export function OrgScanPage({ onAnalyze, githubToken }: Props) {
       'Forks',
     ];
 
-    const rows = sortedRepos.map((r) => {
+    const rows = orderedRepos.map((r) => {
       return [
         `${r.repo.owner}/${r.repo.repo}`,
         r.grade,
@@ -998,7 +908,7 @@ export function OrgScanPage({ onAnalyze, githubToken }: Props) {
     link.download = `${scan.orgName}-org-scan.csv`;
     link.click();
     URL.revokeObjectURL(url);
-  }, [scan.repos, scan.orgName, sortedRepos]);
+  }, [scan.repos, scan.orgName, orderedRepos]);
 
   // ── Progress percentage ──────────────────────────────────────────────────
 
@@ -1227,195 +1137,13 @@ export function OrgScanPage({ onAnalyze, githubToken }: Props) {
             </div>
 
             {/* Results table */}
-            <div className="rounded-xl border border-border overflow-hidden neon-glow">
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="bg-surface-alt border-b border-border">
-                      <SortHeader
-                        field="name"
-                        label="Repository"
-                        className="min-w-[180px] sticky left-0 bg-surface-alt z-10"
-                        sortField={sortField}
-                        sortDir={sortDir}
-                        onToggleSort={toggleSort}
-                      />
-                      <SortHeader
-                        field="grade"
-                        label="Grade"
-                        sortField={sortField}
-                        sortDir={sortDir}
-                        onToggleSort={toggleSort}
-                      />
-                      <SortHeader
-                        field="overall"
-                        label="Score"
-                        sortField={sortField}
-                        sortDir={sortDir}
-                        onToggleSort={toggleSort}
-                      />
-                      <SortHeader
-                        field="documentation"
-                        label="Docs"
-                        sortField={sortField}
-                        sortDir={sortDir}
-                        onToggleSort={toggleSort}
-                      />
-                      <SortHeader
-                        field="security"
-                        label="Security"
-                        sortField={sortField}
-                        sortDir={sortDir}
-                        onToggleSort={toggleSort}
-                      />
-                      <SortHeader
-                        field="cicd"
-                        label="CI/CD"
-                        sortField={sortField}
-                        sortDir={sortDir}
-                        onToggleSort={toggleSort}
-                      />
-                      <SortHeader
-                        field="dependencies"
-                        label="Deps"
-                        sortField={sortField}
-                        sortDir={sortDir}
-                        onToggleSort={toggleSort}
-                      />
-                      <SortHeader
-                        field="codeQuality"
-                        label="Quality"
-                        sortField={sortField}
-                        sortDir={sortDir}
-                        onToggleSort={toggleSort}
-                      />
-                      <SortHeader
-                        field="license"
-                        label="License"
-                        sortField={sortField}
-                        sortDir={sortDir}
-                        onToggleSort={toggleSort}
-                      />
-                      <SortHeader
-                        field="community"
-                        label="Community"
-                        sortField={sortField}
-                        sortDir={sortDir}
-                        onToggleSort={toggleSort}
-                      />
-                      <SortHeader
-                        field="openssf"
-                        label="OpenSSF"
-                        sortField={sortField}
-                        sortDir={sortDir}
-                        onToggleSort={toggleSort}
-                      />
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {sortedRepos.map((r, idx) => {
-                      return (
-                        <tr
-                          key={`${r.repo.owner}/${r.repo.repo}`}
-                          className={`border-b border-border hover:bg-surface-hover transition-colors ${
-                            idx % 2 === 0 ? '' : 'bg-surface-alt/30'
-                          }`}
-                        >
-                          {/* Repo name - sticky on mobile */}
-                          <td className="py-3 px-3 sticky left-0 bg-inherit z-10">
-                            <button
-                              onClick={() =>
-                                onAnalyze(`https://github.com/${r.repo.owner}/${r.repo.repo}`)
-                              }
-                              className="text-neon hover:underline font-medium text-left"
-                              title={`Full analysis: ${r.repo.owner}/${r.repo.repo}`}
-                            >
-                              {r.repo.repo}
-                            </button>
-                            {r.repoInfo.language && (
-                              <span className="ml-2 text-xs text-text-muted">
-                                {r.repoInfo.language}
-                              </span>
-                            )}
-                          </td>
-                          {/* Grade */}
-                          <td className={`py-3 px-3 font-bold text-lg ${gradeTextClass(r.grade)}`}>
-                            {r.grade}
-                          </td>
-                          {/* Overall */}
-                          <ScoreCell score={r.overallScore} />
-                          {/* Category scores */}
-                          <ScoreCell score={getCategoryScore(r.categories, 'documentation')} />
-                          <ScoreCell score={getCategoryScore(r.categories, 'security')} />
-                          <ScoreCell score={getCategoryScore(r.categories, 'cicd')} />
-                          <ScoreCell score={getCategoryScore(r.categories, 'dependencies')} />
-                          <ScoreCell score={getCategoryScore(r.categories, 'codeQuality')} />
-                          <ScoreCell score={getCategoryScore(r.categories, 'license')} />
-                          <ScoreCell score={getCategoryScore(r.categories, 'community')} />
-                          <ScoreCell score={getCategoryScore(r.categories, 'openssf')} />
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </div>
+            <OrgScanView
+              items={orderedRepos.map(reportToOrgScanItem)}
+              onRepoClick={(item) =>
+                onAnalyze(`https://github.com/${item.repo.owner}/${item.repo.repo}`)
+              }
+            />
 
-            {/* Mobile-friendly card list (visible on small screens only) */}
-            <div className="sm:hidden mt-6 space-y-3">
-              <p className="text-xs text-text-muted">
-                Scroll table horizontally to see all columns, or view repo cards below:
-              </p>
-              {sortedRepos.map((r) => {
-                return (
-                  <div
-                    key={`card-${r.repo.owner}/${r.repo.repo}`}
-                    className="p-4 rounded-xl bg-surface-alt border border-border"
-                  >
-                    <div className="flex items-center justify-between mb-3">
-                      <button
-                        onClick={() =>
-                          onAnalyze(`https://github.com/${r.repo.owner}/${r.repo.repo}`)
-                        }
-                        className="text-neon hover:underline font-semibold text-left text-sm"
-                      >
-                        {r.repo.repo}
-                      </button>
-                      <div className="flex items-center gap-2">
-                        <span className={`text-xl font-bold ${gradeTextClass(r.grade)}`}>
-                          {r.grade}
-                        </span>
-                        <span className={`text-sm font-medium ${scoreColorClass(r.overallScore)}`}>
-                          {r.overallScore}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-4 gap-2 text-center">
-                      {(
-                        [
-                          ['documentation', 'Docs'],
-                          ['security', 'Sec'],
-                          ['cicd', 'CI'],
-                          ['dependencies', 'Deps'],
-                          ['codeQuality', 'Qual'],
-                          ['license', 'Lic'],
-                          ['community', 'Comm'],
-                          ['openssf', 'OSSF'],
-                        ] as [CategoryKey, string][]
-                      ).map(([key, label]) => {
-                        const s = getCategoryScore(r.categories, key);
-                        return (
-                          <div key={key}>
-                            <div className={`text-xs font-bold ${scoreColorClass(s)}`}>{s}</div>
-                            <div className="text-[10px] text-text-muted">{label}</div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
           </div>
         )}
 

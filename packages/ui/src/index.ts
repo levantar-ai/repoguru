@@ -73,6 +73,13 @@ export type {
   PolicyEvalRuleResult,
   PolicyEvalResult,
 } from './views/policyTypes.js';
+export { OrgScanView } from './views/OrgScanView.js';
+export type { OrgScanViewProps } from './views/OrgScanView.js';
+export type {
+  OrgScanItem,
+  OrgScanCategoryScore,
+  OrgScanSummary,
+} from './views/orgScanTypes.js';
 export {
   scoreToGrade,
   gradeAdjective,
