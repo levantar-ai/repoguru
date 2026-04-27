@@ -1,0 +1,45 @@
+# Dependencies & build output
+node_modules/
+dist/
+dist-ssr/
+dist-electron/
+out/
+release/
+coverage/
+storybook-static/
+*.tsbuildinfo
+
+# Rust
+target/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+*storybook.log
+
+# Environment & secrets
+.env
+.env.*
+*.local
+
+# Editor / OS
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.suo
+*.sw?
+
+# Repoguru-specific
+SPEC.md                    # specs live in S3: ai.levantar.specs
+/output/                   # repoanalyze scan output
+*.bin
+resources/bin/repoanalyze-*
+.playwright-mcp/
+
+# Agent / tool scratch
+.claude/

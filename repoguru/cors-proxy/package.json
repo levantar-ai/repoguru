@@ -1,0 +1,13 @@
+{
+  "name": "repoguru-git-proxy",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy"
+  },
+  "devDependencies": {
+    "wrangler": "^4.76.0",
+    "@cloudflare/workers-types": "^4.20241205.0"
+  }
+}

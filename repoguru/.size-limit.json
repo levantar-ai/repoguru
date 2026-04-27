@@ -1,0 +1,14 @@
+[
+  {
+    "name": "Main entry (JS)",
+    "path": "dist/assets/index-*.js",
+    "limit": "250 kB",
+    "gzip": true
+  },
+  {
+    "name": "Git Stats page (JS)",
+    "path": "dist/assets/GitStatsPage-*.js",
+    "limit": "260 kB",
+    "gzip": true
+  }
+]

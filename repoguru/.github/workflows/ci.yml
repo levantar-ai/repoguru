@@ -1,0 +1,288 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: '0 6 * * 1'
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+  security-events: write
+  actions: read
+  id-token: write
+  deployments: write
+  attestations: write
+
+# ┌──────────────────────────────────────────────────────────────────┐
+# │  Pipeline: Quality → Build → Bundle Size → Security → Deploy    │
+# │                        → Release                                │
+# │                                                                  │
+# │  Stage 1 ─ Quality Gate (parallel)                               │
+# │    lint ─┐                                                       │
+# │    typecheck ─┤                                                  │
+# │    test (+coverage thresholds) ─┼──► Stage 2 ─ Build             │
+# │    storybook-build ─┘                 │                          │
+# │                                       ▼                          │
+# │                             Stage 2b ─ Bundle Size               │
+# │                                       │                          │
+# │                                       ▼                          │
+# │              Stage 3 ─ Security (parallel)                       │
+# │                codeql ─┐                                         │
+# │                semgrep ─┤                                        │
+# │                sonarcloud ─┤                                     │
+# │                dep-review + license ─┼──► Stage 3b ─ Deploy      │
+# │                                             │                    │
+# │                                             ▼                    │
+# │                             Stage 4 ─ Release (semantic-release) │
+# │                                             │                    │
+# │                                             ▼                    │
+# │                             Stage 5 ─ SLSA Provenance            │
+# └──────────────────────────────────────────────────────────────────┘
+
+jobs:
+  # ── Stage 1: Quality Gate ──────────────────────────────────────
+  lint:
+    name: '1·Lint'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npx prettier --check .
+
+  typecheck:
+    name: '1·Type Check'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npx tsc -b --noEmit
+
+  test:
+    name: '1·Test'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run test -- --coverage
+      - uses: actions/upload-artifact@v6
+        with:
+          name: coverage
+          path: coverage/
+
+  storybook-build:
+    name: '1·Storybook'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run build-storybook
+
+  # ── Stage 2: Build ────────────────────────────────────────────
+  build:
+    name: '2·Build'
+    needs: [lint, typecheck, test, storybook-build]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+        env:
+          VITE_CORS_PROXY_URL: ${{ secrets.VITE_CORS_PROXY_URL }}
+          VITE_GITHUB_CLIENT_ID: ${{ secrets.VITE_GITHUB_CLIENT_ID }}
+          VITE_GITHUB_APP_SLUG: gitrepoguru
+      - uses: actions/upload-artifact@v6
+        with:
+          name: dist-build
+          path: dist/
+
+  # ── Stage 2b: Bundle Size ──────────────────────────────────────
+  bundle-size:
+    name: '2b·Bundle Size'
+    needs: [build]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - uses: actions/download-artifact@v8
+        with:
+          name: dist-build
+          path: dist
+      - run: npx size-limit
+
+  # ── Stage 3: Security ─────────────────────────────────────────
+  codeql:
+    name: '3·CodeQL'
+    needs: [bundle-size]
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        language: [javascript-typescript]
+    steps:
+      - uses: actions/checkout@v6
+      - uses: github/codeql-action/init@v4
+        with:
+          languages: ${{ matrix.language }}
+      - uses: github/codeql-action/autobuild@v4
+      - uses: github/codeql-action/analyze@v4
+
+  semgrep:
+    name: '3·Semgrep'
+    needs: [bundle-size]
+    runs-on: ubuntu-latest
+    container:
+      image: semgrep/semgrep
+    steps:
+      - uses: actions/checkout@v6
+      - run: semgrep ci --config auto --sarif --output semgrep.sarif || true
+      - uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: semgrep.sarif
+        if: always()
+
+  sonarcloud:
+    name: '3·SonarCloud'
+    needs: [bundle-size]
+    if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.actor != 'dependabot[bot]')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run test -- --coverage
+      - uses: SonarSource/sonarqube-scan-action@v7
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      - uses: SonarSource/sonarqube-quality-gate-action@v1
+        timeout-minutes: 5
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+  dependency-review:
+    name: '3·Dep Review + License'
+    needs: [bundle-size]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/dependency-review-action@v4
+        if: github.event_name == 'pull_request'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: Audit dependencies
+        if: github.event_name != 'pull_request'
+        run: npm audit --audit-level=high --omit=dev
+      - name: License compliance check
+        run: npm run license:check
+
+  # ── Stage 3b: Deploy to Cloudflare Pages (main only) ─────────
+  deploy:
+    name: '3b·Deploy'
+    needs: [codeql, semgrep, sonarcloud, dependency-review]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    concurrency:
+      group: cloudflare-deploy
+      cancel-in-progress: true
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: dist-build
+          path: dist
+      - uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy dist --project-name=repoguru
+
+  # ── Stage 4: Release (semantic-release, main only) ─────────────
+  release:
+    name: '4·Release'
+    needs: [deploy]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: Semantic Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npx semantic-release
+
+  # ── Stage 5: SLSA Provenance (main only, after release) ──────────
+  provenance-build:
+    name: '5·Provenance Build'
+    needs: [release]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    outputs:
+      base64-subjects: ${{ steps.hash.outputs.base64-subjects }}
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: dist-build
+          path: dist
+      - name: Compute subject digests
+        id: hash
+        run: |
+          cd dist
+          sha256sum $(find . -type f | sort) > ../sha256sums.txt
+          echo "base64-subjects=$(base64 -w0 ../sha256sums.txt)" >> "$GITHUB_OUTPUT"
+
+  provenance:
+    name: '5·SLSA Provenance'
+    needs: [provenance-build]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    permissions:
+      contents: write
+      actions: read
+      id-token: write
+    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.1.0
+    with:
+      base64-subjects: ${{ needs.provenance-build.outputs.base64-subjects }}
+      upload-assets: true

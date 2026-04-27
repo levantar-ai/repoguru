@@ -1,0 +1,22 @@
+version: 2
+updates:
+  - package-ecosystem: 'npm'
+    directory: '/'
+    schedule:
+      interval: 'weekly'
+    rebase-strategy: 'auto'
+    commit-message:
+      prefix: 'deps'
+    labels:
+      - 'dependencies'
+    open-pull-requests-limit: 10
+
+  - package-ecosystem: 'github-actions'
+    directory: '/'
+    schedule:
+      interval: 'weekly'
+    rebase-strategy: 'auto'
+    commit-message:
+      prefix: 'ci'
+    labels:
+      - 'ci'

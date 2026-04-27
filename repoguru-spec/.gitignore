@@ -1,0 +1,24 @@
+/target
+electron-app/target/
+*.swp
+*.gz
+.claude/
+
+# Screenshots from testing
+*.png
+
+# Playwright MCP logs
+.playwright-mcp/
+
+# Electron desktop app
+electron-app/repoguru-desktop/node_modules/
+electron-app/repoguru-desktop/dist/
+electron-app/repoguru-desktop/out/
+
+# Scan output
+/output/
+*.bin
+
+# Secrets
+.env
+.env.*

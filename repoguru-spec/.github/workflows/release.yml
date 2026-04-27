@@ -1,0 +1,323 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+
+# Release needs write access for creating the GitHub release and uploading assets.
+# SLSA provenance generation needs id-token write.
+permissions:
+  contents: write
+  id-token: write
+  attestations: write
+
+jobs:
+  # ─── Stage 1: Build Rust binaries for all 4 Electron targets ────────────────
+
+  build-rust:
+    name: Build Rust (${{ matrix.artifact_name }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Linux x86_64 — native build
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+            artifact_name: repoanalyze-linux-x86_64
+            binary_name: repoanalyze
+
+          # macOS Intel — native build (runs on Apple Silicon runner with x86 target)
+          - target: x86_64-apple-darwin
+            os: macos-latest
+            artifact_name: repoanalyze-darwin-x86_64
+            binary_name: repoanalyze
+
+          # macOS Apple Silicon — native build
+          - target: aarch64-apple-darwin
+            os: macos-latest
+            artifact_name: repoanalyze-darwin-aarch64
+            binary_name: repoanalyze
+
+          # Windows x86_64 — native build
+          - target: x86_64-pc-windows-msvc
+            os: windows-latest
+            artifact_name: repoanalyze-win32-x86_64
+            binary_name: repoanalyze.exe
+
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - uses: actions/cache@6849a6489940f00c2f30c0fb92c6274307ccb58a  # v4.1.2
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-${{ matrix.target }}-release-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Build release binary
+        run: cargo build --release --target ${{ matrix.target }}
+
+      # ── Code signing (macOS) ─────────────────────────────────────────────────
+      # Prerequisites (set as repository secrets):
+      #   APPLE_DEVELOPER_CERTIFICATE_P12_BASE64 — base64-encoded .p12 certificate
+      #   APPLE_DEVELOPER_CERTIFICATE_PASSWORD   — p12 password
+      #   APPLE_TEAM_ID                          — Apple Developer Team ID
+      #   APPLE_NOTARIZATION_APPLE_ID            — Apple ID for notarytool
+      #   APPLE_NOTARIZATION_PASSWORD            — App-specific password for notarytool
+      - name: Sign binary (macOS)
+        if: runner.os == 'macOS' && env.APPLE_DEVELOPER_CERTIFICATE_P12_BASE64 != ''
+        env:
+          APPLE_DEVELOPER_CERTIFICATE_P12_BASE64: ${{ secrets.APPLE_DEVELOPER_CERTIFICATE_P12_BASE64 }}
+          APPLE_DEVELOPER_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_DEVELOPER_CERTIFICATE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          BINARY_PATH: target/${{ matrix.target }}/release/${{ matrix.binary_name }}
+        run: |
+          echo "$APPLE_DEVELOPER_CERTIFICATE_P12_BASE64" | base64 --decode > certificate.p12
+          security create-keychain -p "" build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p "" build.keychain
+          security import certificate.p12 -k build.keychain -P "$APPLE_DEVELOPER_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: -s -k "" build.keychain
+          codesign --force --options runtime --sign "Developer ID Application: $APPLE_TEAM_ID" "$BINARY_PATH"
+          rm certificate.p12
+
+      # ── Code signing (Windows) ───────────────────────────────────────────────
+      # Prerequisites (set as repository secrets):
+      #   WINDOWS_CERTIFICATE_BASE64  — base64-encoded .pfx certificate
+      #   WINDOWS_CERTIFICATE_PASSWORD — pfx password
+      - name: Sign binary (Windows)
+        if: runner.os == 'Windows' && env.WINDOWS_CERTIFICATE_BASE64 != ''
+        env:
+          WINDOWS_CERTIFICATE_BASE64: ${{ secrets.WINDOWS_CERTIFICATE_BASE64 }}
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+          BINARY_PATH: target\${{ matrix.target }}\release\${{ matrix.binary_name }}
+        shell: pwsh
+        run: |
+          $certBytes = [Convert]::FromBase64String($env:WINDOWS_CERTIFICATE_BASE64)
+          [IO.File]::WriteAllBytes("certificate.pfx", $certBytes)
+          $cert = New-Object System.Security.Cryptography.X509Certificates.X509Certificate2("certificate.pfx", $env:WINDOWS_CERTIFICATE_PASSWORD)
+          $signtool = "C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x64\signtool.exe"
+          & $signtool sign /fd SHA256 /td SHA256 /tr http://timestamp.digicert.com /f certificate.pfx /p $env:WINDOWS_CERTIFICATE_PASSWORD $env:BINARY_PATH
+          Remove-Item certificate.pfx
+
+      # ── Copy binary to output/ with electron-builder resource name ───────────
+      - name: Stage binary (Unix)
+        if: runner.os != 'Windows'
+        env:
+          TARGET: ${{ matrix.target }}
+          ARTIFACT: ${{ matrix.artifact_name }}
+          BINARY: ${{ matrix.binary_name }}
+        run: |
+          mkdir -p output
+          cp "target/${TARGET}/release/${BINARY}" "output/${ARTIFACT}"
+
+      - name: Stage binary (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path output
+          Copy-Item "target\${{ matrix.target }}\release\${{ matrix.binary_name }}" "output\${{ matrix.artifact_name }}.exe"
+
+      # ── SLSA provenance attestation ──────────────────────────────────────────
+      - name: Generate SLSA provenance attestation (Unix)
+        if: runner.os != 'Windows'
+        uses: actions/attest-build-provenance@7668571508540a607bdfd90a87a560489fe372eb  # v2.1.0
+        with:
+          subject-path: output/${{ matrix.artifact_name }}
+
+      - name: Generate SLSA provenance attestation (Windows)
+        if: runner.os == 'Windows'
+        uses: actions/attest-build-provenance@7668571508540a607bdfd90a87a560489fe372eb  # v2.1.0
+        with:
+          subject-path: output/${{ matrix.artifact_name }}.exe
+
+      - name: Upload staged binary
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08  # v4.6.0
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: output/
+          retention-days: 1
+
+  # ─── Stage 2: Package Electron app for each platform ────────────────────────
+
+  package-electron:
+    name: Package Electron (${{ matrix.platform }})
+    needs: build-rust
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux
+            os: ubuntu-latest
+            rust_artifact: repoanalyze-linux-x86_64
+            rust_dest: repoanalyze-linux-x86_64
+            electron_builder_args: --linux --x64
+
+          - platform: mac-x64
+            os: macos-latest
+            rust_artifact: repoanalyze-darwin-x86_64
+            rust_dest: repoanalyze-darwin-x86_64
+            electron_builder_args: --mac --x64
+
+          - platform: mac-arm64
+            os: macos-latest
+            rust_artifact: repoanalyze-darwin-aarch64
+            rust_dest: repoanalyze-darwin-aarch64
+            electron_builder_args: --mac --arm64
+
+          - platform: windows
+            os: windows-latest
+            rust_artifact: repoanalyze-win32-x86_64
+            rust_dest: repoanalyze-win32-x86_64.exe
+            electron_builder_args: --win --x64
+
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+
+    defaults:
+      run:
+        working-directory: repoguru-desktop
+
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+
+      - uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af  # v4.1.0
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: repoguru-desktop/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      # ── Download Rust binary for this platform ───────────────────────────────
+      - name: Download Rust binary
+        uses: actions/download-artifact@fa0a91b85d4f404e444306234d4b27a29bed1a14  # v4.1.8
+        with:
+          name: ${{ matrix.rust_artifact }}
+          path: repoguru-desktop/resources/bin/
+
+      - name: Make binary executable (Unix)
+        if: runner.os != 'Windows'
+        run: chmod +x resources/bin/${{ matrix.rust_dest }}
+
+      # ── macOS notarization setup ─────────────────────────────────────────────
+      # Prerequisites (set as repository secrets):
+      #   APPLE_DEVELOPER_CERTIFICATE_P12_BASE64
+      #   APPLE_DEVELOPER_CERTIFICATE_PASSWORD
+      #   APPLE_NOTARIZATION_APPLE_ID
+      #   APPLE_NOTARIZATION_PASSWORD
+      #   APPLE_TEAM_ID
+      - name: Configure macOS notarization
+        if: runner.os == 'macOS' && env.APPLE_DEVELOPER_CERTIFICATE_P12_BASE64 != ''
+        env:
+          APPLE_DEVELOPER_CERTIFICATE_P12_BASE64: ${{ secrets.APPLE_DEVELOPER_CERTIFICATE_P12_BASE64 }}
+          APPLE_DEVELOPER_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_DEVELOPER_CERTIFICATE_PASSWORD }}
+        run: |
+          echo "$APPLE_DEVELOPER_CERTIFICATE_P12_BASE64" | base64 --decode > certificate.p12
+          security create-keychain -p "" build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p "" build.keychain
+          security import certificate.p12 -k build.keychain -P "$APPLE_DEVELOPER_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: -s -k "" build.keychain
+          rm certificate.p12
+
+      # ── Build Electron package ───────────────────────────────────────────────
+      - name: Build and package
+        env:
+          # macOS signing/notarization (no-ops if secrets not set)
+          APPLE_ID: ${{ secrets.APPLE_NOTARIZATION_APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_NOTARIZATION_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          # Windows signing (no-op if secret not set)
+          CSC_LINK: ${{ secrets.WINDOWS_CERTIFICATE_BASE64 }}
+          CSC_KEY_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npx electron-builder ${{ matrix.electron_builder_args }} --publish never
+
+      - name: Upload Electron packages
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08  # v4.6.0
+        with:
+          name: electron-${{ matrix.platform }}
+          path: |
+            repoguru-desktop/dist/*.AppImage
+            repoguru-desktop/dist/*.deb
+            repoguru-desktop/dist/*.rpm
+            repoguru-desktop/dist/*.dmg
+            repoguru-desktop/dist/*.exe
+            repoguru-desktop/dist/*.zip
+          retention-days: 1
+
+  # ─── Stage 3: Create GitHub Release ─────────────────────────────────────────
+
+  create-release:
+    name: Create GitHub Release
+    needs: package-electron
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        with:
+          fetch-depth: 0
+
+      - name: Download all Electron packages
+        uses: actions/download-artifact@fa0a91b85d4f404e444306234d4b27a29bed1a14  # v4.1.8
+        with:
+          pattern: electron-*
+          path: dist/
+          merge-multiple: true
+
+      - name: Download Rust binaries (for direct download links)
+        uses: actions/download-artifact@fa0a91b85d4f404e444306234d4b27a29bed1a14  # v4.1.8
+        with:
+          pattern: repoanalyze-*
+          path: rust-bins/
+          merge-multiple: true
+
+      - name: Generate changelog
+        id: changelog
+        uses: orhun/git-cliff-action@4a4a951bc43fafe41cd2348d181853f52356bee7  # v4.4.2
+        with:
+          config: cliff.toml
+          args: --latest --strip header
+        env:
+          OUTPUT: CHANGELOG_RELEASE.md
+
+      - name: Create release
+        uses: softprops/action-gh-release@c95fe1489396fe8a9eb87c0abf8aa5b2ef267fda  # v2.2.1
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: RepoGuru Desktop ${{ github.ref_name }}
+          body_path: CHANGELOG_RELEASE.md
+          draft: false
+          prerelease: ${{ contains(github.ref_name, '-') }}
+          files: |
+            dist/*.AppImage
+            dist/*.deb
+            dist/*.rpm
+            dist/*.dmg
+            dist/*.exe
+            dist/*.zip
+            rust-bins/repoanalyze-linux-x86_64
+            rust-bins/repoanalyze-darwin-x86_64
+            rust-bins/repoanalyze-darwin-aarch64
+            rust-bins/repoanalyze-win32-x86_64.exe
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
