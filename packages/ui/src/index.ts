@@ -56,6 +56,20 @@ export { TagHistory } from './charts/TagHistory.js';
 export { TimezoneChart } from './charts/TimezoneChart.js';
 export { TopActivePeriods } from './charts/TopActivePeriods.js';
 
-// Page-level view
+// Page-level views
 export { GitStatsView } from './views/GitStatsView.js';
 export type { GitStatsViewProps } from './views/GitStatsView.js';
+export { ReportCardView } from './views/ReportCardView.js';
+export type { ReportCardViewProps } from './views/ReportCardView.js';
+export {
+  scoreToGrade,
+  gradeAdjective,
+  GRADE_COLORS,
+} from './views/reportCardTypes.js';
+export type {
+  Grade,
+  ReportCardCategory,
+  ReportCardData,
+  ReportCardRepoInfo,
+  ReportCardSignal,
+} from './views/reportCardTypes.js';
