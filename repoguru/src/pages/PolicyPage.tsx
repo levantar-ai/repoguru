@@ -4,11 +4,11 @@ import type {
   PolicySet,
   PolicyRule,
   PolicyEvaluation,
-  PolicyRuleResult,
   PolicyOperator,
   CategoryKey,
   RepoInfo,
 } from '../types';
+import { PolicyView, type PolicyEvalResult } from '@repoguru/ui';
 import { evaluatePolicy, DEFAULT_POLICIES } from '../services/analysis/policyEngine';
 import { parseRepoUrl } from '../services/github/parser';
 import { githubFetch } from '../services/github/client';
@@ -18,6 +18,33 @@ import { runAnalysis } from '../services/analysis/engine';
 import { useApp } from '../context/AppContext';
 import { CATEGORY_LABELS } from '../utils/constants';
 import type { GitHubRepoResponse } from '../services/github/types';
+
+function evaluationToPolicyEvalResult(e: PolicyEvaluation): PolicyEvalResult {
+  return {
+    passed: e.passed,
+    passCount: e.passCount,
+    failCount: e.failCount,
+    policyName: e.policy.name,
+    repoLabel: e.repo,
+    categoryLabels: CATEGORY_LABELS as Record<string, string>,
+    results: e.results.map((r) => ({
+      passed: r.passed,
+      actual: r.actual,
+      expected: r.expected,
+      rule: {
+        id: r.rule.id,
+        name: r.rule.name,
+        description: r.rule.description,
+        type: r.rule.type,
+        operator: r.rule.operator,
+        value: r.rule.value,
+        category: r.rule.category,
+        signal: r.rule.signal,
+        severity: r.rule.severity,
+      },
+    })),
+  };
+}
 
 // ─── Props ───────────────────────────────────────────────────────────────────
 
@@ -499,63 +526,6 @@ export function PolicyPage({ onNavigate }: Props) {
     setEvalError(null);
     setEvaluation(null);
   }, []);
-
-  // ── Severity display helpers ───────────────────────────────────────────
-
-  function severityBadge(severity: 'error' | 'warning' | 'info') {
-    const styles = {
-      error: 'bg-grade-f/15 text-grade-f border-grade-f/25',
-      warning: 'bg-grade-c/15 text-grade-c border-grade-c/25',
-      info: 'bg-neon/15 text-neon border-neon/25',
-    };
-    return (
-      <span
-        className={`inline-block px-2 py-0.5 rounded-md text-xs font-semibold border ${styles[severity]}`}
-      >
-        {severity.toUpperCase()}
-      </span>
-    );
-  }
-
-  function resultBadge(result: PolicyRuleResult) {
-    if (result.passed) {
-      return (
-        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-grade-a/15 text-grade-a border border-grade-a/25">
-          <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2.5}
-              d="M5 13l4 4L19 7"
-            />
-          </svg>
-          PASS
-        </span>
-      );
-    }
-
-    const failStyles = {
-      error: 'bg-grade-f/15 text-grade-f border-grade-f/25',
-      warning: 'bg-grade-c/15 text-grade-c border-grade-c/25',
-      info: 'bg-neon/15 text-neon border-neon/25',
-    };
-
-    return (
-      <span
-        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold border ${failStyles[result.rule.severity]}`}
-      >
-        <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2.5}
-            d="M6 18L18 6M6 6l12 12"
-          />
-        </svg>
-        FAIL
-      </span>
-    );
-  }
 
   // ── Phase label ────────────────────────────────────────────────────────
   const phaseLabel: Record<EvalPhase, string> = {
@@ -1272,156 +1242,9 @@ export function PolicyPage({ onNavigate }: Props) {
 
         {/* Evaluation Results */}
         {evalPhase === 'done' && evaluation && (
-          <div>
-            {/* Overall status card */}
-            <div
-              className={`rounded-2xl border p-6 sm:p-8 mb-8 neon-glow ${
-                evaluation.passed
-                  ? 'border-grade-a/40 bg-grade-a/5'
-                  : 'border-grade-f/40 bg-grade-f/5'
-              }`}
-            >
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                <div className="flex items-center gap-4">
-                  {/* Pass/Fail icon */}
-                  <div
-                    className={`flex items-center justify-center h-16 w-16 rounded-2xl ${
-                      evaluation.passed
-                        ? 'bg-grade-a/15 border border-grade-a/30'
-                        : 'bg-grade-f/15 border border-grade-f/30'
-                    }`}
-                  >
-                    {evaluation.passed ? (
-                      <svg
-                        className="h-8 w-8 text-grade-a"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2.5}
-                          d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-                        />
-                      </svg>
-                    ) : (
-                      <svg
-                        className="h-8 w-8 text-grade-f"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2.5}
-                          d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"
-                        />
-                      </svg>
-                    )}
-                  </div>
-
-                  <div>
-                    <h3
-                      className={`text-2xl font-bold ${evaluation.passed ? 'text-grade-a' : 'text-grade-f'}`}
-                    >
-                      {evaluation.passed ? 'POLICY PASSED' : 'POLICY FAILED'}
-                    </h3>
-                    <p className="text-sm text-text-secondary mt-1">
-                      <span className="text-neon font-medium">{evaluation.repo}</span> evaluated
-                      against{' '}
-                      <span className="text-text font-medium">{evaluation.policy.name}</span>
-                    </p>
-                  </div>
-                </div>
-
-                {/* Pass/Fail counts */}
-                <div className="flex items-center gap-6">
-                  <div className="text-center">
-                    <div className="text-3xl font-bold text-grade-a">{evaluation.passCount}</div>
-                    <div className="text-xs text-text-muted uppercase tracking-wider">Passed</div>
-                  </div>
-                  <div className="h-10 w-px bg-border" />
-                  <div className="text-center">
-                    <div className="text-3xl font-bold text-grade-f">{evaluation.failCount}</div>
-                    <div className="text-xs text-text-muted uppercase tracking-wider">Failed</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Detailed rule results */}
-            <div className="rounded-2xl border border-border bg-surface-alt overflow-hidden neon-glow mb-8">
-              <div className="px-6 py-4 border-b border-border">
-                <h3 className="text-base font-semibold text-text">Rule Results</h3>
-              </div>
-
-              <div className="divide-y divide-border">
-                {evaluation.results.map((result, idx) => {
-                  const rowBg = result.passed
-                    ? 'bg-grade-a/[0.02]'
-                    : result.rule.severity === 'error'
-                      ? 'bg-grade-f/[0.03]'
-                      : result.rule.severity === 'warning'
-                        ? 'bg-grade-c/[0.03]'
-                        : 'bg-neon/[0.02]';
-
-                  const ruleTypeLabel =
-                    result.rule.type === 'overall-score'
-                      ? 'Overall Score'
-                      : result.rule.type === 'category-score'
-                        ? CATEGORY_LABELS[result.rule.category as CategoryKey] ||
-                          result.rule.category
-                        : 'Signal';
-
-                  return (
-                    <div
-                      key={`${result.rule.id}-${idx}`}
-                      className={`px-6 py-4 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 ${rowBg}`}
-                    >
-                      {/* Result badge */}
-                      <div className="shrink-0">{resultBadge(result)}</div>
-
-                      {/* Rule details */}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-sm font-semibold text-text">
-                            {result.rule.name}
-                          </span>
-                          {severityBadge(result.rule.severity)}
-                          <span className="text-xs text-text-muted px-1.5 py-0.5 rounded bg-surface border border-border">
-                            {ruleTypeLabel}
-                          </span>
-                        </div>
-                        {result.rule.description && (
-                          <p className="text-xs text-text-muted mt-1">{result.rule.description}</p>
-                        )}
-                      </div>
-
-                      {/* Actual vs Expected */}
-                      <div className="shrink-0 text-right sm:min-w-[200px]">
-                        <div className="text-xs text-text-muted">
-                          Actual:{' '}
-                          <span
-                            className={`font-semibold ${result.passed ? 'text-grade-a' : 'text-grade-f'}`}
-                          >
-                            {result.actual}
-                          </span>
-                        </div>
-                        <div className="text-xs text-text-muted">
-                          Expected:{' '}
-                          <span className="font-semibold text-text">{result.expected}</span>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Actions */}
-            <div className="flex items-center gap-3">
+          <PolicyView
+            result={evaluationToPolicyEvalResult(evaluation)}
+            actions={
               <button
                 onClick={resetEvaluation}
                 className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium rounded-xl border border-border text-text-secondary hover:text-neon hover:border-neon/30 transition-all"
@@ -1436,8 +1259,8 @@ export function PolicyPage({ onNavigate }: Props) {
                 </svg>
                 New Evaluation
               </button>
-            </div>
-          </div>
+            }
+          />
         )}
 
         {/* Empty state */}

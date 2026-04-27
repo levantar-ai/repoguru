@@ -1,9 +1,15 @@
 import { useState } from 'react';
-import { grpcClient, type ScoreResponse } from '@/services/grpc-client';
+import {
+  PolicyView,
+  type PolicyEvalResult,
+  type PolicyEvalRuleResult,
+  type PolicySeverity,
+} from '@repoguru/ui';
+import { grpcClient } from '@/services/grpc-client';
 import { useReportCard } from '@/hooks/useReportCard';
 import { RepoPicker } from '@/components/common/RepoPicker';
 
-interface PolicyRuleResult {
+interface PolicyRuleResultWire {
   rule: {
     id: string;
     name: string;
@@ -24,7 +30,7 @@ interface PolicyResult {
   passed: boolean;
   pass_count: number;
   fail_count: number;
-  results: PolicyRuleResult[];
+  results: PolicyRuleResultWire[];
   evaluated_at: string;
 }
 
@@ -34,11 +40,39 @@ const PRESETS = [
   { id: 'security-focused', label: 'Security Focused', desc: 'Strict security and supply chain rules' },
 ];
 
-const SEVERITY_STYLES: Record<string, { bg: string; text: string; border: string }> = {
-  error: { bg: 'bg-red-500/10', text: 'text-red-400', border: 'border-red-500/20' },
-  warning: { bg: 'bg-yellow-500/10', text: 'text-yellow-400', border: 'border-yellow-500/20' },
-  info: { bg: 'bg-sky-500/10', text: 'text-sky-400', border: 'border-sky-500/20' },
-};
+function asSeverity(s: string): PolicySeverity {
+  return s === 'error' || s === 'warning' || s === 'info' ? s : 'info';
+}
+
+function policyResponseToEvalResult(
+  res: PolicyResult,
+  presetLabel: string,
+  repoLabel: string,
+): PolicyEvalResult {
+  return {
+    passed: res.passed,
+    passCount: res.pass_count,
+    failCount: res.fail_count,
+    policyName: presetLabel,
+    repoLabel,
+    results: res.results.map<PolicyEvalRuleResult>((r) => ({
+      passed: r.passed,
+      actual: r.actual,
+      expected: r.expected,
+      rule: {
+        id: r.rule.id,
+        name: r.rule.name,
+        description: r.rule.description,
+        type: r.rule.type,
+        operator: r.rule.operator,
+        value: r.rule.value,
+        category: r.rule.category || undefined,
+        signal: r.rule.signal || undefined,
+        severity: asSeverity(r.rule.severity),
+      },
+    })),
+  };
+}
 
 export function PolicyEngine() {
   const [repoPath, setRepoPath] = useState('');
@@ -46,7 +80,7 @@ export function PolicyEngine() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<PolicyResult | null>(null);
-  const { score, scoreRepo } = useReportCard();
+  const { scoreRepo } = useReportCard();
 
   // Custom rule editor state
   const [customMode, setCustomMode] = useState(false);
@@ -217,71 +251,14 @@ export function PolicyEngine() {
 
       {/* Results */}
       {result && (
-        <div className="mt-6 space-y-4">
-          {/* Summary */}
-          <div className={`rounded-lg border p-4 flex items-center gap-4 ${
-            result.passed ? 'border-green-500/30 bg-green-500/5' : 'border-red-500/30 bg-red-500/5'
-          }`}>
-            <div className={`w-12 h-12 rounded-full flex items-center justify-center text-xl ${
-              result.passed ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'
-            }`}>
-              {result.passed ? (
-                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                </svg>
-              ) : (
-                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              )}
-            </div>
-            <div>
-              <div className={`text-lg font-bold ${result.passed ? 'text-green-400' : 'text-red-400'}`}>
-                {result.passed ? 'Policy Passed' : 'Policy Failed'}
-              </div>
-              <div className="text-xs text-gray-500">
-                {result.pass_count} passed, {result.fail_count} failed
-              </div>
-            </div>
-          </div>
-
-          {/* Rule results */}
-          <div className="space-y-2">
-            {result.results.map((r, i) => {
-              const sev = SEVERITY_STYLES[r.rule.severity] || SEVERITY_STYLES.info;
-              return (
-                <div
-                  key={i}
-                  className={`flex items-center gap-3 rounded-lg border p-3 ${
-                    r.passed ? 'border-gray-800 bg-gray-900/30' : `${sev.bg} border ${sev.border}`
-                  }`}
-                >
-                  {r.passed ? (
-                    <svg className="w-4 h-4 text-green-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                    </svg>
-                  ) : (
-                    <svg className={`w-4 h-4 ${sev.text} flex-shrink-0`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  )}
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm text-gray-200">{r.rule.name}</div>
-                    {r.rule.description && (
-                      <div className="text-xs text-gray-500">{r.rule.description}</div>
-                    )}
-                  </div>
-                  <div className="text-right text-xs">
-                    <div className="text-gray-400">{r.actual}</div>
-                    <div className="text-gray-600">{r.expected}</div>
-                  </div>
-                  <span className={`text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded ${sev.bg} ${sev.text}`}>
-                    {r.rule.severity}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
+        <div className="mt-6">
+          <PolicyView
+            result={policyResponseToEvalResult(
+              result,
+              PRESETS.find((p) => p.id === selectedPreset)?.label ?? selectedPreset,
+              repoPath,
+            )}
+          />
         </div>
       )}
     </div>
