@@ -1,3 +1,10 @@
+// GitHub API response types (raw clone-input only) live here.
+// Analysis-result types (the shape every chart consumes) have moved to
+// @repoguru/core's `legacy` module and are re-exported below for
+// backwards compatibility with existing imports.
+
+import type { legacy as Legacy } from '@repoguru/core';
+
 // ── Raw GitHub API response types for stats endpoints ──
 
 export interface GitHubCommitAuthor {
@@ -50,10 +57,10 @@ export interface GitHubCommitDetailResponse {
 }
 
 export interface GitHubContributorStatsWeek {
-  w: number; // unix timestamp
-  a: number; // additions
-  d: number; // deletions
-  c: number; // commits
+  w: number;
+  a: number;
+  d: number;
+  c: number;
 }
 
 export interface GitHubContributorStats {
@@ -65,18 +72,9 @@ export interface GitHubContributorStats {
   weeks: GitHubContributorStatsWeek[];
 }
 
-/** [timestamp, additions, deletions] */
-export type GitHubCodeFrequency = [number, number, number];
-
-export interface GitHubCommitActivity {
-  days: number[]; // 7 entries: Sun=0 .. Sat=6
-  total: number;
-  week: number; // unix timestamp
-}
-
 export interface GitHubParticipation {
-  all: number[]; // 52 weeks
-  owner: number[]; // 52 weeks
+  all: number[];
+  owner: number[];
 }
 
 /** [day, hour, commits] — day 0=Sun, hour 0-23 */
@@ -84,9 +82,9 @@ export type GitHubPunchCard = [number, number, number];
 
 export type GitHubLanguages = Record<string, number>;
 
-// ── Processed / derived types ──
+// ── Processed / derived types — re-exported from @repoguru/core ──
 
-export interface CommitInfo {
+export type CommitInfo = {
   sha: string;
   message: string;
   authorLogin: string | null;
@@ -102,172 +100,35 @@ export interface CommitInfo {
     deletions: number;
     changes: number;
   }[];
-}
+};
 
-export interface ContributorSummary {
-  login: string;
-  avatarUrl: string;
-  totalCommits: number;
-  totalAdditions: number;
-  totalDeletions: number;
-  commitPercentage: number;
-  firstCommitWeek: number;
-  lastCommitWeek: number;
-}
+export type ContributorSummary = Legacy.ContributorSummary;
+export type FileChurnEntry = Legacy.FileChurnEntry;
+export type CommitMessageStats = Legacy.CommitMessageStats;
+export type BusFactorData = Legacy.BusFactorData;
+export type CommitSizeDistribution = Legacy.CommitSizeDistribution;
+export type RepoGrowthPoint = Legacy.RepoGrowthPoint;
+export type PunchCardData = Legacy.PunchCardData;
+export type WeeklyActivity = Legacy.WeeklyActivity;
+export type LanguageEntry = Legacy.LanguageEntry;
+export type AuthorOfPeriod = Legacy.AuthorOfPeriod;
+export type AuthorTimeline = Legacy.AuthorTimeline;
+export type ContributorNode = Legacy.ContributorNode;
+export type ContributorEdge = Legacy.ContributorEdge;
+export type OwnershipEntry = Legacy.OwnershipEntry;
+export type ChangeChain = Legacy.ChangeChain;
+export type ExtMonthlyChurn = Legacy.ExtMonthlyChurn;
+export type LinesStatsSummary = Legacy.LinesStatsSummary;
+export type TagSummary = Legacy.TagSummary;
+export type RadarMetric = Legacy.RadarMetric;
+export type HotspotEntry = Legacy.HotspotEntry;
+export type ActivePeriod = Legacy.ActivePeriod;
+export type GitStatsAnalysis = Legacy.GitStatsAnalysis;
+/** Re-exported here for the in-browser pipeline that produces this shape. */
+export type GitHubCodeFrequency = Legacy.GitHubCodeFrequency;
+export type GitHubCommitActivity = Legacy.GitHubCommitActivity;
 
-export interface FileChurnEntry {
-  filename: string;
-  changeCount: number;
-  totalAdditions: number;
-  totalDeletions: number;
-  contributors: string[];
-}
-
-export interface CommitMessageStats {
-  totalCommits: number;
-  averageLength: number;
-  medianLength: number;
-  mergeCommitCount: number;
-  conventionalCommits: {
-    feat: number;
-    fix: number;
-    docs: number;
-    style: number;
-    refactor: number;
-    test: number;
-    chore: number;
-    ci: number;
-    perf: number;
-    build: number;
-    other: number;
-  };
-  conventionalPercentage: number;
-  wordFrequency: { word: string; count: number }[];
-}
-
-export interface BusFactorData {
-  busFactor: number;
-  herfindahlIndex: number;
-  cumulativeContributors: {
-    login: string;
-    cumulativePercentage: number;
-  }[];
-}
-
-export interface CommitSizeDistribution {
-  buckets: {
-    label: string;
-    min: number;
-    max: number;
-    count: number;
-  }[];
-}
-
-export interface RepoGrowthPoint {
-  date: string;
-  cumulativeAdditions: number;
-  cumulativeDeletions: number;
-  netGrowth: number;
-}
-
-export interface PunchCardData {
-  day: number; // 0=Sun .. 6=Sat
-  hour: number; // 0-23
-  commits: number;
-}
-
-export interface WeeklyActivity {
-  weekStart: string; // ISO date
-  total: number;
-  days: number[];
-}
-
-export interface LanguageEntry {
-  name: string;
-  bytes: number;
-  percentage: number;
-}
-
-// ── Extended analysis types ──
-
-export interface AuthorOfPeriod {
-  period: string;
-  authorName: string;
-  commits: number;
-  totalAuthors: number;
-}
-
-export interface AuthorTimeline {
-  authorName: string;
-  points: [string, number][];
-}
-
-export interface ContributorNode {
-  id: string;
-  name: string;
-}
-
-export interface ContributorEdge {
-  source: string;
-  target: string;
-  weight: number;
-}
-
-export interface OwnershipEntry {
-  path: string;
-  ownerName: string;
-  lines: number;
-}
-
-export interface ChangeChain {
-  files: string[];
-  occurrences: number;
-  avgSpanHours: number;
-  confidence: number;
-}
-
-export interface ExtMonthlyChurn {
-  months: string[];
-  extensions: string[];
-  data: number[][];
-}
-
-export interface LinesStatsSummary {
-  label: string;
-  min: number;
-  max: number;
-  avg: number;
-  median: number;
-  total: number;
-}
-
-export interface TagSummary {
-  name: string;
-  date: string;
-  timestamp: number;
-  commitsSincePrev: number;
-}
-
-export interface RadarMetric {
-  label: string;
-  value: number;
-}
-
-export interface HotspotEntry {
-  path: string;
-  commits: number;
-  distinctAuthors: number;
-  totalChurn: number;
-}
-
-export interface ActivePeriod {
-  period: string;
-  commits: number;
-  insertions: number;
-  deletions: number;
-}
-
-// ── Aggregate types ──
+// ── Aggregate raw types — browser-app only ──
 
 export interface GitStatsRawData {
   commits: GitHubCommitResponse[];
@@ -280,52 +141,6 @@ export interface GitStatsRawData {
   languages: GitHubLanguages | null;
   totalLinesOfCode?: number;
   binaryFileCount?: number;
-}
-
-export interface GitStatsAnalysis {
-  owner: string;
-  repo: string;
-  totalCommits: number;
-  totalLinesOfCode: number;
-  binaryFileCount: number;
-  contributors: ContributorSummary[];
-  busFactor: BusFactorData;
-  fileChurn: FileChurnEntry[];
-  commitMessages: CommitMessageStats;
-  commitSizeDistribution: CommitSizeDistribution;
-  repoGrowth: RepoGrowthPoint[];
-  punchCard: PunchCardData[];
-  weeklyActivity: WeeklyActivity[];
-  languages: LanguageEntry[];
-  commitActivity: GitHubCommitActivity[] | null;
-  codeFrequency: GitHubCodeFrequency[] | null;
-  commitsByWeekday: number[];
-  commitsByMonth: number[];
-  commitsByYear: { year: number; count: number }[];
-  commitsByExtension: { ext: string; count: number }[];
-  linesByExtension: { ext: string; additions: number; deletions: number }[];
-  fileCoupling: { file1: string; file2: string; cochanges: number }[];
-  firstCommitDate: string;
-  repoAgeDays: number;
-  commitsByHour: number[];
-  commitsByDomain: { domain: string; count: number }[];
-  authorOfYear: AuthorOfPeriod[];
-  authorOfMonth: AuthorOfPeriod[];
-  authorTimelines: AuthorTimeline[];
-  contributorNodes: ContributorNode[];
-  contributorEdges: ContributorEdge[];
-  codeOwnership: OwnershipEntry[];
-  timezoneData: { offset: number; count: number }[];
-  sequentialCoupling: ChangeChain[];
-  linesByExtTime: ExtMonthlyChurn | null;
-  linesStatsSummary: LinesStatsSummary[];
-  cumulativeFiles: { date: string; count: number }[];
-  fileOperations: { operation: string; count: number }[];
-  tagHistory: TagSummary[];
-  locOverTime: { date: string; loc: number }[];
-  radarMetrics: RadarMetric[];
-  hotspots: HotspotEntry[];
-  topActivePeriods: ActivePeriod[];
 }
 
 // ── Pipeline state ──
@@ -355,8 +170,8 @@ export interface GitStatsState {
   analysis: GitStatsAnalysis | null;
   /**
    * Canonical sectioned shape from @repoguru/core. Populated by
-   * BrowserAnalyzer alongside `analysis`. Charts lifted into @repoguru/ui
-   * read from this; legacy components still read from `analysis`.
+   * BrowserAnalyzer alongside `analysis`. Lifted charts in @repoguru/ui
+   * read from this; charts that haven't moved yet read from `analysis`.
    */
   canonical: import('@repoguru/core').GitStatsData | null;
   error: string | null;

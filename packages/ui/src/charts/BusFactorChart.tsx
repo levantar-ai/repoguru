@@ -1,11 +1,11 @@
 import { useCallback } from 'react';
 import * as d3 from 'd3';
-import type { HealthSection } from '@repoguru/core';
+import type { BusFactorData } from './legacyTypes.js';
 import { D3Container } from './D3Container.js';
 
 export interface BusFactorChartProps {
-  /** Canonical bus factor — `factor` plus the lorenz curve (0..1 cumulative shares). */
-  busFactor: HealthSection['busFactor'];
+  /** Browser-shape bus factor — the authoritative view contract. */
+  busFactor: BusFactorData;
   height?: number;
 }
 
@@ -27,14 +27,7 @@ export function BusFactorChart({ busFactor, height = 350 }: BusFactorChartProps)
 
       const g = sel.append('g').attr('transform', `translate(${margin.left},${margin.top})`);
 
-      // Reconstruct cumulativeContributors-style points from the canonical
-      // shape. Adapter contracts: `lorenz` is 0..1 cumulative shares;
-      // `cumulativeContributors[i].cumulativePercentage` is 0..100 (when
-      // available — desktop adapter doesn't always emit it). Prefer the
-      // explicit cumulativeContributors when it's there since it carries
-      // the contributorId; fall back to lorenz.
-      const cum = busFactor.cumulativeContributors;
-      const n = cum && cum.length > 0 ? cum.length : busFactor.lorenz.length;
+      const n = busFactor.cumulativeContributors.length;
       if (n === 0) return;
 
       const xScale = d3.scaleLinear().domain([0, 100]).range([0, w]);
@@ -96,11 +89,7 @@ export function BusFactorChart({ busFactor, height = 350 }: BusFactorChartProps)
       const points: [number, number][] = [[0, 0]];
       for (let i = 0; i < n; i++) {
         const xPct = ((i + 1) / n) * 100;
-        const cumEntry = cum?.[i];
-        const lorenzEntry = busFactor.lorenz[i];
-        const yPct = cumEntry
-          ? cumEntry.cumulativePercentage
-          : (lorenzEntry ?? 0) * 100;
+        const yPct = busFactor.cumulativeContributors[i].cumulativePercentage;
         points.push([xPct, yPct]);
       }
 
@@ -149,7 +138,7 @@ export function BusFactorChart({ busFactor, height = 350 }: BusFactorChartProps)
         .text('50% threshold');
 
       // Bus factor annotation
-      const bfPct = (busFactor.factor / n) * 100;
+      const bfPct = (busFactor.busFactor / n) * 100;
       if (bfPct > 0 && bfPct <= 100) {
         g.append('line')
           .attr('x1', xScale(bfPct))
@@ -167,7 +156,7 @@ export function BusFactorChart({ busFactor, height = 350 }: BusFactorChartProps)
           .style('fill', '#f87171')
           .style('font-size', '10px')
           .style('font-weight', '600')
-          .text(`Bus Factor: ${busFactor.factor}`);
+          .text(`Bus Factor: ${busFactor.busFactor}`);
       }
 
       // Dots on curve
@@ -185,8 +174,7 @@ export function BusFactorChart({ busFactor, height = 350 }: BusFactorChartProps)
     [busFactor],
   );
 
-  if (busFactor.lorenz.length === 0 &&
-      (!busFactor.cumulativeContributors || busFactor.cumulativeContributors.length === 0)) {
+  if (busFactor.cumulativeContributors.length === 0) {
     return (
       <div className="flex items-center justify-center h-[300px] text-sm text-text-muted">
         No contributor data available

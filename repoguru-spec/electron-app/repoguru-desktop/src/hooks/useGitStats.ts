@@ -1,7 +1,8 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { GrpcAnalyzer, type GrpcSectionClient } from '@repoguru/desktop-adapter';
-import type { GitStatsData as CanonicalGitStatsData } from '@repoguru/core';
+import type { GitStatsData as CanonicalGitStatsData, legacy } from '@repoguru/core';
 import { grpcClient } from '../services/grpc-client';
+import { wireToLegacy } from '../services/wireToLegacy';
 
 // ── Wire shape kept stable for backward-compat with un-lifted charts. ──
 // Once a chart is lifted into @repoguru/ui it should read from `canonical`
@@ -45,10 +46,12 @@ export interface GitStatsData {
 
 export interface GitStatsState {
   loading: boolean;
-  /** Snake_case wire shape — kept for charts that haven't moved to @repoguru/ui yet. */
+  /** Snake_case wire shape — preserved for incidental debug use. */
   data: GitStatsData | null;
-  /** Canonical sectioned shape from @repoguru/core — used by lifted charts. */
+  /** Canonical sectioned shape from @repoguru/core — emitted as sections stream in. */
   canonical: CanonicalGitStatsData | null;
+  /** Browser-shape `GitStatsAnalysis` — what @repoguru/ui's GitStatsView consumes. */
+  analysis: legacy.GitStatsAnalysis | null;
   error: string | null;
   loadedSections: string[];
 }
@@ -58,6 +61,7 @@ export function useGitStats() {
     loading: false,
     data: null,
     canonical: null,
+    analysis: null,
     error: null,
     loadedSections: [],
   });
@@ -70,7 +74,7 @@ export function useGitStats() {
   }, []);
 
   const loadStats = useCallback(async (outPath: string, repoPath?: string) => {
-    setState({ loading: true, data: null, canonical: null, error: null, loadedSections: [] });
+    setState({ loading: true, data: null, canonical: null, analysis: null, error: null, loadedSections: [] });
 
     // Wrap grpcClient so we capture each raw JSON payload as it flows through
     // the analyzer. That gives us the wire shape "for free" without a second
@@ -128,10 +132,23 @@ export function useGitStats() {
       }
 
       if (!mountedRef.current) return;
+      const wire = wireData as unknown as GitStatsData;
+      const overview = canonical.overview;
+      const analysis = wireToLegacy(wire, {
+        owner: overview?.owner,
+        repo: overview?.repo,
+        total_commits: overview?.totalCommits,
+        total_lines_of_code: overview?.totalLinesOfCode,
+        binary_file_count: overview?.binaryFileCount,
+        first_commit_date: overview?.firstCommitDate,
+        repo_age_days: overview?.repoAgeDays,
+        authors: (captured['__report']?.['authors'] ?? {}) as Record<string, string>,
+      });
       setState({
         loading: false,
-        data: wireData as unknown as GitStatsData,
+        data: wire,
         canonical,
+        analysis,
         error: null,
         loadedSections: loaded,
       });
@@ -141,6 +158,7 @@ export function useGitStats() {
           loading: false,
           data: null,
           canonical: null,
+          analysis: null,
           error: err instanceof Error ? err.message : String(err),
           loadedSections: [],
         });

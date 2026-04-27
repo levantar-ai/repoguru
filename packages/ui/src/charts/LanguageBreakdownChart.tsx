@@ -1,55 +1,36 @@
 import { useMemo, useState } from 'react';
-import type { PatternsSection } from '@repoguru/core';
+import type { LanguageEntry } from './legacyTypes.js';
 import { EChartsWrapper } from './EChartsWrapper.js';
 import { CHART_COLORS } from './echartsTheme.js';
 
 export interface LanguageBreakdownChartProps {
-  /** Canonical language breakdown — `{ language, percentage, fileCount?, totalLines?, bytes? }[]`. */
-  data: PatternsSection['languageBreakdown'];
+  /** Browser-shape languages — `{ name, bytes, percentage }[]`. */
+  languages: LanguageEntry[];
   height?: string;
 }
 
-function formatBytes(bytes: number): string {
-  if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-  if (bytes >= 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${bytes} B`;
-}
-
-/** Pick the best size metric the adapter provides — bytes preferred, then totalLines, else percentage. */
-function sizeFor(d: PatternsSection['languageBreakdown'][number]): number {
-  if (d.bytes !== undefined && d.bytes > 0) return d.bytes;
-  if (d.totalLines !== undefined && d.totalLines > 0) return d.totalLines;
-  return d.percentage;
-}
-
 export function LanguageBreakdownChart({
-  data,
+  languages,
   height = '350px',
 }: LanguageBreakdownChartProps) {
   const [view, setView] = useState<'donut' | 'treemap'>('donut');
 
   const donutOption = useMemo(() => {
-    const top = [...data].sort((a, b) => b.percentage - a.percentage).slice(0, 15);
-    const series = top.map((lang) => ({
-      name: lang.language,
-      value: sizeFor(lang),
+    const data = languages.slice(0, 15).map((lang) => ({
+      name: lang.name,
+      value: lang.bytes,
     }));
 
     return {
       tooltip: {
         trigger: 'item' as const,
         formatter: (params: { name: string; value: number; percent: number }) => {
-          const lang = top.find((l) => l.language === params.name);
-          const lines = [`<b>${params.name}</b>`];
-          if (lang?.bytes !== undefined) {
-            lines.push(`${formatBytes(lang.bytes)} (${params.percent}%)`);
-          } else if (lang?.totalLines !== undefined) {
-            lines.push(`${lang.totalLines.toLocaleString()} lines (${params.percent}%)`);
-          } else {
-            lines.push(`${params.percent}%`);
-          }
-          if (lang?.fileCount !== undefined) lines.push(`${lang.fileCount} files`);
-          return lines.join('<br/>');
+          const bytes = params.value;
+          let size: string;
+          if (bytes > 1024 * 1024) size = `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+          else if (bytes > 1024) size = `${(bytes / 1024).toFixed(1)} KB`;
+          else size = `${bytes} B`;
+          return `<b>${params.name}</b><br/>${size} (${params.percent}%)`;
         },
       },
       series: [
@@ -68,46 +49,39 @@ export function LanguageBreakdownChart({
             fontSize: 11,
             formatter: '{b}\n{d}%',
           },
-          labelLine: {
-            lineStyle: { color: '#475569' },
-          },
+          labelLine: { lineStyle: { color: '#475569' } },
           emphasis: {
             label: { fontSize: 13, fontWeight: 'bold' as const },
           },
-          data: series,
+          data,
         },
       ],
     };
-  }, [data]);
+  }, [languages]);
 
   const treemapOption = useMemo(() => {
-    const series = data.map((lang, i) => ({
-      name: lang.language,
-      value: sizeFor(lang),
-      itemStyle: {
-        color: CHART_COLORS[i % CHART_COLORS.length],
-      },
+    const data = languages.map((lang, i) => ({
+      name: lang.name,
+      value: lang.bytes,
+      itemStyle: { color: CHART_COLORS[i % CHART_COLORS.length] },
     }));
 
     return {
       tooltip: {
         formatter: (params: { name: string; value: number }) => {
-          const lang = data.find((l) => l.language === params.name);
-          const lines = [`<b>${params.name}</b>`];
-          if (lang?.bytes !== undefined) {
-            lines.push(`${formatBytes(lang.bytes)} (${lang.percentage.toFixed(1)}%)`);
-          } else if (lang?.totalLines !== undefined) {
-            lines.push(`${lang.totalLines.toLocaleString()} lines (${lang.percentage.toFixed(1)}%)`);
-          } else {
-            lines.push(`${(lang?.percentage ?? 0).toFixed(1)}%`);
-          }
-          return lines.join('<br/>');
+          const bytes = params.value;
+          const pct = languages.find((l) => l.name === params.name)?.percentage || 0;
+          const size =
+            bytes > 1024 * 1024
+              ? `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+              : `${(bytes / 1024).toFixed(1)} KB`;
+          return `<b>${params.name}</b><br/>${size} (${pct}%)`;
         },
       },
       series: [
         {
           type: 'treemap' as const,
-          data: series,
+          data,
           roam: false,
           nodeClick: false as const,
           breadcrumb: { show: false },
@@ -125,9 +99,9 @@ export function LanguageBreakdownChart({
         },
       ],
     };
-  }, [data]);
+  }, [languages]);
 
-  if (data.length === 0) return null;
+  if (languages.length === 0) return null;
 
   return (
     <div>

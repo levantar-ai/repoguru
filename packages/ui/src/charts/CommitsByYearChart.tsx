@@ -1,17 +1,17 @@
 import { useMemo } from 'react';
-import type { PatternsSection } from '@repoguru/core';
 import { EChartsWrapper } from './EChartsWrapper.js';
 
 export interface CommitsByYearChartProps {
-  /** Canonical commits-by-year — `{ year, count }[]`, sorted ascending. */
-  data: PatternsSection['commitsByYear'];
+  commitsByYear: { year: number; count: number }[];
   height?: string;
 }
 
-export function CommitsByYearChart({ data, height = '280px' }: CommitsByYearChartProps) {
-  const option = useMemo(() => {
-    const sorted = [...data].sort((a, b) => a.year - b.year);
-    return {
+export function CommitsByYearChart({
+  commitsByYear,
+  height = '280px',
+}: CommitsByYearChartProps) {
+  const option = useMemo(
+    () => ({
       tooltip: {
         trigger: 'axis' as const,
         axisPointer: { type: 'shadow' as const },
@@ -19,17 +19,14 @@ export function CommitsByYearChart({ data, height = '280px' }: CommitsByYearChar
       grid: { left: 50, right: 20, top: 10, bottom: 30 },
       xAxis: {
         type: 'category' as const,
-        data: sorted.map((d) => String(d.year)),
+        data: commitsByYear.map((d) => d.year.toString()),
         axisLabel: { color: '#64748b', fontSize: 11 },
       },
-      yAxis: {
-        type: 'value' as const,
-        axisLabel: { color: '#64748b' },
-      },
+      yAxis: { type: 'value' as const, axisLabel: { color: '#64748b' } },
       series: [
         {
           type: 'bar',
-          data: sorted.map((d) => d.count),
+          data: commitsByYear.map((d) => d.count),
           barMaxWidth: 50,
           itemStyle: {
             color: {
@@ -47,9 +44,10 @@ export function CommitsByYearChart({ data, height = '280px' }: CommitsByYearChar
           },
         },
       ],
-    };
-  }, [data]);
+    }),
+    [commitsByYear],
+  );
 
-  if (data.length === 0) return null;
+  if (commitsByYear.length === 0) return null;
   return <EChartsWrapper option={option} height={height} />;
 }

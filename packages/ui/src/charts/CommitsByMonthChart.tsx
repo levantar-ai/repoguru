@@ -1,5 +1,4 @@
 import { useMemo } from 'react';
-import type { PatternsSection } from '@repoguru/core';
 import { EChartsWrapper } from './EChartsWrapper.js';
 
 const MONTH_LABELS = [
@@ -18,12 +17,15 @@ const MONTH_LABELS = [
 ];
 
 export interface CommitsByMonthChartProps {
-  /** Per the canonical contract: length 12, Jan=0..Dec=11. */
-  data: PatternsSection['commitsByMonth'];
+  /** Length 12, Jan=0..Dec=11. */
+  commitsByMonth: number[];
   height?: string;
 }
 
-export function CommitsByMonthChart({ data, height = '280px' }: CommitsByMonthChartProps) {
+export function CommitsByMonthChart({
+  commitsByMonth,
+  height = '280px',
+}: CommitsByMonthChartProps) {
   const option = useMemo(
     () => ({
       tooltip: {
@@ -36,14 +38,11 @@ export function CommitsByMonthChart({ data, height = '280px' }: CommitsByMonthCh
         data: MONTH_LABELS,
         axisLabel: { color: '#64748b', fontSize: 11 },
       },
-      yAxis: {
-        type: 'value' as const,
-        axisLabel: { color: '#64748b' },
-      },
+      yAxis: { type: 'value' as const, axisLabel: { color: '#64748b' } },
       series: [
         {
           type: 'bar',
-          data: [...data],
+          data: commitsByMonth,
           barMaxWidth: 36,
           itemStyle: {
             color: {
@@ -62,9 +61,9 @@ export function CommitsByMonthChart({ data, height = '280px' }: CommitsByMonthCh
         },
       ],
     }),
-    [data],
+    [commitsByMonth],
   );
 
-  if (data.every((c) => c === 0)) return null;
+  if (commitsByMonth.every((c) => c === 0)) return null;
   return <EChartsWrapper option={option} height={height} />;
 }

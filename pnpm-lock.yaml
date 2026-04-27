@@ -53,6 +53,9 @@ importers:
       '@types/d3':
         specifier: ^7.4.3
         version: 7.4.3
+      '@types/d3-cloud':
+        specifier: ^1.2.9
+        version: 1.2.9
       '@types/react':
         specifier: ^19.0.0
         version: 19.2.14
@@ -62,6 +65,9 @@ importers:
       d3:
         specifier: ^7.9.0
         version: 7.9.0
+      d3-cloud:
+        specifier: ^1.2.8
+        version: 1.2.9
       echarts:
         specifier: ^6.0.0
         version: 6.0.0

@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import type { DetectedPackage, DetectedPythonPackage } from '../../types/techDetect';
-import { EChartsWrapper } from '../git-stats/EChartsWrapper';
+import { EChartsWrapper } from '@repoguru/ui';
 
 const ECOSYSTEM_COLORS: Record<string, string> = {
   node: '#339933',

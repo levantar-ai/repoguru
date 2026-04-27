@@ -1,5 +1,4 @@
 import { useMemo } from 'react';
-import type { PatternsSection } from '@repoguru/core';
 import { EChartsWrapper } from './EChartsWrapper.js';
 
 const HOUR_LABELS = [
@@ -30,12 +29,15 @@ const HOUR_LABELS = [
 ];
 
 export interface CommitsByHourChartProps {
-  /** Per the canonical contract: length 24, hour 0..23. */
-  data: PatternsSection['commitsByHour'];
+  /** Length 24, hour 0..23. */
+  commitsByHour: number[];
   height?: string;
 }
 
-export function CommitsByHourChart({ data, height = '300px' }: CommitsByHourChartProps) {
+export function CommitsByHourChart({
+  commitsByHour,
+  height = '300px',
+}: CommitsByHourChartProps) {
   const option = useMemo(
     () => ({
       tooltip: {
@@ -48,14 +50,11 @@ export function CommitsByHourChart({ data, height = '300px' }: CommitsByHourChar
         data: HOUR_LABELS,
         axisLabel: { color: '#64748b', fontSize: 11 },
       },
-      yAxis: {
-        type: 'value' as const,
-        axisLabel: { color: '#64748b' },
-      },
+      yAxis: { type: 'value' as const, axisLabel: { color: '#64748b' } },
       series: [
         {
           type: 'bar',
-          data: [...data],
+          data: commitsByHour,
           barMaxWidth: 24,
           itemStyle: {
             color: {
@@ -74,9 +73,9 @@ export function CommitsByHourChart({ data, height = '300px' }: CommitsByHourChar
         },
       ],
     }),
-    [data],
+    [commitsByHour],
   );
 
-  if (data.every((c) => c === 0)) return null;
+  if (commitsByHour.every((c) => c === 0)) return null;
   return <EChartsWrapper option={option} height={height} />;
 }

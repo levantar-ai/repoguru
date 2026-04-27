@@ -1,17 +1,16 @@
 import { useMemo } from 'react';
-import type { PatternsSection } from '@repoguru/core';
 import { EChartsWrapper } from './EChartsWrapper.js';
 
 const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 export interface CommitsByWeekdayChartProps {
-  /** Per the canonical contract: length 7, Sun=0..Sat=6. */
-  data: PatternsSection['commitsByWeekday'];
+  /** Length 7, Sun=0..Sat=6. */
+  commitsByWeekday: number[];
   height?: string;
 }
 
 export function CommitsByWeekdayChart({
-  data,
+  commitsByWeekday,
   height = '280px',
 }: CommitsByWeekdayChartProps) {
   const option = useMemo(
@@ -26,14 +25,11 @@ export function CommitsByWeekdayChart({
         data: DAY_LABELS,
         axisLabel: { color: '#64748b', fontSize: 11 },
       },
-      yAxis: {
-        type: 'value' as const,
-        axisLabel: { color: '#64748b' },
-      },
+      yAxis: { type: 'value' as const, axisLabel: { color: '#64748b' } },
       series: [
         {
           type: 'bar',
-          data: [...data],
+          data: commitsByWeekday,
           barMaxWidth: 40,
           itemStyle: {
             color: {
@@ -52,9 +48,9 @@ export function CommitsByWeekdayChart({
         },
       ],
     }),
-    [data],
+    [commitsByWeekday],
   );
 
-  if (data.every((c) => c === 0)) return null;
+  if (commitsByWeekday.every((c) => c === 0)) return null;
   return <EChartsWrapper option={option} height={height} />;
 }

@@ -1,52 +1,18 @@
 import { useState } from 'react';
+import { GitStatsView } from '@repoguru/ui';
 import { useGitStats } from '@/hooks/useGitStats';
 import { useScan } from '@/hooks/useScan';
 import { RepoPicker } from '@/components/common/RepoPicker';
 import { ScanProgress } from '@/components/scan/ScanProgress';
 import { addRecentRepo } from '@/services/storage';
 
-// Charts
-import { CommitHeatmap } from '@/components/charts/CommitHeatmap';
-import { PunchCardChart } from '@/components/charts/PunchCardChart';
-import { CodeFrequencyChart } from '@/components/charts/CodeFrequencyChart';
-import { ContributorChart } from '@/components/charts/ContributorChart';
-import { CommitSizeHistogram } from '@/components/charts/CommitSizeHistogram';
-import { RepoGrowthChart } from '@/components/charts/RepoGrowthChart';
-import { FileChurnTable } from '@/components/charts/FileChurnTable';
-import { FileCouplingTable } from '@/components/charts/FileCouplingTable';
-import {
-  BusFactorChart,
-  CommitsByHourChart,
-  CommitsByMonthChart,
-  CommitsByWeekdayChart,
-  CommitsByYearChart,
-  HealthRadarChart,
-  LanguageBreakdownChart,
-} from '@repoguru/ui';
-import { WordCloudChart } from '@/components/charts/WordCloudChart';
-import { TimezoneChart } from '@/components/charts/TimezoneChart';
-import { ConventionalCommitsChart } from '@/components/charts/ConventionalCommitsChart';
-import { TagHistoryChart } from '@/components/charts/TagHistoryChart';
-
-type Section = 'overview' | 'activity' | 'contributors' | 'codebase' | 'patterns' | 'health';
-
-const TABS: Array<{ id: Section; label: string }> = [
-  { id: 'overview', label: 'Overview' },
-  { id: 'activity', label: 'Activity' },
-  { id: 'contributors', label: 'Contributors' },
-  { id: 'codebase', label: 'Codebase' },
-  { id: 'patterns', label: 'Patterns' },
-  { id: 'health', label: 'Health' },
-];
-
 const DEFAULT_OUT_DIR = '/tmp/repoguru-scan';
 
 export function GitStats() {
   const [repoPath, setRepoPath] = useState('');
   const [outPath] = useState(DEFAULT_OUT_DIR);
-  const { loading, data, canonical, error, loadStats } = useGitStats();
+  const { loading, analysis, error, loadStats } = useGitStats();
   const { scanning, progress, startScan } = useScan();
-  const [tab, setTab] = useState<Section>('overview');
 
   const handleAnalyze = async () => {
     if (!repoPath) return;
@@ -65,12 +31,14 @@ export function GitStats() {
     loadStats(outPath, repoPath);
   };
 
-  if (!data && !loading && !error) {
+  if (!analysis && !loading && !error) {
     return (
       <div className="p-8 max-w-3xl mx-auto">
         <div className="mb-8">
           <h2 className="text-2xl font-bold text-white">Git Stats</h2>
-          <p className="text-gray-400 mt-1 text-sm">Run a full scan to explore 19 interactive charts.</p>
+          <p className="text-gray-400 mt-1 text-sm">
+            Run a full scan to explore the repository dashboard.
+          </p>
         </div>
         <div className="rounded-lg border border-gray-800 bg-gray-900/50 p-6">
           <div className="flex gap-3 items-end">
@@ -129,105 +97,11 @@ export function GitStats() {
     );
   }
 
-  if (!data) return null;
-
-  const repoName = repoPath.split('/').pop() || repoPath || 'Repository';
+  if (!analysis) return null;
 
   return (
     <div className="p-8 max-w-7xl mx-auto">
-      {/* Header */}
-      <div className="mb-6">
-        <h2 className="text-2xl font-bold text-white">{repoName} — Git Stats</h2>
-        <p className="text-xs text-gray-500 mt-1">15+ interactive charts across activity, contributors, codebase, and patterns</p>
-      </div>
-
-      {/* Tab bar */}
-      <div className="flex gap-1 mb-6 border-b border-[var(--color-border)]">
-        {TABS.map((t) => (
-          <button
-            key={t.id}
-            onClick={() => setTab(t.id)}
-            className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px ${
-              tab === t.id
-                ? 'text-sky-400 border-sky-500'
-                : 'text-[var(--color-text-muted)] border-transparent hover:text-[var(--color-text-secondary)] hover:border-gray-700'
-            }`}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
-
-      {/* Tab content */}
-      {tab === 'overview' && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {data.weekly_activity && <CommitHeatmap weeklyActivity={data.weekly_activity} />}
-          {data.timeseries && <CodeFrequencyChart timeseries={data.timeseries} />}
-          {data.cumulative_files && <RepoGrowthChart data={data.cumulative_files} />}
-          {canonical?.patterns?.languageBreakdown && (
-            <LanguageBreakdownChart data={canonical.patterns.languageBreakdown} />
-          )}
-          {canonical?.health?.radarMetrics && <HealthRadarChart metrics={canonical.health.radarMetrics} />}
-          {canonical?.health?.busFactor && <BusFactorChart busFactor={canonical.health.busFactor} />}
-        </div>
-      )}
-
-      {tab === 'activity' && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {data.weekly_activity && <CommitHeatmap weeklyActivity={data.weekly_activity} />}
-          {data.timeseries && <CodeFrequencyChart timeseries={data.timeseries} />}
-          {data.cumulative_files && <RepoGrowthChart data={data.cumulative_files} />}
-          {canonical?.patterns?.commitsByYear && (
-            <CommitsByYearChart data={canonical.patterns.commitsByYear} />
-          )}
-          {data.tag_history && <TagHistoryChart tags={data.tag_history} />}
-        </div>
-      )}
-
-      {tab === 'contributors' && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {data.authors && <ContributorChart authors={data.authors} authorNames={data.author_names ?? {}} />}
-          {data.timezone_data && <TimezoneChart data={data.timezone_data} />}
-          {canonical?.health?.busFactor && <BusFactorChart busFactor={canonical.health.busFactor} />}
-        </div>
-      )}
-
-      {tab === 'codebase' && (
-        <div className="grid grid-cols-1 gap-4">
-          {data.hotspots && <FileChurnTable hotspots={data.hotspots} />}
-          {data.file_coupling && <FileCouplingTable coupling={data.file_coupling} />}
-          {canonical?.patterns?.languageBreakdown && (
-            <LanguageBreakdownChart data={canonical.patterns.languageBreakdown} />
-          )}
-        </div>
-      )}
-
-      {tab === 'patterns' && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {data.punch_card && <PunchCardChart punchCard={data.punch_card} />}
-          {canonical?.patterns?.commitsByWeekday && (
-            <CommitsByWeekdayChart data={canonical.patterns.commitsByWeekday} />
-          )}
-          {canonical?.patterns?.commitsByMonth && (
-            <CommitsByMonthChart data={canonical.patterns.commitsByMonth} />
-          )}
-          {canonical?.patterns?.commitsByHour && (
-            <CommitsByHourChart data={canonical.patterns.commitsByHour} />
-          )}
-          {data.commit_size_histogram && <CommitSizeHistogram data={data.commit_size_histogram} />}
-          {data.conventional_commits && <ConventionalCommitsChart data={data.conventional_commits} />}
-          {data.word_frequencies && <WordCloudChart words={data.word_frequencies} />}
-        </div>
-      )}
-
-      {tab === 'health' && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {canonical?.health?.radarMetrics && <HealthRadarChart metrics={canonical.health.radarMetrics} />}
-          {canonical?.health?.busFactor && <BusFactorChart busFactor={canonical.health.busFactor} />}
-          {data.tag_history && <TagHistoryChart tags={data.tag_history} />}
-          {data.timezone_data && <TimezoneChart data={data.timezone_data} />}
-        </div>
-      )}
+      <GitStatsView analysis={analysis} />
     </div>
   );
 }
