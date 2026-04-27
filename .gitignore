@@ -43,3 +43,9 @@ resources/bin/repoanalyze-*
 
 # Agent / tool scratch
 .claude/
+
+# Playwright/Probe artefacts
+*.png
+!repoguru/public/*.png
+!repoguru/public/**/*.png
+probe-*.mjs
