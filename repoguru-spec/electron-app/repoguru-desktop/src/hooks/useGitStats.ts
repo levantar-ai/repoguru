@@ -32,7 +32,6 @@ export interface GitStatsData {
   commit_size_histogram: Array<[string, number]>;
   weekly_activity: Array<[string, number]>;
   word_frequencies: Array<[string, number]>;
-  language_breakdown: Array<{ language: string; percentage: number; file_count: number; total_lines: number }>;
   conventional_commits: Record<string, number>;
 
   // health

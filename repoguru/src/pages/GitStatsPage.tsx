@@ -272,11 +272,12 @@ export function GitStatsPage({ initialRepo }: Props) {
                 </ChartSection>
               </div>
             )}
-            {state.analysis.languages.length > 0 && (
-              <ChartSection title="Languages">
-                <LanguageBreakdown languages={state.analysis.languages} />
-              </ChartSection>
-            )}
+            {state.canonical?.patterns?.languageBreakdown &&
+              state.canonical.patterns.languageBreakdown.length > 0 && (
+                <ChartSection title="Languages">
+                  <LanguageBreakdown languages={state.canonical.patterns.languageBreakdown} />
+                </ChartSection>
+              )}
           </div>
 
           {/* LOC Over Time */}

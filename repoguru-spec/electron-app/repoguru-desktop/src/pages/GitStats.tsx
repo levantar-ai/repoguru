@@ -21,8 +21,8 @@ import {
   CommitsByWeekdayChart,
   CommitsByYearChart,
   HealthRadarChart,
+  LanguageBreakdownChart,
 } from '@repoguru/ui';
-import { LanguageBreakdownChart } from '@/components/charts/LanguageBreakdownChart';
 import { WordCloudChart } from '@/components/charts/WordCloudChart';
 import { TimezoneChart } from '@/components/charts/TimezoneChart';
 import { ConventionalCommitsChart } from '@/components/charts/ConventionalCommitsChart';
@@ -164,7 +164,9 @@ export function GitStats() {
           {data.weekly_activity && <CommitHeatmap weeklyActivity={data.weekly_activity} />}
           {data.timeseries && <CodeFrequencyChart timeseries={data.timeseries} />}
           {data.cumulative_files && <RepoGrowthChart data={data.cumulative_files} />}
-          {data.language_breakdown && <LanguageBreakdownChart data={data.language_breakdown} />}
+          {canonical?.patterns?.languageBreakdown && (
+            <LanguageBreakdownChart data={canonical.patterns.languageBreakdown} />
+          )}
           {canonical?.health?.radarMetrics && <HealthRadarChart metrics={canonical.health.radarMetrics} />}
           {canonical?.health?.busFactor && <BusFactorChart busFactor={canonical.health.busFactor} />}
         </div>
@@ -194,7 +196,9 @@ export function GitStats() {
         <div className="grid grid-cols-1 gap-4">
           {data.hotspots && <FileChurnTable hotspots={data.hotspots} />}
           {data.file_coupling && <FileCouplingTable coupling={data.file_coupling} />}
-          {data.language_breakdown && <LanguageBreakdownChart data={data.language_breakdown} />}
+          {canonical?.patterns?.languageBreakdown && (
+            <LanguageBreakdownChart data={canonical.patterns.languageBreakdown} />
+          )}
         </div>
       )}
 

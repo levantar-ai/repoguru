@@ -17,6 +17,9 @@ export type { CommitsByHourChartProps } from './charts/CommitsByHourChart.js';
 export { CommitsByYearChart } from './charts/CommitsByYearChart.js';
 export type { CommitsByYearChartProps } from './charts/CommitsByYearChart.js';
 
+export { LanguageBreakdownChart } from './charts/LanguageBreakdownChart.js';
+export type { LanguageBreakdownChartProps } from './charts/LanguageBreakdownChart.js';
+
 export { BusFactorChart } from './charts/BusFactorChart.js';
 export type { BusFactorChartProps } from './charts/BusFactorChart.js';
 
