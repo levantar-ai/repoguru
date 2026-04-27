@@ -5,6 +5,5 @@ interface Props {
 }
 
 export function CommitsByWeekday({ commitsByWeekday }: Props) {
-  if (commitsByWeekday.every((c) => c === 0)) return null;
-  return <CommitsByWeekdayChart data={commitsByWeekday} card={false} height={280} />;
+  return <CommitsByWeekdayChart data={commitsByWeekday} />;
 }

@@ -5,6 +5,5 @@ interface Props {
 }
 
 export function CommitsByHour({ commitsByHour }: Props) {
-  if (commitsByHour.every((c) => c === 0)) return null;
-  return <CommitsByHourChart data={commitsByHour} card={false} height={300} />;
+  return <CommitsByHourChart data={commitsByHour} />;
 }

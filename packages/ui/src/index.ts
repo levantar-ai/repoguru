@@ -1,9 +1,19 @@
 // Shared view layer for both the in-browser app and the Electron desktop
-// app. Components here depend ONLY on @repoguru/core types — no fetching,
-// no git, no gRPC. Hosts inject a RepoAnalyzer and feed the resulting data in.
+// app. The in-browser repoguru app is the authoritative reference for
+// chart styling — every chart here renders into the same EChartsWrapper
+// (registered `repoguru` theme) with gradient bars and rounded corners.
+//
+// Hosts wrap charts in their own card chrome (the browser uses
+// <ChartSection>; the desktop uses its own panel) — these components
+// render bare so they fit either pattern.
 
-export { ChartCard } from './charts/ChartCard.js';
-export { baseOption, CHART_COLORS } from './charts/echartsTheme.js';
+export { EChartsWrapper } from './charts/EChartsWrapper.js';
+export type { EChartsWrapperProps } from './charts/EChartsWrapper.js';
+export { CHART_COLORS, echartsTheme } from './charts/echartsTheme.js';
+export { D3Container } from './charts/D3Container.js';
+export type { D3ContainerProps } from './charts/D3Container.js';
+export { RadarChart } from './charts/RadarChart.js';
+export type { RadarChartProps } from './charts/RadarChart.js';
 
 export { CommitsByWeekdayChart } from './charts/CommitsByWeekdayChart.js';
 export type { CommitsByWeekdayChartProps } from './charts/CommitsByWeekdayChart.js';

@@ -5,6 +5,5 @@ interface Props {
 }
 
 export function CommitsByMonth({ commitsByMonth }: Props) {
-  if (commitsByMonth.every((c) => c === 0)) return null;
-  return <CommitsByMonthChart data={commitsByMonth} card={false} height={280} />;
+  return <CommitsByMonthChart data={commitsByMonth} />;
 }

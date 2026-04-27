@@ -1,38 +1,73 @@
-import type { EChartsOption } from 'echarts';
+// Authoritative chart theme — copied verbatim from the in-browser
+// repoguru app. This is the visual language every chart in @repoguru/ui
+// follows: dark slate/indigo background, gradient bars, dashed split
+// lines, Inter font.
 
 export const CHART_COLORS = [
   '#38bdf8',
-  '#a78bfa',
   '#34d399',
+  '#a3e635',
+  '#fbbf24',
   '#fb923c',
+  '#f87171',
+  '#a78bfa',
   '#f472b6',
-  '#facc15',
-  '#22d3ee',
-  '#c084fc',
-  '#4ade80',
-  '#fb7185',
 ];
 
-/** Shared echarts defaults for every chart in @repoguru/ui. */
-export function baseOption(overrides: EChartsOption = {}): EChartsOption {
-  return {
-    color: CHART_COLORS,
-    textStyle: { color: '#94a3b8', fontFamily: 'inherit' },
-    grid: { top: 40, right: 20, bottom: 40, left: 50, containLabel: true },
-    tooltip: {
+export const echartsTheme = {
+  color: CHART_COLORS,
+  backgroundColor: 'transparent',
+  textStyle: {
+    fontFamily: "'Inter', system-ui, sans-serif",
+    color: '#94a3b8',
+  },
+  title: {
+    textStyle: {
+      color: '#f1f5f9',
+      fontFamily: "'Inter', system-ui, sans-serif",
+      fontWeight: 600,
+      fontSize: 14,
+    },
+  },
+  categoryAxis: {
+    axisLine: { lineStyle: { color: '#334155' } },
+    axisTick: { lineStyle: { color: '#334155' } },
+    axisLabel: { color: '#64748b', fontSize: 11 },
+    splitLine: { lineStyle: { color: '#1e293b' } },
+  },
+  valueAxis: {
+    axisLine: { lineStyle: { color: '#334155' } },
+    axisTick: { lineStyle: { color: '#334155' } },
+    axisLabel: { color: '#64748b', fontSize: 11 },
+    splitLine: { lineStyle: { color: '#1e293b', type: 'dashed' as const } },
+  },
+  legend: {
+    textStyle: { color: '#94a3b8', fontSize: 11 },
+  },
+  tooltip: {
+    backgroundColor: '#1e293b',
+    borderColor: '#334155',
+    borderWidth: 1,
+    textStyle: { color: '#f1f5f9', fontSize: 12 },
+  },
+  grid: {
+    borderColor: '#334155',
+  },
+  dataZoom: [
+    {
+      type: 'inside' as const,
+    },
+    {
+      type: 'slider' as const,
       backgroundColor: '#1e293b',
       borderColor: '#334155',
-      textStyle: { color: '#f1f5f9', fontSize: 12 },
+      fillerColor: 'rgba(56, 189, 248, 0.1)',
+      handleStyle: { color: '#38bdf8' },
+      textStyle: { color: '#64748b' },
+      dataBackground: {
+        lineStyle: { color: '#334155' },
+        areaStyle: { color: '#1e293b' },
+      },
     },
-    legend: { textStyle: { color: '#94a3b8' } },
-    xAxis: {
-      axisLine: { lineStyle: { color: '#334155' } },
-      splitLine: { lineStyle: { color: '#1e293b' } },
-    },
-    yAxis: {
-      axisLine: { lineStyle: { color: '#334155' } },
-      splitLine: { lineStyle: { color: '#1e293b' } },
-    },
-    ...overrides,
-  };
-}
+  ],
+};

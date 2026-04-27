@@ -1,67 +1,60 @@
-import ReactECharts from 'echarts-for-react';
+import { useMemo } from 'react';
 import type { PatternsSection } from '@repoguru/core';
-import { baseOption } from './echartsTheme.js';
-import { ChartCard } from './ChartCard.js';
+import { EChartsWrapper } from './EChartsWrapper.js';
 
-const SUN_FIRST = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 export interface CommitsByWeekdayChartProps {
-  /**
-   * Per the canonical contract: length 7, Sun=0..Sat=6.
-   * If your adapter emits Mon-first, rotate before passing in.
-   */
+  /** Per the canonical contract: length 7, Sun=0..Sat=6. */
   data: PatternsSection['commitsByWeekday'];
-  /** Override the day labels (e.g. for non-English locales). */
-  dayLabels?: readonly string[];
-  /** Pixel height for the chart canvas. */
-  height?: number;
-  title?: string;
-  /** Wrap the chart in a ChartCard. Set false when the host already
-   *  supplies card chrome around the chart. */
-  card?: boolean;
+  height?: string;
 }
 
 export function CommitsByWeekdayChart({
   data,
-  dayLabels = SUN_FIRST,
-  height = 250,
-  title = 'Commits by Weekday',
-  card = true,
+  height = '280px',
 }: CommitsByWeekdayChartProps) {
-  const option = baseOption({
-    tooltip: {
-      trigger: 'axis',
-      backgroundColor: '#1e293b',
-      borderColor: '#334155',
-      textStyle: { color: '#f1f5f9' },
-    },
-    xAxis: {
-      type: 'category',
-      data: [...dayLabels],
-      axisLabel: { color: '#64748b' },
-      axisLine: { lineStyle: { color: '#334155' } },
-    },
-    yAxis: {
-      type: 'value',
-      axisLabel: { color: '#64748b' },
-      splitLine: { lineStyle: { color: '#1e293b' } },
-    },
-    series: [
-      {
-        type: 'bar',
-        data: data.map((value, i) => ({
-          value,
-          // Weekend buckets get a different colour. With Sun-first that's
-          // indices 0 and 6; with Mon-first the host should pass dayLabels
-          // and accept that the colouring follows position, not weekday.
-          itemStyle: { color: i === 0 || i === 6 ? '#a78bfa' : '#38bdf8' },
-        })),
-        barWidth: '60%',
+  const option = useMemo(
+    () => ({
+      tooltip: {
+        trigger: 'axis' as const,
+        axisPointer: { type: 'shadow' as const },
       },
-    ],
-  });
+      grid: { left: 50, right: 20, top: 10, bottom: 30 },
+      xAxis: {
+        type: 'category' as const,
+        data: DAY_LABELS,
+        axisLabel: { color: '#64748b', fontSize: 11 },
+      },
+      yAxis: {
+        type: 'value' as const,
+        axisLabel: { color: '#64748b' },
+      },
+      series: [
+        {
+          type: 'bar',
+          data: [...data],
+          barMaxWidth: 40,
+          itemStyle: {
+            color: {
+              type: 'linear' as const,
+              x: 0,
+              y: 0,
+              x2: 0,
+              y2: 1,
+              colorStops: [
+                { offset: 0, color: '#a78bfa' },
+                { offset: 1, color: '#7c3aed' },
+              ],
+            },
+            borderRadius: [4, 4, 0, 0],
+          },
+        },
+      ],
+    }),
+    [data],
+  );
 
-  const chart = <ReactECharts option={option} style={{ height }} />;
-  if (!card) return chart;
-  return <ChartCard title={title}>{chart}</ChartCard>;
+  if (data.every((c) => c === 0)) return null;
+  return <EChartsWrapper option={option} height={height} />;
 }
