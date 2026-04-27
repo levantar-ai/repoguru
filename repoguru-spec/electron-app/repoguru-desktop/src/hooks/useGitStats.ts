@@ -13,22 +13,32 @@ export interface GitStatsData {
   cumulative_files: Array<[string, number]>;
   file_operations: Array<[string, number]>;
   lines_by_ext: Array<[string, number, number]>;
+  lines_by_ext_time?: { months: string[]; extensions: string[]; data: number[][] };
   lines_stats_summary: Array<{ label: string; min: number; max: number; avg: number; median: number; total: number }>;
 
   // contributors
   authors: Array<{ author_id: number; commits: number; insertions: number; deletions: number; first_commit: number; last_commit: number }>;
   author_names: Record<string, string>;
+  author_of_year?: Array<{ author_id: number; commits: number; period: string; total_authors: number }>;
+  author_of_month?: Array<{ author_id: number; commits: number; period: string; total_authors: number }>;
+  author_timelines?: Array<{ author_id: number; points: Array<[string, number]> }>;
+  commits_by_domain?: Array<[string, number]>;
   contributor_network_nodes: Array<[number, string]>;
   contributor_network_edges: Array<{ source: number; target: number; weight: number }>;
 
   // codebase
+  code_ownership?: Array<{ lines: number; owner_id: number; path: string }>;
   hotspots: Array<{ path: string; commits: number; total_churn: number; distinct_authors: number }>;
   file_coupling: Array<{ file_a: string; file_b: string; count: number; coupling_pct: number }>;
+  sequential_coupling?: Array<{ files: string[]; occurrences: number; avg_span_hours: number; confidence: number }>;
 
   // patterns
   commits_by_weekday: number[];
   commits_by_month: number[];
   commits_by_hour: number[];
+  commits_by_year?: Record<string, number>;
+  commits_by_extension?: Array<[string, number]>;
+  language_breakdown?: Record<string, number>;
   punch_card: Array<[number, number, number]>;
   commit_size_histogram: Array<[string, number]>;
   weekly_activity: Array<[string, number]>;
@@ -133,17 +143,15 @@ export function useGitStats() {
 
       if (!mountedRef.current) return;
       const wire = wireData as unknown as GitStatsData;
+      const reportRaw = (captured['__report'] ?? {}) as Record<string, unknown>;
       const overview = canonical.overview;
       const analysis = wireToLegacy(wire, {
+        ...reportRaw,
+        // Overview owner/repo isn't in metrics.json — pull from the canonical
+        // overview section (the desktop adapter derives it from the source path).
         owner: overview?.owner,
         repo: overview?.repo,
-        total_commits: overview?.totalCommits,
-        total_lines_of_code: overview?.totalLinesOfCode,
-        binary_file_count: overview?.binaryFileCount,
-        first_commit_date: overview?.firstCommitDate,
-        repo_age_days: overview?.repoAgeDays,
-        authors: (captured['__report']?.['authors'] ?? {}) as Record<string, string>,
-      });
+      } as Parameters<typeof wireToLegacy>[1]);
       setState({
         loading: false,
         data: wire,
