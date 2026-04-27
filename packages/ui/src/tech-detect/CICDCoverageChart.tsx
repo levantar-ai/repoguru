@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
-import type { DetectedCicdTool } from '../../types/techDetect';
-import { EChartsWrapper } from '@repoguru/ui';
+import type { DetectedCicdTool } from '@repoguru/core';
+import { EChartsWrapper } from '../charts/EChartsWrapper.js';
 
 const CATEGORY_LABELS: Record<string, string> = {
   ci: 'CI',

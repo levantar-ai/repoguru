@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
-import type { DetectedTestingTool } from '../../types/techDetect';
-import { EChartsWrapper } from '@repoguru/ui';
+import type { DetectedTestingTool } from '@repoguru/core';
+import { EChartsWrapper } from '../charts/EChartsWrapper.js';
 
 const CATEGORY_LABELS: Record<string, string> = {
   testing: 'Testing',

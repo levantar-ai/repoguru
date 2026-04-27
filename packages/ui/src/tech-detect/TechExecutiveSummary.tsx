@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import type { TechDetectResult } from '../../types/techDetect';
+import type { TechDetectResult } from '@repoguru/core';
 
 interface Props {
   result: TechDetectResult;

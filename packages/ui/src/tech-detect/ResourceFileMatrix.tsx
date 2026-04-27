@@ -3,7 +3,7 @@ import type {
   DetectedAWSService,
   DetectedAzureService,
   DetectedGCPService,
-} from '../../types/techDetect';
+} from '@repoguru/core';
 
 type Provider = 'all' | 'aws' | 'azure' | 'gcp';
 

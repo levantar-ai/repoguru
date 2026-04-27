@@ -61,6 +61,8 @@ export { GitStatsView } from './views/GitStatsView.js';
 export type { GitStatsViewProps } from './views/GitStatsView.js';
 export { ReportCardView } from './views/ReportCardView.js';
 export type { ReportCardViewProps } from './views/ReportCardView.js';
+export { TechDetectView } from './views/TechDetectView.js';
+export type { TechDetectViewProps } from './views/TechDetectView.js';
 export {
   scoreToGrade,
   gradeAdjective,

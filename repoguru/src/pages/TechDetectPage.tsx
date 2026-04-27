@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import { trackEvent } from '../utils/analytics';
 import { parseErrorWithTip } from '../utils/humanizeError';
 import { useTechDetect } from '../hooks/useTechDetect';
-import { TechDetectResults } from '../components/tech-detect/TechDetectResults';
+import { TechDetectView } from '@repoguru/ui';
 import { RepoPicker } from '../components/common/RepoPicker';
 
 interface Props {
@@ -219,8 +219,9 @@ export function TechDetectPage({ initialRepo }: Props) {
 
       {/* Results */}
       {hasResults && state.result && (
-        <div className="space-y-6">
-          <div className="flex items-center justify-end">
+        <TechDetectView
+          result={state.result}
+          actions={
             <button
               onClick={() => {
                 trackEvent('new_analysis', { tool: 'tech-detect' });
@@ -238,9 +239,8 @@ export function TechDetectPage({ initialRepo }: Props) {
               </svg>
               New Scan
             </button>
-          </div>
-          <TechDetectResults result={state.result} />
-        </div>
+          }
+        />
       )}
 
       {/* Empty idle state */}

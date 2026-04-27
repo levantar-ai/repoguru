@@ -10,7 +10,7 @@ import type {
   DetectedDatabase,
   DetectedCicdTool,
   DetectedTestingTool,
-} from '../../types/techDetect';
+} from '@repoguru/core';
 import { TechIcon } from './TechIcon';
 import { TechExecutiveSummary } from './TechExecutiveSummary';
 import { CICDCoverageChart } from './CICDCoverageChart';
