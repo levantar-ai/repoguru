@@ -23,6 +23,28 @@ import type { GitStatsData as CanonicalGitStatsData } from '@repoguru/core';
 import { wireToLegacy } from '@/services/wireToLegacy';
 import { getRecentRepos } from '@/services/storage';
 
+/** Lazy cache for the desktop's GitHub token. We read from secureStore on
+ *  demand (rather than holding state in a hook) so the picker UI can
+ *  call hasGitHubToken() synchronously. The cache is invalidated by
+ *  refreshGitHubRepos() and by the Settings page when the user updates
+ *  the token. */
+let desktopTokenCache: string | undefined;
+function loadCachedDesktopToken(): string {
+  if (desktopTokenCache !== undefined) return desktopTokenCache;
+  // window.repoGuru.secureLoad is async; we kick off the load and return
+  // empty for the first synchronous read. The picker re-renders when the
+  // promise resolves because the React state updates trigger.
+  void (async () => {
+    try {
+      const res = await window.repoGuru.secureLoad('githubToken');
+      desktopTokenCache = (res as { value?: string })?.value ?? '';
+    } catch {
+      desktopTokenCache = '';
+    }
+  })();
+  return '';
+}
+
 function asGrade(g: string): Grade {
   if (g === 'A' || g === 'B' || g === 'C' || g === 'D' || g === 'F') return g;
   return 'F';
@@ -71,7 +93,7 @@ const DESKTOP_PRESETS: PolicyPreset[] = [
 export const desktopServices: RepoGuruServices = {
   isDesktop: true,
   repoBrowse: {
-    hint: 'Type a local path or click Browse to pick a folder',
+    hint: 'Type a local path or click Browse to pick a folder. Or sign in to scan a GitHub repo (will be cloned locally first).',
     async browse() {
       try {
         const picked = await window.repoGuru.selectDirectory();
@@ -86,6 +108,57 @@ export const desktopServices: RepoGuruServices = {
         return { value: r.path, label: slug, hint: r.path };
       });
     },
+    hasGitHubToken() {
+      return !!loadCachedDesktopToken();
+    },
+    async connectGitHub() {
+      // Until a full OAuth device-flow is wired, point the user at the
+      // token-create page and have them paste it into Settings. Same flow
+      // the web app's token-only path uses.
+      try {
+        await window.repoGuru.openExternal(
+          'https://github.com/settings/personal-access-tokens/new',
+        );
+      } catch {
+        /* no-op */
+      }
+    },
+    async listGitHubRepos() {
+      const token = loadCachedDesktopToken();
+      if (!token) return [];
+      try {
+        const res = await fetch('https://api.github.com/user/repos?per_page=100&sort=updated', {
+          headers: {
+            Accept: 'application/vnd.github.v3+json',
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        if (!res.ok) return [];
+        const json = (await res.json()) as Array<{
+          name: string;
+          full_name: string;
+          description: string | null;
+          language: string | null;
+          stargazers_count: number;
+          owner: { login: string };
+        }>;
+        return json.map((r) => ({
+          owner: r.owner.login,
+          repo: r.name,
+          description: r.description ?? undefined,
+          language: r.language ?? undefined,
+          stars: r.stargazers_count,
+          ownerLabel: r.owner.login,
+        }));
+      } catch {
+        return [];
+      }
+    },
+    async refreshGitHubRepos() {
+      desktopTokenCache = undefined; // re-read from secureStore on next listGitHubRepos
+    },
+    tokenSetupHelp:
+      'Open Settings and paste a GitHub token (Contents + Metadata read scopes). Selecting a GitHub repo here will clone it to a temp folder and run the local CLI on the clone.',
   },
   compare: {
     async run(repoA, repoB) {

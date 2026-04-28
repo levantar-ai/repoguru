@@ -176,19 +176,56 @@ export interface RepoSuggestion {
   hint?: string;
 }
 
+/** Summary of a GitHub repo a user owns / has access to — used by the
+ *  shared "Connect to GitHub" picker UI. Both hosts populate this from
+ *  the GitHub API when a token / OAuth session is available. */
+export interface GitHubRepoSummary {
+  owner: string;
+  repo: string;
+  description?: string;
+  language?: string;
+  stars?: number;
+  /** Where the repo is hosted relative to the user — typically the org
+   *  name; the picker groups by this value. */
+  ownerLabel?: string;
+}
+
 export interface RepoBrowseService {
-  /** Open the host's "browse for a repo" UI and return the chosen repo
-   *  string, or null if the user cancelled.
-   *   - Browser: opens the GitHub repo picker (or auth flow if no token).
-   *   - Desktop: opens the OS folder picker via Electron IPC. */
+  /** Open the host's filesystem-style "browse for a repo" affordance.
+   *  Browser: pops a one-shot prompt. Desktop: opens Electron's native
+   *  folder picker. Returns the chosen repo string or null if cancelled. */
   browse(): Promise<string | null>;
-  /** Recent suggestions to render under the input as chips. The shared
-   *  picker UI doesn't care where these come from. */
+  /** Recent suggestions to render under the input as chips. */
   recents(): RepoSuggestion[];
-  /** Optional human-readable hint shown under the input (e.g. "Pick a folder
-   *  from your machine" or "Type owner/repo or sign in to browse"). Host
-   *  decides; if undefined, the picker shows no hint line. */
+  /** Optional human-readable hint shown under the input. */
   hint?: string;
+
+  // ── GitHub Connect / repo finder (shared between both apps) ──
+
+  /** True when the host has a GitHub token / OAuth session and can list the
+   *  user's repos. When false, the picker shows a "Sign in with GitHub" CTA
+   *  + token-setup help text (same chrome on web and desktop). */
+  hasGitHubToken(): boolean;
+
+  /** Begin the host's GitHub auth flow (OAuth in the browser; on desktop
+   *  this opens a tab to the token-create page or kicks off device-flow
+   *  OAuth via Electron). Returns when the flow has been triggered — the
+   *  picker re-renders when hasGitHubToken() flips. */
+  connectGitHub?(): Promise<void> | void;
+
+  /** Fetch the user's GitHub repos for the picker's filtered list. Returns
+   *  empty array when no token. Hosts may cache; the picker calls
+   *  refreshGitHubRepos() to force a refresh. */
+  listGitHubRepos?(): Promise<GitHubRepoSummary[]>;
+
+  /** Force-refresh the GitHub repo list. */
+  refreshGitHubRepos?(): Promise<void>;
+
+  /** Optional human-readable instructions for the unauthenticated state
+   *  (e.g. token scopes to enable, link to settings). Rendered as JSX
+   *  when present. Pages may pass this as a fragment via React; using
+   *  string here keeps the type host-neutral. */
+  tokenSetupHelp?: string;
 }
 
 export type RepoPickerProps = {

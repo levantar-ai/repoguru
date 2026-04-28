@@ -22,6 +22,9 @@ import {
 import { GITHUB_API_BASE, GRADE_THRESHOLDS } from '../utils/constants';
 import { evaluatePolicy as runEvalPolicy, DEFAULT_POLICIES } from './analysis/policyEngine';
 import { browserAnalysisRunner } from './analysis/browserAnalysisRunner';
+import { fetchMyRepos } from '../services/github/org';
+import { startOAuthFlow, isOAuthAvailable } from '../utils/oauth';
+import type { GitHubRepoSummary as SharedGitHubRepoSummary } from '@repoguru/ui';
 import { parseRepoUrl } from '../services/github/parser';
 import { githubFetch } from '../services/github/client';
 import { runLightAnalysis } from '../services/analysis/lightEngine';
@@ -213,9 +216,6 @@ export function makeBrowserServices(
     isDesktop: false,
     repoBrowse: {
       hint: 'Type owner/repo or paste a GitHub URL',
-      // Browser "browse" pops a one-shot prompt rather than a folder dialog
-      // — the real GitHub repo dropdown lives in the host's settings/sign-in
-      // flow. The recent chips already cover the common path.
       async browse() {
         const v = window.prompt('Repository (owner/repo or GitHub URL):', '');
         return v && v.trim() ? v.trim() : null;
@@ -227,6 +227,31 @@ export function makeBrowserServices(
           hint: `${r.grade} · ${r.overallScore}/100`,
         }));
       },
+      hasGitHubToken() {
+        return !!getToken();
+      },
+      connectGitHub() {
+        if (isOAuthAvailable()) startOAuthFlow();
+      },
+      async listGitHubRepos(): Promise<SharedGitHubRepoSummary[]> {
+        const token = getToken();
+        if (!token) return [];
+        const repos = await fetchMyRepos(token);
+        return repos.map((r) => ({
+          owner: r.owner,
+          repo: r.repo,
+          description: r.description || undefined,
+          language: r.language || undefined,
+          stars: r.stars,
+          ownerLabel: r.owner,
+        }));
+      },
+      async refreshGitHubRepos() {
+        // listGitHubRepos hits the network directly; no in-memory cache
+        // here for the picker — the page useEffect will re-call it.
+      },
+      tokenSetupHelp:
+        'Add a GitHub token in Settings (gear icon) to browse your repos, unlock private access, and get 80× higher API rate limits.',
     },
     compare: {
       async run(repoA, repoB, opts?: CompareRunOptions): Promise<CompareResult> {

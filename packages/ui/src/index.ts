@@ -29,6 +29,7 @@ export type {
   RepoPickerProps,
   RepoSuggestion,
   RepoBrowseService,
+  GitHubRepoSummary,
   GitStatsService,
   GitStatsResult,
   GitStatsRunOptions,
