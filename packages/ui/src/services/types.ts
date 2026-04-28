@@ -133,6 +133,27 @@ export interface OrgScanService {
   run(req: OrgScanRequest, opts?: { signal?: AbortSignal; onProgress?: (p: OrgScanProgress) => void }): Promise<OrgScanResult>;
 }
 
+// ─────────────────────────── Git Stats ───────────────────────────────
+
+export interface GitStatsRunOptions {
+  signal?: AbortSignal;
+  /** Free-form progress messages for the LoadingPanel. */
+  onProgress?: (message: string) => void;
+}
+
+/** The shape `<GitStatsView />` consumes is the legacy GitStatsAnalysis
+ *  from the in-browser app — re-exported through @repoguru/core's
+ *  `legacy` namespace. We accept `unknown` here so the services layer
+ *  doesn't pull in the heavy legacy types; pages narrow before passing
+ *  it to GitStatsView. */
+export interface GitStatsResult {
+  analysis: unknown;
+}
+
+export interface GitStatsService {
+  run(repo: RepoRef, opts?: GitStatsRunOptions): Promise<GitStatsResult>;
+}
+
 // ─────────────────────────── Repo Picker ─────────────────────────────
 
 export interface RepoSuggestion {
@@ -181,6 +202,7 @@ export interface RepoGuruServices {
   techDetect: TechDetectService;
   policy: PolicyService;
   orgScan: OrgScanService;
+  gitStats: GitStatsService;
   /** Host-supplied repo browse / recents service. The shared <RepoPicker />
    *  UI consumes this — both hosts render the SAME picker chrome; only the
    *  data source differs (GitHub API vs filesystem). */

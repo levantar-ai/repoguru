@@ -29,6 +29,9 @@ export type {
   RepoPickerProps,
   RepoSuggestion,
   RepoBrowseService,
+  GitStatsService,
+  GitStatsResult,
+  GitStatsRunOptions,
 } from './services/types.js';
 
 // Lifted pages — both hosts mount the SAME component. VS Code-style
@@ -40,6 +43,7 @@ export { TechDetectPage } from './pages/TechDetectPage.js';
 export { PolicyPage } from './pages/PolicyPage.js';
 export type { PolicyPageProps } from './pages/PolicyPage.js';
 export { OrgScanPage } from './pages/OrgScanPage.js';
+export { GitStatsPage } from './pages/GitStatsPage.js';
 
 // Page chrome — used by both apps so headers/inputs/buttons/status
 // panels render identically across hosts. The in-browser app is the

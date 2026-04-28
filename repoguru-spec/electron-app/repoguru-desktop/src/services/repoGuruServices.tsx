@@ -15,8 +15,12 @@ import {
   type OrgScanItem,
   type OrgScanSummary,
   type OrgScanResult,
+  type GitStatsResult,
 } from '@repoguru/ui';
-import { grpcClient, type ScoreResponse } from '@/services/grpc-client';
+import { grpcClient, type ScoreResponse, type ScanRequest, type ScanProgress } from '@/services/grpc-client';
+import { GrpcAnalyzer, type GrpcSectionClient } from '@repoguru/desktop-adapter';
+import type { GitStatsData as CanonicalGitStatsData } from '@repoguru/core';
+import { wireToLegacy } from '@/services/wireToLegacy';
 import { getRecentRepos } from '@/services/storage';
 
 function asGrade(g: string): Grade {
@@ -177,6 +181,64 @@ export const desktopServices: RepoGuruServices = {
       };
     },
   },
+  gitStats: {
+    async run(repo, opts): Promise<GitStatsResult> {
+      const outPath = `/tmp/repoguru-${Date.now()}.bin`;
+      // Phase 1: scan the repo, producing a binary report file.
+      await new Promise<void>((resolve, reject) => {
+        const req: ScanRequest = { repo_path: repo, out_path: outPath };
+        grpcClient
+          .scan(req, (p: ScanProgress) => {
+            if (p.error) reject(new Error(p.error));
+            opts?.onProgress?.(p.message || `Scanning... commits ${p.commits_processed}`);
+            if (p.done) resolve();
+          })
+          .catch(reject);
+      });
+      // Phase 2: stream sections via the canonical GrpcAnalyzer.
+      const captured: Record<string, Record<string, unknown>> = {};
+      const wrapped: GrpcSectionClient = {
+        async getReport(p) {
+          const res = (await grpcClient.getReport(p)) as { metrics_json: string };
+          try { captured['__report'] = JSON.parse(res.metrics_json) as Record<string, unknown>; } catch { captured['__report'] = {}; }
+          return res;
+        },
+        async getSection(p, s, r) {
+          const res = (await grpcClient.getSection(p, s, r)) as { data_json: string };
+          try { captured[s] = JSON.parse(res.data_json) as Record<string, unknown>; } catch { captured[s] = {}; }
+          return res;
+        },
+      };
+      const analyzer = new GrpcAnalyzer(wrapped);
+      const wireData: Record<string, unknown> = {};
+      const canonical: CanonicalGitStatsData = {};
+      for await (const event of analyzer.analyze({ source: repo, outPath })) {
+        if (opts?.signal?.aborted) throw new DOMException('aborted', 'AbortError');
+        if (event.kind === 'section') {
+          (canonical as Record<string, unknown>)[event.section.name] = event.section.data;
+          opts?.onProgress?.(`Loaded ${event.section.name}`);
+          if (event.section.name === 'overview') {
+            const report = captured['__report'] ?? {};
+            wireData['author_names'] = report['authors'] ?? {};
+          } else {
+            const raw = captured[event.section.name] ?? {};
+            Object.assign(wireData, raw);
+          }
+        } else if (event.kind === 'error') {
+          throw event.error;
+        }
+      }
+      const reportRaw = (captured['__report'] ?? {}) as Record<string, unknown>;
+      const overview = canonical.overview;
+      const analysis = wireToLegacy(wireData as never, {
+        ...reportRaw,
+        owner: overview?.owner,
+        repo: overview?.repo,
+      } as Parameters<typeof wireToLegacy>[1]);
+      return { analysis };
+    },
+  },
+
   orgScan: {
     async run(req, opts): Promise<OrgScanResult> {
       let items: OrgScanItem[] = [];

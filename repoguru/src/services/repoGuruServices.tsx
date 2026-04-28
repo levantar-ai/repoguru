@@ -21,6 +21,7 @@ import {
 } from '@repoguru/ui';
 import { GITHUB_API_BASE, GRADE_THRESHOLDS } from '../utils/constants';
 import { evaluatePolicy as runEvalPolicy, DEFAULT_POLICIES } from './analysis/policyEngine';
+import { browserAnalysisRunner } from './analysis/browserAnalysisRunner';
 import { parseRepoUrl } from '../services/github/parser';
 import { githubFetch } from '../services/github/client';
 import { runLightAnalysis } from '../services/analysis/lightEngine';
@@ -367,6 +368,16 @@ export function makeBrowserServices(
         };
       },
     },
+    gitStats: {
+      async run(repo, opts) {
+        const result = await browserAnalysisRunner.run(
+          { source: repo, authToken: getToken() },
+          (e) => opts?.onProgress?.(e.message ?? `${e.phase}...`),
+        );
+        return { analysis: result };
+      },
+    },
+
     orgScan: {
       async run(req, opts): Promise<OrgScanResult> {
         const token = getToken();

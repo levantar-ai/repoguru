@@ -64,21 +64,25 @@ vi.mock('../components/common/LoadingScreen', () => ({
 }));
 
 // --- Mocks: Page components ---
+// Pages now live in @repoguru/ui (lifted into the shared codebase). Mock the
+// whole module so each lifted page renders a stub the navigation tests can
+// match on.
 
-vi.mock('../pages/HomePage', () => ({
-  HomePage: () => <div data-testid="home-page">Home</div>,
-}));
+vi.mock('@repoguru/ui', async () => {
+  const actual = await vi.importActual<Record<string, unknown>>('@repoguru/ui');
+  return {
+    ...actual,
+    ComparePage: () => <div data-testid="compare-page">Compare</div>,
+    ReportCardPage: () => <div data-testid="home-page">Home</div>,
+    TechDetectPage: () => <div data-testid="tech-detect-page">Tech Detect</div>,
+    OrgScanPage: () => <div data-testid="org-scan-page">Org Scan</div>,
+    PolicyPage: () => <div data-testid="policy-page">Policy</div>,
+    GitStatsPage: () => <div data-testid="git-stats-page">Git Stats</div>,
+  };
+});
 
 vi.mock('../pages/HowItWorksPage', () => ({
   HowItWorksPage: () => <div data-testid="docs-page">Docs</div>,
-}));
-
-vi.mock('../pages/OrgScanPage', () => ({
-  OrgScanPage: () => <div data-testid="org-scan-page">Org Scan</div>,
-}));
-
-vi.mock('../pages/ComparePage', () => ({
-  ComparePage: () => <div data-testid="compare-page">Compare</div>,
 }));
 
 vi.mock('../pages/PortfolioPage', () => ({
@@ -89,15 +93,20 @@ vi.mock('../pages/DiscoverPage', () => ({
   DiscoverPage: () => <div data-testid="discover-page">Discover</div>,
 }));
 
-vi.mock('../pages/PolicyPage', () => ({
-  PolicyPage: () => <div data-testid="policy-page">Policy</div>,
+vi.mock('../services/repoGuruServices', () => ({
+  makeBrowserServices: () => ({
+    isDesktop: false,
+    repoBrowse: { hint: '', browse: async () => null, recents: () => [] },
+    compare: { run: async () => ({ reportA: {}, reportB: {}, deltas: [], winner: 'tie', scoreDelta: 0 }) },
+    score: { run: async () => ({ report: {} }) },
+    techDetect: { run: async () => ({}) },
+    policy: { listPresets: () => [], evaluate: async () => ({ passed: true, passCount: 0, failCount: 0, results: [] }) },
+    orgScan: { run: async () => ({ items: [], summary: { totalRepos: 0, averageScore: 0, averageGrade: 'F' } }) },
+    gitStats: { run: async () => ({ analysis: {} }) },
+  }),
 }));
 
-vi.mock('../pages/GitStatsPage', () => ({
-  GitStatsPage: () => <div data-testid="git-stats-page">Git Stats</div>,
-}));
-
-vi.mock('../pages/TechDetectPage', () => ({
+vi.mock('../pages/_unused', () => ({
   TechDetectPage: () => <div data-testid="tech-detect-page">Tech Detect</div>,
 }));
 

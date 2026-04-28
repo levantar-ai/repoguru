@@ -41,7 +41,7 @@ const PolicyPage = lazy(() =>
   import('@repoguru/ui').then((m) => ({ default: m.PolicyPage })),
 );
 const GitStatsPage = lazy(() =>
-  import('./pages/GitStatsPage').then((m) => ({ default: m.GitStatsPage })),
+  import('@repoguru/ui').then((m) => ({ default: m.GitStatsPage })),
 );
 const TechDetectPage = lazy(() =>
   import('@repoguru/ui').then((m) => ({ default: m.TechDetectPage })),
@@ -224,7 +224,7 @@ function AppContent() {
       <div style={{ display: page === 'git-stats' ? undefined : 'none' }}>
         {visitedPages.has('git-stats') && (
           <Suspense fallback={<LoadingScreen />}>
-            <GitStatsPage initialRepo={pendingRepo} />
+            <GitStatsPage />
           </Suspense>
         )}
       </div>
