@@ -2,17 +2,30 @@ import * as grpc from '@grpc/grpc-js';
 import * as protoLoader from '@grpc/proto-loader';
 import { join } from 'path';
 import { app } from 'electron';
-import { existsSync } from 'fs';
+import { existsSync, writeFileSync } from 'fs';
 
 function getProtoPath(): string {
-  // Dev mode: proto is in the repo root
-  const devPath = join(__dirname, '..', '..', 'proto', 'repoanalyze.proto');
-  if (existsSync(devPath)) return devPath;
-  // Also try one level up (common in worktree layouts)
-  const altDevPath = join(__dirname, '..', 'proto', 'repoanalyze.proto');
-  if (existsSync(altDevPath)) return altDevPath;
-  // Packaged: proto bundled in resources
-  return join(process.resourcesPath, 'proto', 'repoanalyze.proto');
+  // DIAGNOSTIC: dump dir to /tmp before any logic.
+  try {
+    writeFileSync('/tmp/grpc-bridge-startup.log', `__dirname=${__dirname}\nresourcesPath=${process.resourcesPath}\n`);
+  } catch {}
+  const candidates = [
+    join(__dirname, '..', '..', '..', 'proto', 'repoanalyze.proto'),
+    join(__dirname, '..', '..', '..', '..', 'proto', 'repoanalyze.proto'),
+    join(__dirname, '..', '..', 'proto', 'repoanalyze.proto'),
+    join(__dirname, '..', 'proto', 'repoanalyze.proto'),
+    join(process.resourcesPath ?? '', 'proto', 'repoanalyze.proto'),
+  ];
+  let log = `__dirname=${__dirname}\nresourcesPath=${process.resourcesPath}\n`;
+  let chosen = '';
+  for (const p of candidates) {
+    const exists = existsSync(p);
+    log += `  ${exists ? '✓' : '✗'} ${p}\n`;
+    if (exists && !chosen) chosen = p;
+  }
+  log += `chosen: ${chosen || '(none)'}\n`;
+  try { writeFileSync('/tmp/grpc-bridge-startup.log', log); } catch {}
+  return chosen || join(process.resourcesPath ?? '', 'proto', 'repoanalyze.proto');
 }
 
 const PROTO_PATH = getProtoPath();
@@ -28,6 +41,7 @@ export class GrpcBridge {
   }
 
   async connect(): Promise<void> {
+    console.error('[grpc-bridge] connect() proto path =', PROTO_PATH);
     const packageDefinition = await protoLoader.load(PROTO_PATH, {
       keepCase: true,
       longs: String,
@@ -60,6 +74,16 @@ export class GrpcBridge {
         else resolve();
       });
     });
+    // Diagnostic: list available method names so we can spot proto mismatches.
+    const methods: string[] = [];
+    for (const k in this.client!) {
+      if (typeof (this.client as Record<string, unknown>)[k] === 'function') methods.push(k);
+    }
+    writeFileSync(
+      '/tmp/grpc-bridge-methods.json',
+      JSON.stringify({ proto: PROTO_PATH, methods }, null, 2),
+    );
+    process.stderr.write(`[grpc-bridge] CONNECTED. proto=${PROTO_PATH} method-count=${methods.length} sample=${methods.slice(0, 5).join(',')}\n`);
   }
 
   reconnect(port: number): Promise<void> {
