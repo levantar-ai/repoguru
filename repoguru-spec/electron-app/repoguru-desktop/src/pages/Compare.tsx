@@ -1,6 +1,12 @@
 import { useState } from 'react';
 import {
   CompareView,
+  PageContainer,
+  PageHero,
+  PrimaryButton,
+  SecondaryButton,
+  LoadingPanel,
+  ErrorPanel,
   type CompareDelta,
   type ReportCardData,
   type Grade,
@@ -83,45 +89,51 @@ export function Compare() {
     }
   };
 
-  return (
-    <div className="p-8 max-w-5xl mx-auto">
-      <h2 className="text-2xl font-bold text-white mb-2">Compare Repositories</h2>
-      <p className="text-sm text-gray-500 mb-6">Side-by-side analysis of two repositories.</p>
+  const handleReset = () => {
+    setResult(null);
+    setError(null);
+  };
 
-      <div className="grid grid-cols-2 gap-4 mb-6">
-        <RepoPicker
-          value={pathA}
-          onChange={setPathA}
-          label="Repository A"
-          placeholder="/path/to/repo"
-          showRecent
-          trackRecent={false}
-          onSubmit={handleCompare}
-        />
-        <RepoPicker
-          value={pathB}
-          onChange={setPathB}
-          label="Repository B"
-          placeholder="/path/to/repo"
-          showRecent
-          trackRecent={false}
-          onSubmit={handleCompare}
-        />
+  return (
+    <PageContainer>
+      <PageHero
+        title="Compare"
+        highlight="Repositories"
+        subtitle="Side-by-side analysis of two local repositories — every commit, every category."
+      />
+
+      <div className="mb-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+          <RepoPicker
+            value={pathA}
+            onChange={setPathA}
+            label="Repository A"
+            placeholder="/path/to/repo"
+            showRecent
+            trackRecent={false}
+            onSubmit={handleCompare}
+          />
+          <RepoPicker
+            value={pathB}
+            onChange={setPathB}
+            label="Repository B"
+            placeholder="/path/to/repo"
+            showRecent
+            trackRecent={false}
+            onSubmit={handleCompare}
+          />
+        </div>
+        <div className="flex justify-center gap-3">
+          <PrimaryButton onClick={handleCompare} disabled={!pathA || !pathB || loading}>
+            {loading ? 'Comparing...' : 'Compare'}
+          </PrimaryButton>
+          {result && <SecondaryButton onClick={handleReset}>Reset</SecondaryButton>}
+        </div>
       </div>
 
-      <button
-        onClick={handleCompare}
-        disabled={!pathA || !pathB || loading}
-        className="px-6 py-2.5 bg-sky-600 hover:bg-sky-500 disabled:bg-gray-700 disabled:text-gray-500 rounded-md text-sm font-medium text-white transition-colors mb-6"
-      >
-        {loading ? 'Comparing...' : 'Compare'}
-      </button>
+      {loading && <LoadingPanel message="Comparing repositories..." />}
 
-      {error && (
-        <div className="mb-4 text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-4 py-3">
-          {error}
-        </div>
-      )}
+      {error && <ErrorPanel title="Comparison failed" message={error} />}
 
       {result && (
         <CompareView
@@ -138,6 +150,6 @@ export function Compare() {
           scoreDelta={result.score_delta}
         />
       )}
-    </div>
+    </PageContainer>
   );
 }

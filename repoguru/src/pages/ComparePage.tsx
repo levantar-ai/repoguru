@@ -8,6 +8,13 @@ import type {
 import {
   CompareView,
   computeDeltasFromReports,
+  PageContainer,
+  PageHero,
+  RepoInputField,
+  PrimaryButton,
+  SecondaryButton,
+  LoadingPanel,
+  ErrorPanel,
   type ReportCardData,
 } from '@repoguru/ui';
 import { parseRepoUrl } from '../services/github/parser';
@@ -206,126 +213,53 @@ export function ComparePage({ githubToken }: Props) {
   // ── Render ──
 
   return (
-    <div className="w-full px-8 lg:px-12 xl:px-16 py-10">
-      <div className="text-center mb-10">
-        <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-text tracking-tight">
-          Compare <span className="text-neon neon-glow">Repositories</span>
-        </h1>
-        <p className="mt-3 text-base sm:text-lg text-text-secondary max-w-xl mx-auto">
-          Analyze two GitHub repos side by side. See which one scores higher across all categories.
-        </p>
-      </div>
+    <PageContainer>
+      <PageHero
+        title="Compare"
+        highlight="Repositories"
+        subtitle="Analyze two GitHub repos side by side. See which one scores higher across all categories."
+      />
 
       <div className="mb-8">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
-          <div>
-            <label
-              htmlFor="compare-repo-a"
-              className="block text-sm font-medium text-text-secondary mb-1.5"
-            >
-              Repo A
-            </label>
-            <input
-              id="compare-repo-a"
-              type="text"
-              value={inputA}
-              onChange={(e) => setInputA(e.target.value)}
-              placeholder="owner/repo"
-              disabled={state.step === 'loading'}
-              onKeyDown={(e) => e.key === 'Enter' && handleCompare()}
-              className="w-full px-4 py-3 rounded-xl bg-surface-alt border border-border text-text placeholder-text-muted focus:outline-none focus:border-border-bright focus:ring-1 focus:ring-border-bright transition-colors disabled:opacity-50"
-            />
-            {state.step !== 'loading' && <RepoPicker onSelect={setInputA} />}
-          </div>
-          <div>
-            <label
-              htmlFor="compare-repo-b"
-              className="block text-sm font-medium text-text-secondary mb-1.5"
-            >
-              Repo B
-            </label>
-            <input
-              id="compare-repo-b"
-              type="text"
-              value={inputB}
-              onChange={(e) => setInputB(e.target.value)}
-              placeholder="owner/repo"
-              disabled={state.step === 'loading'}
-              onKeyDown={(e) => e.key === 'Enter' && handleCompare()}
-              className="w-full px-4 py-3 rounded-xl bg-surface-alt border border-border text-text placeholder-text-muted focus:outline-none focus:border-border-bright focus:ring-1 focus:ring-border-bright transition-colors disabled:opacity-50"
-            />
-            {state.step !== 'loading' && <RepoPicker onSelect={setInputB} />}
-          </div>
+          <RepoInputField
+            id="compare-repo-a"
+            label="Repo A"
+            value={inputA}
+            onChange={setInputA}
+            placeholder="owner/repo"
+            disabled={state.step === 'loading'}
+            onSubmit={handleCompare}
+            picker={<RepoPicker onSelect={setInputA} />}
+          />
+          <RepoInputField
+            id="compare-repo-b"
+            label="Repo B"
+            value={inputB}
+            onChange={setInputB}
+            placeholder="owner/repo"
+            disabled={state.step === 'loading'}
+            onSubmit={handleCompare}
+            picker={<RepoPicker onSelect={setInputB} />}
+          />
         </div>
         <div className="flex justify-center gap-3">
-          <button
+          <PrimaryButton
             onClick={handleCompare}
             disabled={state.step === 'loading' || !inputA.trim() || !inputB.trim()}
-            className="px-8 py-3 rounded-xl bg-neon/15 border border-neon/30 text-neon font-semibold hover:bg-neon/25 hover:border-neon/50 transition-all disabled:opacity-40 disabled:cursor-not-allowed neon-glow"
           >
             {state.step === 'loading' ? 'Comparing...' : 'Compare'}
-          </button>
+          </PrimaryButton>
           {state.step === 'done' && (
-            <button
-              onClick={handleReset}
-              className="px-6 py-3 rounded-xl bg-surface-alt border border-border text-text-secondary font-medium hover:border-border-bright hover:text-text transition-all"
-            >
-              Reset
-            </button>
+            <SecondaryButton onClick={handleReset}>Reset</SecondaryButton>
           )}
         </div>
       </div>
 
-      {state.step === 'loading' && (
-        <div className="text-center py-16">
-          <div className="inline-flex items-center gap-3 px-6 py-4 rounded-xl bg-surface-alt border border-border">
-            <svg
-              className="animate-spin h-5 w-5 text-neon"
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-            >
-              <circle
-                className="opacity-25"
-                cx="12"
-                cy="12"
-                r="10"
-                stroke="currentColor"
-                strokeWidth="4"
-              />
-              <path
-                className="opacity-75"
-                fill="currentColor"
-                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-              />
-            </svg>
-            <span className="text-text-secondary">{state.progress}</span>
-          </div>
-        </div>
-      )}
+      {state.step === 'loading' && <LoadingPanel message={state.progress} />}
 
       {state.step === 'error' && state.error && (
-        <div className="max-w-2xl mx-auto mb-8 px-5 py-4 rounded-xl bg-grade-f/10 border border-grade-f/25">
-          <div className="flex items-start gap-3">
-            <svg
-              className="h-5 w-5 text-grade-f shrink-0 mt-0.5"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-              />
-            </svg>
-            <div>
-              <p className="text-sm font-medium text-grade-f">Comparison failed</p>
-              <p className="text-sm text-text-secondary mt-1">{state.error}</p>
-            </div>
-          </div>
-        </div>
+        <ErrorPanel title="Comparison failed" message={state.error} />
       )}
 
       {state.step === 'done' && state.reportA && state.reportB && (() => {
@@ -362,7 +296,7 @@ export function ComparePage({ githubToken }: Props) {
           />
         );
       })()}
-    </div>
+    </PageContainer>
   );
 }
 

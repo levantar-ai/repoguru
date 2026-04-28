@@ -4,6 +4,19 @@
 // apps render the same React tree against the same `GitStatsAnalysis`
 // (the legacy view contract — see `legacyTypes.ts`).
 
+// Page chrome — used by both apps so headers/inputs/buttons/status
+// panels render identically across hosts. The in-browser app is the
+// visual reference for these (SPEC §1).
+export { PageContainer } from './chrome/PageContainer.js';
+export type { PageContainerProps } from './chrome/PageContainer.js';
+export { PageHero } from './chrome/PageHero.js';
+export type { PageHeroProps } from './chrome/PageHero.js';
+export { RepoInputField } from './chrome/RepoInputField.js';
+export type { RepoInputFieldProps } from './chrome/RepoInputField.js';
+export { PrimaryButton, SecondaryButton } from './chrome/Buttons.js';
+export { LoadingPanel, ErrorPanel } from './chrome/StatusPanels.js';
+export type { LoadingPanelProps, ErrorPanelProps } from './chrome/StatusPanels.js';
+
 // Primitives
 export { EChartsWrapper } from './charts/EChartsWrapper.js';
 export type { EChartsWrapperProps } from './charts/EChartsWrapper.js';
