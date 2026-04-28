@@ -1,8 +1,7 @@
 import { HashRouter, Routes, Route, NavLink } from 'react-router';
-import { ComparePage, ReportCardPage, RepoGuruProvider } from '@repoguru/ui';
+import { ComparePage, ReportCardPage, TechDetectPage, RepoGuruProvider } from '@repoguru/ui';
 import { Dashboard } from './pages/Dashboard';
 import { GitStats } from './pages/GitStats';
-import { TechDetect } from './pages/TechDetect';
 import { OrgScan } from './pages/OrgScan';
 import { PolicyEngine } from './pages/PolicyEngine';
 import { Settings } from './pages/Settings';
@@ -77,7 +76,7 @@ export function App() {
             <Route path="/" element={<Dashboard />} />
             <Route path="/report-card" element={<ReportCardPage />} />
             <Route path="/git-stats" element={<GitStats />} />
-            <Route path="/tech" element={<TechDetect />} />
+            <Route path="/tech" element={<TechDetectPage />} />
             <Route path="/compare" element={<ComparePage />} />
             <Route path="/org-scan" element={<OrgScan />} />
             <Route path="/policy" element={<PolicyEngine />} />

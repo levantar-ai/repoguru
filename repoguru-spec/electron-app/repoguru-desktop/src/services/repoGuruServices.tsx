@@ -97,7 +97,30 @@ export const desktopServices: RepoGuruServices = {
     },
   },
   techDetect: {
-    async run() { throw new Error('techDetect not yet wired in DesktopServices'); },
+    async run(repo) {
+      const res = (await grpcClient.detectTech(repo)) as { json?: string };
+      const raw = res?.json ? JSON.parse(res.json) as Record<string, unknown> : {};
+      const arr = (k: string) => (Array.isArray(raw[k]) ? raw[k] : []);
+      return {
+        aws: arr('aws'),
+        azure: arr('azure'),
+        gcp: arr('gcp'),
+        python: arr('python'),
+        node: arr('node'),
+        go: arr('go'),
+        java: arr('java'),
+        php: arr('php'),
+        rust: arr('rust'),
+        ruby: arr('ruby'),
+        frameworks: arr('frameworks'),
+        databases: arr('databases'),
+        cicd: arr('cicd'),
+        testing: arr('testing'),
+        languages: (raw.languages as Record<string, number>) ?? {},
+        manifestFiles: (raw.manifest_files as string[]) ?? [],
+        totalFiles: (raw.total_files as number) ?? 0,
+      };
+    },
   },
   policy: {
     listPresets: () => [],

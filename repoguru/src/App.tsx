@@ -44,7 +44,7 @@ const GitStatsPage = lazy(() =>
   import('./pages/GitStatsPage').then((m) => ({ default: m.GitStatsPage })),
 );
 const TechDetectPage = lazy(() =>
-  import('./pages/TechDetectPage').then((m) => ({ default: m.TechDetectPage })),
+  import('@repoguru/ui').then((m) => ({ default: m.TechDetectPage })),
 );
 
 function OAuthToast({ message, onDone }: { message: string; onDone: () => void }) {
@@ -231,7 +231,7 @@ function AppContent() {
       <div style={{ display: page === 'tech-detect' ? undefined : 'none' }}>
         {visitedPages.has('tech-detect') && (
           <Suspense fallback={<LoadingScreen />}>
-            <TechDetectPage initialRepo={pendingRepo} />
+            <TechDetectPage />
           </Suspense>
         )}
       </div>

@@ -16,6 +16,23 @@ import { parseRepoUrl } from '../services/github/parser';
 import { githubFetch } from '../services/github/client';
 import { runLightAnalysis } from '../services/analysis/lightEngine';
 import { ensureCloned } from '../services/git/cloneService';
+import { computeLanguages } from '../services/git/extractors';
+import {
+  detectAWS,
+  detectAzure,
+  detectGCP,
+  detectPython,
+  detectNode,
+  detectGo,
+  detectJava,
+  detectPHP,
+  detectRust,
+  detectRuby,
+  detectFrameworks,
+  detectDatabases,
+  detectCicd,
+  detectTesting,
+} from '../services/analysis/techDetectEngine';
 import type {
   RepoInfo,
   TreeEntry,
@@ -271,8 +288,34 @@ export function makeBrowserServices(
       },
     },
     techDetect: {
-      async run() {
-        throw new Error('techDetect service not yet wired in BrowserServices');
+      async run(repoInput, opts) {
+        const parsed = parseRepoUrl(repoInput);
+        if (!parsed) throw new Error(`Invalid repo: "${repoInput}"`);
+        const token = getToken();
+        opts?.onProgress?.('Cloning repository...');
+        const cached = await ensureCloned(parsed.owner, parsed.repo, (_s, _p, _sp, m) => opts?.onProgress?.(m), token || undefined);
+        opts?.onProgress?.('Analyzing technologies...');
+        const fileInputs = cached.files.map((f) => ({ path: f.path, content: f.content }));
+        const allBlobPaths = cached.tree.filter((e) => e.type === 'blob').map((e) => e.path);
+        return {
+          aws: detectAWS(fileInputs),
+          azure: detectAzure(fileInputs),
+          gcp: detectGCP(fileInputs),
+          python: detectPython(fileInputs),
+          node: detectNode(fileInputs),
+          go: detectGo(fileInputs),
+          java: detectJava(fileInputs),
+          php: detectPHP(fileInputs),
+          rust: detectRust(fileInputs),
+          ruby: detectRuby(fileInputs),
+          frameworks: detectFrameworks(fileInputs),
+          databases: detectDatabases(fileInputs),
+          cicd: detectCicd(fileInputs),
+          testing: detectTesting(fileInputs),
+          languages: computeLanguages(allBlobPaths),
+          manifestFiles: fileInputs.map((f) => f.path),
+          totalFiles: cached.files.length,
+        };
       },
     },
     policy: {

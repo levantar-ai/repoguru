@@ -36,6 +36,7 @@ export type {
 export { ComparePage } from './pages/ComparePage.js';
 export { ReportCardPage } from './pages/ReportCardPage.js';
 export type { ReportCardPageProps } from './pages/ReportCardPage.js';
+export { TechDetectPage } from './pages/TechDetectPage.js';
 
 // Page chrome — used by both apps so headers/inputs/buttons/status
 // panels render identically across hosts. The in-browser app is the
