@@ -27,7 +27,8 @@ export type {
   OrgScanProgress,
   OrgScanResult,
   RepoPickerProps,
-  RepoPickerComponent,
+  RepoSuggestion,
+  RepoBrowseService,
 } from './services/types.js';
 
 // Lifted pages — both hosts mount the SAME component. VS Code-style
@@ -43,6 +44,7 @@ export { PageHero } from './chrome/PageHero.js';
 export type { PageHeroProps } from './chrome/PageHero.js';
 export { RepoInputField } from './chrome/RepoInputField.js';
 export type { RepoInputFieldProps } from './chrome/RepoInputField.js';
+export { RepoPicker } from './chrome/RepoPicker.js';
 export { PrimaryButton, SecondaryButton } from './chrome/Buttons.js';
 export { LoadingPanel, ErrorPanel } from './chrome/StatusPanels.js';
 export type { LoadingPanelProps, ErrorPanelProps } from './chrome/StatusPanels.js';

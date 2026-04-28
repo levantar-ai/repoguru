@@ -3,9 +3,14 @@
 // host satisfies, so the SAME shared pages from @repoguru/ui mount on the
 // desktop with no per-host page code.
 
-import { type RepoGuruServices, type ReportCardData, type Grade, type RepoPickerProps } from '@repoguru/ui';
+import {
+  type RepoGuruServices,
+  type ReportCardData,
+  type Grade,
+  type RepoSuggestion,
+} from '@repoguru/ui';
 import { grpcClient, type ScoreResponse } from '@/services/grpc-client';
-import { RepoPicker as DesktopFsPicker } from '@/components/common/RepoPicker';
+import { getRecentRepos } from '@/services/storage';
 
 function asGrade(g: string): Grade {
   if (g === 'A' || g === 'B' || g === 'C' || g === 'D' || g === 'F') return g;
@@ -46,30 +51,25 @@ interface CompareResponseWire {
   score_delta: number;
 }
 
-/** Desktop RepoPicker adapter: forwards the @repoguru/ui RepoPicker
- *  contract to the desktop's filesystem-aware picker (browse button +
- *  recent paths + GitHub search). */
-function DesktopRepoPicker({ inputId, label, value, onChange, onSubmit, disabled }: RepoPickerProps) {
-  return (
-    <DesktopFsPicker
-      value={value}
-      onChange={onChange}
-      onSubmit={onSubmit}
-      label={label}
-      placeholder="/path/to/repo"
-      showRecent
-      trackRecent={false}
-      // @ts-expect-error — DesktopFsPicker wasn't built around inputId yet, fine.
-      inputId={inputId}
-      disabled={disabled}
-    />
-  );
-}
-
 export const desktopServices: RepoGuruServices = {
-  repoLabelSingular: 'local repo',
   isDesktop: true,
-  RepoPicker: (props) => <DesktopRepoPicker {...props} />,
+  repoBrowse: {
+    hint: 'Type a local path or click Browse to pick a folder',
+    async browse() {
+      try {
+        const picked = await window.repoGuru.selectDirectory();
+        return picked || null;
+      } catch {
+        return null;
+      }
+    },
+    recents(): RepoSuggestion[] {
+      return getRecentRepos().map<RepoSuggestion>((r) => {
+        const slug = r.path.split('/').filter(Boolean).slice(-2).join('/') || r.path;
+        return { value: r.path, label: slug, hint: r.path };
+      });
+    },
+  },
   compare: {
     async run(repoA, repoB) {
       const res = (await grpcClient.compareRepos(repoA, repoB)) as CompareResponseWire;

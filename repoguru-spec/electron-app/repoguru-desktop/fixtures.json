@@ -1,0 +1,1436 @@
+{
+  "scoreReportCard": {
+    "repo": "/home/parallels/Development/repoguru",
+    "response": {
+      "categories": [
+        {
+          "signals": [
+            {
+              "name": "README exists",
+              "found": true,
+              "details": "README.md",
+              "points": 25
+            },
+            {
+              "name": "Substantial README (>500 chars)",
+              "found": true,
+              "details": "6460 characters",
+              "points": 20
+            },
+            {
+              "name": "README has sections",
+              "found": true,
+              "details": "11 headings",
+              "points": 15
+            },
+            {
+              "name": "Code examples in README",
+              "found": true,
+              "details": "",
+              "points": 10
+            },
+            {
+              "name": "CONTRIBUTING.md",
+              "found": true,
+              "details": "",
+              "points": 10
+            },
+            {
+              "name": "CHANGELOG",
+              "found": true,
+              "details": "",
+              "points": 10
+            },
+            {
+              "name": "docs/ directory",
+              "found": true,
+              "details": "",
+              "points": 10
+            }
+          ],
+          "key": "documentation",
+          "label": "Documentation",
+          "score": 100,
+          "grade": "A",
+          "weight": 0.15
+        },
+        {
+          "signals": [
+            {
+              "name": "SECURITY.md",
+              "found": true,
+              "details": "",
+              "points": 20
+            },
+            {
+              "name": "CODEOWNERS",
+              "found": true,
+              "details": "",
+              "points": 15
+            },
+            {
+              "name": "Dependabot configured",
+              "found": true,
+              "details": "",
+              "points": 20
+            },
+            {
+              "name": "CodeQL / security scanning",
+              "found": true,
+              "details": "",
+              "points": 15
+            },
+            {
+              "name": "PR-triggered workflows",
+              "found": true,
+              "details": "",
+              "points": 10
+            },
+            {
+              "name": ".gitignore present",
+              "found": true,
+              "details": "",
+              "points": 10
+            },
+            {
+              "name": "No exposed secret files",
+              "found": false,
+              "details": "Secret files found in tree",
+              "points": 10
+            }
+          ],
+          "key": "security",
+          "label": "Security",
+          "score": 90,
+          "grade": "A",
+          "weight": 0.1
+        },
+        {
+          "signals": [
+            {
+              "name": "GitHub Actions workflows",
+              "found": true,
+              "details": "3 workflow(s)",
+              "points": 25
+            },
+            {
+              "name": "CI workflow (test/build)",
+              "found": true,
+              "details": "",
+              "points": 25
+            },
+            {
+              "name": "Deploy / release workflow",
+              "found": true,
+              "details": "",
+              "points": 15
+            },
+            {
+              "name": "PR-triggered checks",
+              "found": true,
+              "details": "",
+              "points": 15
+            },
+            {
+              "name": "Dockerfile",
+              "found": false,
+              "details": "",
+              "points": 10
+            },
+            {
+              "name": "Docker Compose",
+              "found": false,
+              "details": "",
+              "points": 5
+            },
+            {
+              "name": "Makefile",
+              "found": true,
+              "details": "",
+              "points": 5
+            }
+          ],
+          "key": "cicd",
+          "label": "CI/CD",
+          "score": 85,
+          "grade": "A",
+          "weight": 0.15
+        },
+        {
+          "signals": [
+            {
+              "name": "Dependency manifest",
+              "found": true,
+              "details": "package.json",
+              "points": 30
+            },
+            {
+              "name": "Lockfile present",
+              "found": true,
+              "details": "package-lock.json",
+              "points": 25
+            },
+            {
+              "name": "Dependencies tracked",
+              "found": true,
+              "details": "57 dependencies",
+              "points": 20
+            },
+            {
+              "name": "Reasonable dependency count",
+              "found": true,
+              "details": "57 dependencies",
+              "points": 15
+            },
+            {
+              "name": "Tech stack detected",
+              "found": true,
+              "details": "",
+              "points": 10
+            }
+          ],
+          "key": "dependencies",
+          "label": "Dependencies",
+          "score": 100,
+          "grade": "A",
+          "weight": 0.15
+        },
+        {
+          "signals": [
+            {
+              "name": "Linter configured",
+              "found": true,
+              "details": "",
+              "points": 20
+            },
+            {
+              "name": "Formatter configured",
+              "found": true,
+              "details": "",
+              "points": 15
+            },
+            {
+              "name": "Type system",
+              "found": true,
+              "details": "",
+              "points": 15
+            },
+            {
+              "name": "Git hooks",
+              "found": true,
+              "details": "",
+              "points": 10
+            },
+            {
+              "name": "Tests present",
+              "found": true,
+              "details": "",
+              "points": 20
+            },
+            {
+              "name": "CI runs tests",
+              "found": false,
+              "details": "",
+              "points": 10
+            },
+            {
+              "name": "EditorConfig",
+              "found": true,
+              "details": "",
+              "points": 10
+            }
+          ],
+          "key": "code_quality",
+          "label": "Code Quality",
+          "score": 90,
+          "grade": "A",
+          "weight": 0.15
+        },
+        {
+          "signals": [
+            {
+              "name": "License file exists",
+              "found": true,
+              "details": "LICENSE",
+              "points": 40
+            },
+            {
+              "name": "SPDX license detected",
+              "found": true,
+              "details": "MIT",
+              "points": 30
+            },
+            {
+              "name": "Permissive license",
+              "found": true,
+              "details": "MIT",
+              "points": 30
+            }
+          ],
+          "key": "license",
+          "label": "License",
+          "score": 100,
+          "grade": "A",
+          "weight": 0.1
+        },
+        {
+          "signals": [
+            {
+              "name": "Issue templates",
+              "found": true,
+              "details": "",
+              "points": 20
+            },
+            {
+              "name": "PR template",
+              "found": true,
+              "details": "",
+              "points": 20
+            },
+            {
+              "name": "Code of Conduct",
+              "found": true,
+              "details": "",
+              "points": 20
+            },
+            {
+              "name": "CONTRIBUTING.md",
+              "found": true,
+              "details": "",
+              "points": 20
+            },
+            {
+              "name": "Funding configuration",
+              "found": true,
+              "details": "",
+              "points": 10
+            },
+            {
+              "name": "SUPPORT.md",
+              "found": true,
+              "details": "",
+              "points": 10
+            }
+          ],
+          "key": "community",
+          "label": "Community",
+          "score": 100,
+          "grade": "A",
+          "weight": 0.1
+        },
+        {
+          "signals": [
+            {
+              "name": "Token permissions",
+              "found": true,
+              "details": "",
+              "points": 15
+            },
+            {
+              "name": "Pinned dependencies",
+              "found": false,
+              "details": "",
+              "points": 15
+            },
+            {
+              "name": "No dangerous workflow patterns",
+              "found": true,
+              "details": "",
+              "points": 10
+            },
+            {
+              "name": "No binary artifacts",
+              "found": true,
+              "details": "",
+              "points": 10
+            },
+            {
+              "name": "SLSA / signed releases",
+              "found": true,
+              "details": "",
+              "points": 10
+            },
+            {
+              "name": "Fuzzing",
+              "found": true,
+              "details": "",
+              "points": 10
+            },
+            {
+              "name": "SBOM generation",
+              "found": false,
+              "details": "",
+              "points": 10
+            },
+            {
+              "name": "Dependency update tool",
+              "found": true,
+              "details": "",
+              "points": 10
+            },
+            {
+              "name": "Security policy",
+              "found": true,
+              "details": "",
+              "points": 5
+            },
+            {
+              "name": "License detected",
+              "found": true,
+              "details": "",
+              "points": 5
+            }
+          ],
+          "key": "openssf",
+          "label": "OpenSSF",
+          "score": 75,
+          "grade": "B",
+          "weight": 0.1
+        }
+      ],
+      "strengths": [
+        "Strong Documentation (A)",
+        "Strong Security (A)",
+        "Strong CI/CD (A)",
+        "Strong Dependencies (A)",
+        "Strong Code Quality (A)",
+        "Strong License (A)",
+        "Strong Community (A)",
+        "Strong OpenSSF (B)"
+      ],
+      "risks": [],
+      "next_steps": [
+        "Add Pinned dependencies (+15 pts to OpenSSF)"
+      ],
+      "overall_score": 93,
+      "grade": "A",
+      "scored_at": "2026-04-27T23:55:41Z"
+    }
+  },
+  "evaluatePolicy": {
+    "preset": "production-ready",
+    "repo": "/home/parallels/Development/repoguru",
+    "response": {
+      "results": [
+        {
+          "rule": {
+            "id": "pr-overall",
+            "name": "Overall score >= 70",
+            "description": "Repository must score at least 70 overall",
+            "type": "overall-score",
+            "operator": ">=",
+            "value": 70,
+            "category": "",
+            "signal": "",
+            "severity": "error"
+          },
+          "passed": true,
+          "actual": "Overall score: 93",
+          "expected": ">= 70"
+        },
+        {
+          "rule": {
+            "id": "pr-cicd",
+            "name": "CI/CD >= 60",
+            "description": "CI/CD score must be at least 60",
+            "type": "category-score",
+            "operator": ">=",
+            "value": 60,
+            "category": "cicd",
+            "signal": "",
+            "severity": "error"
+          },
+          "passed": true,
+          "actual": "CI/CD score: 85",
+          "expected": ">= 60"
+        },
+        {
+          "rule": {
+            "id": "pr-security",
+            "name": "Security >= 50",
+            "description": "Security score must be at least 50",
+            "type": "category-score",
+            "operator": ">=",
+            "value": 50,
+            "category": "security",
+            "signal": "",
+            "severity": "error"
+          },
+          "passed": true,
+          "actual": "Security score: 90",
+          "expected": ">= 50"
+        },
+        {
+          "rule": {
+            "id": "pr-quality",
+            "name": "Code Quality >= 50",
+            "description": "Code quality score must be at least 50",
+            "type": "category-score",
+            "operator": ">=",
+            "value": 50,
+            "category": "code_quality",
+            "signal": "",
+            "severity": "error"
+          },
+          "passed": true,
+          "actual": "Code Quality score: 90",
+          "expected": ">= 50"
+        },
+        {
+          "rule": {
+            "id": "pr-tests",
+            "name": "Tests present",
+            "description": "Repository must have tests",
+            "type": "signal",
+            "operator": "exists",
+            "value": 0,
+            "category": "",
+            "signal": "Tests present",
+            "severity": "error"
+          },
+          "passed": true,
+          "actual": "Tests present: found",
+          "expected": "exists"
+        },
+        {
+          "rule": {
+            "id": "pr-ci-tests",
+            "name": "CI runs tests",
+            "description": "CI should run tests",
+            "type": "signal",
+            "operator": "exists",
+            "value": 0,
+            "category": "",
+            "signal": "CI runs tests",
+            "severity": "warning"
+          },
+          "passed": false,
+          "actual": "CI runs tests: not found",
+          "expected": "exists"
+        },
+        {
+          "rule": {
+            "id": "pr-lockfile",
+            "name": "Lockfile present",
+            "description": "Dependencies should be locked",
+            "type": "signal",
+            "operator": "exists",
+            "value": 0,
+            "category": "",
+            "signal": "Lockfile present",
+            "severity": "warning"
+          },
+          "passed": true,
+          "actual": "Lockfile present: found",
+          "expected": "exists"
+        },
+        {
+          "rule": {
+            "id": "pr-license",
+            "name": "License file exists",
+            "description": "Repository must have a LICENSE",
+            "type": "signal",
+            "operator": "exists",
+            "value": 0,
+            "category": "",
+            "signal": "License file exists",
+            "severity": "error"
+          },
+          "passed": true,
+          "actual": "License file exists: found",
+          "expected": "exists"
+        }
+      ],
+      "passed": true,
+      "pass_count": 7,
+      "fail_count": 1,
+      "evaluated_at": "2026-04-27T23:55:41Z"
+    }
+  },
+  "detectTech": {
+    "repo": "/home/parallels/Development/repoguru",
+    "response": {
+      "json": "{\n  \"aws\": [],\n  \"azure\": [],\n  \"gcp\": [],\n  \"python\": [],\n  \"node\": [\n    {\n      \"name\": \"@chromatic-com/storybook\",\n      \"version\": \"^5.0.1\",\n      \"source\": \"package.json\"\n    },\n    {\n      \"name\": \"@cloudflare/workers-types\",\n      \"version\": \"^4.20241205.0\",\n      \"source\": \"cors-proxy/package.json\"\n    },\n    {\n      \"name\": \"@commitlint/cli\",\n      \"version\": \"^20.4.2\",\n      \"source\": \"package.json\"\n    },\n    {\n      \"name\": \"@commitlint/config-conventional\",\n      \"version\": \"^20.4.2\",\n      \"source\": \"package.json\"\n    },\n    {\n      \"name\": \"@eslint/js\",\n      \"version\": \"^9.39.1\",\n      \"source\": \"package.json\"\n    },\n    {\n      \"name\": \"@isomorphic-git/lightning-fs\",\n      \"version\": \"^4.6.2\",\n      \"source\": \"package.json\"\n    },\n    {\n      \"name\": \"@semantic-release/changelog\",\n      \"version\": \"^6.0.3\",\n      \"source\": \"package.json\"\n    },\n    {\n      \"name\": \"@semantic-release/git\",\n      \"version\": \"^10.0.1\",\n      \"source\": \"package.json\"\n    },\n    {\n      \"name\": \"@size-limit/preset-app\",\n      \"version\": \"^12.0.0\",\n      \"source\": \"package.json\"\n    },\n    {\n      \"name\": \"@storybook/addon-a11y\",\n      \"version\": \"^10.2.10\",\n      \"source\": \"package.json\"\n    },\n    {\n      \"name\": \"@storybook/addon-docs\",\n      \"version\": \"^10.2.13\",\n      \"source\": \"package.json\"\n    },\n    {\n      \"name\": \"@storybook/addon-onboarding\",\n      \"version\": \"^10.2.10\",\n      \"source\": \"package.json\"\n    },\n    {\n      \"name\": \"@storybook/addon-themes\",\n      \"version\": \"^10.2.10\",\n      \"source\": \"package.json\"\n    },\n    {\n      \"name\": \"@storybook/addon-vitest\",\n      \"version\": \"^10.2.13\",\n      \"source\": \"package.json\"\n    },\n    {\n      \"name\": \"@storybook/react-vite\",\n      \"version\": \"^10.2.10\",\n      \"source\": \"package.json\"\n    },\n    {\n      \"name\": \"@tailwindcss/vite\",\n      \"version\": \"^4.2.0\",\n      \"source\": \"package.json\"\n    },\n    {\n      \"name\": \"@testing-library/jest-dom\",\n      \"version\": \"^6.9.1\",\n      \"source\": \"package.json\"\n    },\n    {\n      \"name\": \"@testing-library/react\",\n      \"version\": \"^16.3.2\",\n      \"source\": \"package.json\"\n    },\n    {\n      \"name\": \"@testing-library/user-event\",\n      \"version\": \"^14.6.1\",\n      \"source\": \"package.json\"\n    },\n    {\n      \"name\": \"@types/d3\",\n      \"version\": \"^7.4.3\",\n      \"source\": \"package.json\"\n    },\n    {\n      \"name\": \"@types/d3-cloud\",\n      \"version\": \"^1.2.9\",\n      \"source\": \"package.json\"\n    },\n    {\n      \"name\": \"@types/node\",\n      \"version\": \"^25.3.2\",\n      \"source\": \"package.json\"\n    },\n    {\n      \"name\": \"@types/react\",\n      \"version\": \"^19.2.7\",\n      \"source\": \"package.json\"\n    },\n    {\n      \"name\": \"@types/react-dom\",\n      \"version\": \"^19.2.3\",\n      \"source\": \"package.json\"\n    },\n    {\n      \"name\": \"@vitejs/plugin-react\",\n      \"version\": \"^5.1.1\",\n      \"source\": \"package.json\"\n    },\n    {\n      \"name\": \"@vitest/browser-playwright\",\n      \"version\": \"^4.0.18\",\n      \"source\": \"package.json\"\n    },\n    {\n      \"name\": \"@vitest/coverage-v8\",\n      \"version\": \"^4.0.18\",\n      \"source\": \"package.json\"\n    },\n    {\n      \"name\": \"buffer\",\n      \"version\": \"^6.0.3\",\n      \"source\": \"package.json\"\n    },\n    {\n      \"name\": \"d3\",\n      \"version\": \"^7.9.0\",\n      \"source\": \"package.json\"\n    },\n    {\n      \"name\": \"d3-cloud\",\n      \"version\": \"^1.2.8\",\n      \"source\": \"package.json\"\n    },\n    {\n      \"name\": \"echarts\",\n      \"version\": \"^6.0.0\",\n      \"source\": \"package.json\"\n    },\n    {\n      \"name\": \"eslint\",\n      \"version\": \"^9.39.1\",\n      \"source\": \"package.json\"\n    },\n    {\n      \"name\": \"eslint-config-prettier\",\n      \"version\": \"^10.1.8\",\n      \"source\": \"package.json\"\n    },\n    {\n      \"name\": \"eslint-plugin-no-unsanitized\",\n      \"version\": \"^4.1.5\",\n      \"source\": \"package.json\"\n    },\n    {\n      \"name\": \"eslint-plugin-react-hooks\",\n      \"version\": \"^7.0.1\",\n      \"source\": \"package.json\"\n    },\n    {\n      \"name\": \"eslint-plugin-react-refresh\",\n      \"version\": \"^0.5.2\",\n      \"source\": \"package.json\"\n    },\n    {\n      \"name\": \"eslint-plugin-storybook\",\n      \"version\": \"^10.2.10\",\n      \"source\": \"package.json\"\n    },\n    {\n      \"name\": \"fast-check\",\n      \"version\": \"^4.5.3\",\n      \"source\": \"package.json\"\n    },\n    {\n      \"name\": \"globals\",\n      \"version\": \"^17.3.0\",\n      \"source\": \"package.json\"\n    },\n    {\n      \"name\": \"husky\",\n      \"version\": \"^9.1.7\",\n      \"source\": \"package.json\"\n    },\n    {\n      \"name\": \"idb\",\n      \"version\": \"^8.0.3\",\n      \"source\": \"package.json\"\n    },\n    {\n      \"name\": \"isomorphic-git\",\n      \"version\": \"^1.37.1\",\n      \"source\": \"package.json\"\n    },\n    {\n      \"name\": \"jsdom\",\n      \"version\": \"^28.1.0\",\n      \"source\": \"package.json\"\n    },\n    {\n      \"name\": \"license-checker-rseidelsohn\",\n      \"version\": \"^4.4.2\",\n      \"source\": \"package.json\"\n    },\n    {\n      \"name\": \"lint-staged\",\n      \"version\": \"^16.2.7\",\n      \"source\": \"package.json\"\n    },\n    {\n      \"name\": \"mermaid\",\n      \"version\": \"^10.9.5\",\n      \"source\": \"package.json\"\n    },\n    {\n      \"name\": \"playwright\",\n      \"version\": \"^1.58.2\",\n      \"source\": \"package.json\"\n    },\n    {\n      \"name\": \"prettier\",\n      \"version\": \"^3.8.1\",\n      \"source\": \"package.json\"\n    },\n    {\n      \"name\": \"react\",\n      \"version\": \"^19.2.0\",\n      \"source\": \"package.json\"\n    },\n    {\n      \"name\": \"react-dom\",\n      \"version\": \"^19.2.0\",\n      \"source\": \"package.json\"\n    },\n    {\n      \"name\": \"semantic-release\",\n      \"version\": \"^24.2.9\",\n      \"source\": \"package.json\"\n    },\n    {\n      \"name\": \"size-limit\",\n      \"version\": \"^12.0.0\",\n      \"source\": \"package.json\"\n    },\n    {\n      \"name\": \"storybook\",\n      \"version\": \"^10.2.13\",\n      \"source\": \"package.json\"\n    },\n    {\n      \"name\": \"tailwindcss\",\n      \"version\": \"^4.2.0\",\n      \"source\": \"package.json\"\n    },\n    {\n      \"name\": \"typescript\",\n      \"version\": \"~5.9.3\",\n      \"source\": \"package.json\"\n    },\n    {\n      \"name\": \"typescript-eslint\",\n      \"version\": \"^8.48.0\",\n      \"source\": \"package.json\"\n    },\n    {\n      \"name\": \"vite\",\n      \"version\": \"^7.3.1\",\n      \"source\": \"package.json\"\n    },\n    {\n      \"name\": \"vitest\",\n      \"version\": \"^4.0.18\",\n      \"source\": \"package.json\"\n    },\n    {\n      \"name\": \"wrangler\",\n      \"version\": \"^4.76.0\",\n      \"source\": \"cors-proxy/package.json\"\n    }\n  ],\n  \"go\": [],\n  \"java\": [],\n  \"php\": [],\n  \"rust\": [],\n  \"ruby\": [],\n  \"frameworks\": [\n    {\n      \"name\": \"React\",\n      \"version\": \"^19.2.0\",\n      \"source\": \"package.json\",\n      \"via\": \"package.json\"\n    },\n    {\n      \"name\": \"Tailwind CSS\",\n      \"version\": \"^4.2.0\",\n      \"source\": \"package.json\",\n      \"via\": \"package.json\"\n    }\n  ],\n  \"databases\": [],\n  \"cicd\": [\n    {\n      \"name\": \"GitHub Actions\",\n      \"source\": \".github/workflows/ci.yml\",\n      \"category\": \"ci\"\n    },\n    {\n      \"name\": \"Make\",\n      \"source\": \"Makefile\",\n      \"category\": \"build\"\n    }\n  ],\n  \"testing\": [\n    {\n      \"name\": \"ESLint\",\n      \"source\": \"eslint.config.js\",\n      \"via\": \"config\",\n      \"category\": \"linting\"\n    },\n    {\n      \"name\": \"Husky\",\n      \"source\": \".husky/commit-msg\",\n      \"via\": \"config\",\n      \"category\": \"linting\"\n    },\n    {\n      \"name\": \"Playwright\",\n      \"source\": \"package.json\",\n      \"via\": \"npm\",\n      \"category\": \"e2e\"\n    },\n    {\n      \"name\": \"Prettier\",\n      \"source\": \".prettierrc.json\",\n      \"via\": \"config\",\n      \"category\": \"formatting\"\n    },\n    {\n      \"name\": \"Storybook\",\n      \"source\": \".storybook/main.ts\",\n      \"via\": \"config\",\n      \"category\": \"testing\"\n    },\n    {\n      \"name\": \"Testing Library\",\n      \"source\": \"package.json\",\n      \"via\": \"npm\",\n      \"category\": \"testing\"\n    },\n    {\n      \"name\": \"Vitest\",\n      \"source\": \"package.json\",\n      \"via\": \"npm\",\n      \"category\": \"testing\"\n    },\n    {\n      \"name\": \"Vitest Coverage\",\n      \"source\": \"package.json\",\n      \"via\": \"npm\",\n      \"category\": \"coverage\"\n    },\n    {\n      \"name\": \"commitlint\",\n      \"source\": \"commitlint.config.ts\",\n      \"via\": \"config\",\n      \"category\": \"linting\"\n    },\n    {\n      \"name\": \"lint-staged\",\n      \"source\": \"package.json\",\n      \"via\": \"npm\",\n      \"category\": \"linting\"\n    }\n  ],\n  \"languages\": {\n    \"CSS\": 1,\n    \"HTML\": 1,\n    \"JSON\": 11,\n    \"JavaScript\": 2,\n    \"Markdown\": 10,\n    \"TOML\": 1,\n    \"TypeScript\": 258,\n    \"YAML\": 8\n  },\n  \"manifest_files\": [\n    \".github/workflows/ci.yml\",\n    \".github/workflows/deploy-proxy.yml\",\n    \".github/workflows/scorecard.yml\",\n    \".husky/commit-msg\",\n    \".husky/pre-commit\",\n    \".prettierrc.json\",\n    \".storybook/main.ts\",\n    \".storybook/preview.ts\",\n    \".storybook/vitest.setup.ts\",\n    \"Makefile\",\n    \"commitlint.config.ts\",\n    \"cors-proxy/package.json\",\n    \"eslint.config.js\",\n    \"package.json\"\n  ],\n  \"total_files\": 304\n}"
+    }
+  },
+  "compareRepos": {
+    "pathA": "/home/parallels/Development/repoguru",
+    "pathB": "/home/parallels/Development/repoguru-spec",
+    "response": {
+      "deltas": [
+        {
+          "category": "documentation",
+          "score_a": 100,
+          "score_b": 0,
+          "delta": 100,
+          "winner": "a"
+        },
+        {
+          "category": "security",
+          "score_a": 90,
+          "score_b": 65,
+          "delta": 25,
+          "winner": "a"
+        },
+        {
+          "category": "cicd",
+          "score_a": 85,
+          "score_b": 90,
+          "delta": -5,
+          "winner": "b"
+        },
+        {
+          "category": "dependencies",
+          "score_a": 100,
+          "score_b": 100,
+          "delta": 0,
+          "winner": "tie"
+        },
+        {
+          "category": "code_quality",
+          "score_a": 90,
+          "score_b": 30,
+          "delta": 60,
+          "winner": "a"
+        },
+        {
+          "category": "license",
+          "score_a": 100,
+          "score_b": 0,
+          "delta": 100,
+          "winner": "a"
+        },
+        {
+          "category": "community",
+          "score_a": 100,
+          "score_b": 0,
+          "delta": 100,
+          "winner": "a"
+        },
+        {
+          "category": "openssf",
+          "score_a": 75,
+          "score_b": 80,
+          "delta": -5,
+          "winner": "b"
+        }
+      ],
+      "report_card_a": {
+        "categories": [
+          {
+            "signals": [
+              {
+                "name": "README exists",
+                "found": true,
+                "details": "README.md",
+                "points": 25
+              },
+              {
+                "name": "Substantial README (>500 chars)",
+                "found": true,
+                "details": "6460 characters",
+                "points": 20
+              },
+              {
+                "name": "README has sections",
+                "found": true,
+                "details": "11 headings",
+                "points": 15
+              },
+              {
+                "name": "Code examples in README",
+                "found": true,
+                "details": "",
+                "points": 10
+              },
+              {
+                "name": "CONTRIBUTING.md",
+                "found": true,
+                "details": "",
+                "points": 10
+              },
+              {
+                "name": "CHANGELOG",
+                "found": true,
+                "details": "",
+                "points": 10
+              },
+              {
+                "name": "docs/ directory",
+                "found": true,
+                "details": "",
+                "points": 10
+              }
+            ],
+            "key": "documentation",
+            "label": "Documentation",
+            "score": 100,
+            "grade": "A",
+            "weight": 0.15
+          },
+          {
+            "signals": [
+              {
+                "name": "SECURITY.md",
+                "found": true,
+                "details": "",
+                "points": 20
+              },
+              {
+                "name": "CODEOWNERS",
+                "found": true,
+                "details": "",
+                "points": 15
+              },
+              {
+                "name": "Dependabot configured",
+                "found": true,
+                "details": "",
+                "points": 20
+              },
+              {
+                "name": "CodeQL / security scanning",
+                "found": true,
+                "details": "",
+                "points": 15
+              },
+              {
+                "name": "PR-triggered workflows",
+                "found": true,
+                "details": "",
+                "points": 10
+              },
+              {
+                "name": ".gitignore present",
+                "found": true,
+                "details": "",
+                "points": 10
+              },
+              {
+                "name": "No exposed secret files",
+                "found": false,
+                "details": "Secret files found in tree",
+                "points": 10
+              }
+            ],
+            "key": "security",
+            "label": "Security",
+            "score": 90,
+            "grade": "A",
+            "weight": 0.1
+          },
+          {
+            "signals": [
+              {
+                "name": "GitHub Actions workflows",
+                "found": true,
+                "details": "3 workflow(s)",
+                "points": 25
+              },
+              {
+                "name": "CI workflow (test/build)",
+                "found": true,
+                "details": "",
+                "points": 25
+              },
+              {
+                "name": "Deploy / release workflow",
+                "found": true,
+                "details": "",
+                "points": 15
+              },
+              {
+                "name": "PR-triggered checks",
+                "found": true,
+                "details": "",
+                "points": 15
+              },
+              {
+                "name": "Dockerfile",
+                "found": false,
+                "details": "",
+                "points": 10
+              },
+              {
+                "name": "Docker Compose",
+                "found": false,
+                "details": "",
+                "points": 5
+              },
+              {
+                "name": "Makefile",
+                "found": true,
+                "details": "",
+                "points": 5
+              }
+            ],
+            "key": "cicd",
+            "label": "CI/CD",
+            "score": 85,
+            "grade": "A",
+            "weight": 0.15
+          },
+          {
+            "signals": [
+              {
+                "name": "Dependency manifest",
+                "found": true,
+                "details": "package.json",
+                "points": 30
+              },
+              {
+                "name": "Lockfile present",
+                "found": true,
+                "details": "package-lock.json",
+                "points": 25
+              },
+              {
+                "name": "Dependencies tracked",
+                "found": true,
+                "details": "57 dependencies",
+                "points": 20
+              },
+              {
+                "name": "Reasonable dependency count",
+                "found": true,
+                "details": "57 dependencies",
+                "points": 15
+              },
+              {
+                "name": "Tech stack detected",
+                "found": true,
+                "details": "",
+                "points": 10
+              }
+            ],
+            "key": "dependencies",
+            "label": "Dependencies",
+            "score": 100,
+            "grade": "A",
+            "weight": 0.15
+          },
+          {
+            "signals": [
+              {
+                "name": "Linter configured",
+                "found": true,
+                "details": "",
+                "points": 20
+              },
+              {
+                "name": "Formatter configured",
+                "found": true,
+                "details": "",
+                "points": 15
+              },
+              {
+                "name": "Type system",
+                "found": true,
+                "details": "",
+                "points": 15
+              },
+              {
+                "name": "Git hooks",
+                "found": true,
+                "details": "",
+                "points": 10
+              },
+              {
+                "name": "Tests present",
+                "found": true,
+                "details": "",
+                "points": 20
+              },
+              {
+                "name": "CI runs tests",
+                "found": false,
+                "details": "",
+                "points": 10
+              },
+              {
+                "name": "EditorConfig",
+                "found": true,
+                "details": "",
+                "points": 10
+              }
+            ],
+            "key": "code_quality",
+            "label": "Code Quality",
+            "score": 90,
+            "grade": "A",
+            "weight": 0.15
+          },
+          {
+            "signals": [
+              {
+                "name": "License file exists",
+                "found": true,
+                "details": "LICENSE",
+                "points": 40
+              },
+              {
+                "name": "SPDX license detected",
+                "found": true,
+                "details": "MIT",
+                "points": 30
+              },
+              {
+                "name": "Permissive license",
+                "found": true,
+                "details": "MIT",
+                "points": 30
+              }
+            ],
+            "key": "license",
+            "label": "License",
+            "score": 100,
+            "grade": "A",
+            "weight": 0.1
+          },
+          {
+            "signals": [
+              {
+                "name": "Issue templates",
+                "found": true,
+                "details": "",
+                "points": 20
+              },
+              {
+                "name": "PR template",
+                "found": true,
+                "details": "",
+                "points": 20
+              },
+              {
+                "name": "Code of Conduct",
+                "found": true,
+                "details": "",
+                "points": 20
+              },
+              {
+                "name": "CONTRIBUTING.md",
+                "found": true,
+                "details": "",
+                "points": 20
+              },
+              {
+                "name": "Funding configuration",
+                "found": true,
+                "details": "",
+                "points": 10
+              },
+              {
+                "name": "SUPPORT.md",
+                "found": true,
+                "details": "",
+                "points": 10
+              }
+            ],
+            "key": "community",
+            "label": "Community",
+            "score": 100,
+            "grade": "A",
+            "weight": 0.1
+          },
+          {
+            "signals": [
+              {
+                "name": "Token permissions",
+                "found": true,
+                "details": "",
+                "points": 15
+              },
+              {
+                "name": "Pinned dependencies",
+                "found": false,
+                "details": "",
+                "points": 15
+              },
+              {
+                "name": "No dangerous workflow patterns",
+                "found": true,
+                "details": "",
+                "points": 10
+              },
+              {
+                "name": "No binary artifacts",
+                "found": true,
+                "details": "",
+                "points": 10
+              },
+              {
+                "name": "SLSA / signed releases",
+                "found": true,
+                "details": "",
+                "points": 10
+              },
+              {
+                "name": "Fuzzing",
+                "found": true,
+                "details": "",
+                "points": 10
+              },
+              {
+                "name": "SBOM generation",
+                "found": false,
+                "details": "",
+                "points": 10
+              },
+              {
+                "name": "Dependency update tool",
+                "found": true,
+                "details": "",
+                "points": 10
+              },
+              {
+                "name": "Security policy",
+                "found": true,
+                "details": "",
+                "points": 5
+              },
+              {
+                "name": "License detected",
+                "found": true,
+                "details": "",
+                "points": 5
+              }
+            ],
+            "key": "openssf",
+            "label": "OpenSSF",
+            "score": 75,
+            "grade": "B",
+            "weight": 0.1
+          }
+        ],
+        "strengths": [
+          "Strong Documentation (A)",
+          "Strong Security (A)",
+          "Strong CI/CD (A)",
+          "Strong Dependencies (A)",
+          "Strong Code Quality (A)",
+          "Strong License (A)",
+          "Strong Community (A)",
+          "Strong OpenSSF (B)"
+        ],
+        "risks": [],
+        "next_steps": [
+          "Add Pinned dependencies (+15 pts to OpenSSF)"
+        ],
+        "overall_score": 93,
+        "grade": "A",
+        "scored_at": "2026-04-27T23:55:41Z"
+      },
+      "report_card_b": {
+        "categories": [
+          {
+            "signals": [
+              {
+                "name": "README exists",
+                "found": false,
+                "details": "",
+                "points": 25
+              },
+              {
+                "name": "Substantial README (>500 chars)",
+                "found": false,
+                "details": "",
+                "points": 20
+              },
+              {
+                "name": "README has sections",
+                "found": false,
+                "details": "",
+                "points": 15
+              },
+              {
+                "name": "Code examples in README",
+                "found": false,
+                "details": "",
+                "points": 10
+              },
+              {
+                "name": "CONTRIBUTING.md",
+                "found": false,
+                "details": "",
+                "points": 10
+              },
+              {
+                "name": "CHANGELOG",
+                "found": false,
+                "details": "",
+                "points": 10
+              },
+              {
+                "name": "docs/ directory",
+                "found": false,
+                "details": "",
+                "points": 10
+              }
+            ],
+            "key": "documentation",
+            "label": "Documentation",
+            "score": 0,
+            "grade": "F",
+            "weight": 0.15
+          },
+          {
+            "signals": [
+              {
+                "name": "SECURITY.md",
+                "found": false,
+                "details": "",
+                "points": 20
+              },
+              {
+                "name": "CODEOWNERS",
+                "found": false,
+                "details": "",
+                "points": 15
+              },
+              {
+                "name": "Dependabot configured",
+                "found": true,
+                "details": "",
+                "points": 20
+              },
+              {
+                "name": "CodeQL / security scanning",
+                "found": true,
+                "details": "",
+                "points": 15
+              },
+              {
+                "name": "PR-triggered workflows",
+                "found": true,
+                "details": "",
+                "points": 10
+              },
+              {
+                "name": ".gitignore present",
+                "found": true,
+                "details": "",
+                "points": 10
+              },
+              {
+                "name": "No exposed secret files",
+                "found": true,
+                "details": "",
+                "points": 10
+              }
+            ],
+            "key": "security",
+            "label": "Security",
+            "score": 65,
+            "grade": "C",
+            "weight": 0.1
+          },
+          {
+            "signals": [
+              {
+                "name": "GitHub Actions workflows",
+                "found": true,
+                "details": "5 workflow(s)",
+                "points": 25
+              },
+              {
+                "name": "CI workflow (test/build)",
+                "found": true,
+                "details": "",
+                "points": 25
+              },
+              {
+                "name": "Deploy / release workflow",
+                "found": true,
+                "details": "",
+                "points": 15
+              },
+              {
+                "name": "PR-triggered checks",
+                "found": true,
+                "details": "",
+                "points": 15
+              },
+              {
+                "name": "Dockerfile",
+                "found": true,
+                "details": "",
+                "points": 10
+              },
+              {
+                "name": "Docker Compose",
+                "found": false,
+                "details": "",
+                "points": 5
+              },
+              {
+                "name": "Makefile",
+                "found": false,
+                "details": "",
+                "points": 5
+              }
+            ],
+            "key": "cicd",
+            "label": "CI/CD",
+            "score": 90,
+            "grade": "A",
+            "weight": 0.15
+          },
+          {
+            "signals": [
+              {
+                "name": "Dependency manifest",
+                "found": true,
+                "details": "Cargo.toml",
+                "points": 30
+              },
+              {
+                "name": "Lockfile present",
+                "found": true,
+                "details": "Cargo.lock",
+                "points": 25
+              },
+              {
+                "name": "Dependencies tracked",
+                "found": true,
+                "details": "28 dependencies",
+                "points": 20
+              },
+              {
+                "name": "Reasonable dependency count",
+                "found": true,
+                "details": "28 dependencies",
+                "points": 15
+              },
+              {
+                "name": "Tech stack detected",
+                "found": true,
+                "details": "",
+                "points": 10
+              }
+            ],
+            "key": "dependencies",
+            "label": "Dependencies",
+            "score": 100,
+            "grade": "A",
+            "weight": 0.15
+          },
+          {
+            "signals": [
+              {
+                "name": "Linter configured",
+                "found": false,
+                "details": "",
+                "points": 20
+              },
+              {
+                "name": "Formatter configured",
+                "found": false,
+                "details": "",
+                "points": 15
+              },
+              {
+                "name": "Type system",
+                "found": false,
+                "details": "",
+                "points": 15
+              },
+              {
+                "name": "Git hooks",
+                "found": false,
+                "details": "",
+                "points": 10
+              },
+              {
+                "name": "Tests present",
+                "found": true,
+                "details": "",
+                "points": 20
+              },
+              {
+                "name": "CI runs tests",
+                "found": true,
+                "details": "",
+                "points": 10
+              },
+              {
+                "name": "EditorConfig",
+                "found": false,
+                "details": "",
+                "points": 10
+              }
+            ],
+            "key": "code_quality",
+            "label": "Code Quality",
+            "score": 30,
+            "grade": "F",
+            "weight": 0.15
+          },
+          {
+            "signals": [
+              {
+                "name": "License file exists",
+                "found": false,
+                "details": "",
+                "points": 40
+              },
+              {
+                "name": "SPDX license detected",
+                "found": false,
+                "details": "",
+                "points": 30
+              },
+              {
+                "name": "Copyleft license",
+                "found": false,
+                "details": "",
+                "points": 20
+              }
+            ],
+            "key": "license",
+            "label": "License",
+            "score": 0,
+            "grade": "F",
+            "weight": 0.1
+          },
+          {
+            "signals": [
+              {
+                "name": "Issue templates",
+                "found": false,
+                "details": "",
+                "points": 20
+              },
+              {
+                "name": "PR template",
+                "found": false,
+                "details": "",
+                "points": 20
+              },
+              {
+                "name": "Code of Conduct",
+                "found": false,
+                "details": "",
+                "points": 20
+              },
+              {
+                "name": "CONTRIBUTING.md",
+                "found": false,
+                "details": "",
+                "points": 20
+              },
+              {
+                "name": "Funding configuration",
+                "found": false,
+                "details": "",
+                "points": 10
+              },
+              {
+                "name": "SUPPORT.md",
+                "found": false,
+                "details": "",
+                "points": 10
+              }
+            ],
+            "key": "community",
+            "label": "Community",
+            "score": 0,
+            "grade": "F",
+            "weight": 0.1
+          },
+          {
+            "signals": [
+              {
+                "name": "Token permissions",
+                "found": true,
+                "details": "",
+                "points": 15
+              },
+              {
+                "name": "Pinned dependencies",
+                "found": true,
+                "details": "",
+                "points": 15
+              },
+              {
+                "name": "No dangerous workflow patterns",
+                "found": true,
+                "details": "",
+                "points": 10
+              },
+              {
+                "name": "No binary artifacts",
+                "found": true,
+                "details": "",
+                "points": 10
+              },
+              {
+                "name": "SLSA / signed releases",
+                "found": true,
+                "details": "",
+                "points": 10
+              },
+              {
+                "name": "Fuzzing",
+                "found": false,
+                "details": "",
+                "points": 10
+              },
+              {
+                "name": "SBOM generation",
+                "found": true,
+                "details": "",
+                "points": 10
+              },
+              {
+                "name": "Dependency update tool",
+                "found": true,
+                "details": "",
+                "points": 10
+              },
+              {
+                "name": "Security policy",
+                "found": false,
+                "details": "",
+                "points": 5
+              },
+              {
+                "name": "License detected",
+                "found": false,
+                "details": "",
+                "points": 5
+              }
+            ],
+            "key": "openssf",
+            "label": "OpenSSF",
+            "score": 80,
+            "grade": "B",
+            "weight": 0.1
+          }
+        ],
+        "strengths": [
+          "Strong CI/CD (A)",
+          "Strong Dependencies (A)",
+          "Strong OpenSSF (B)"
+        ],
+        "risks": [
+          "Documentation needs attention (F)",
+          "Code Quality needs attention (F)",
+          "License needs attention (F)",
+          "Community needs attention (F)"
+        ],
+        "next_steps": [
+          "Add README exists (+25 pts to Documentation)",
+          "Add SECURITY.md (+20 pts to Security)",
+          "Add Linter configured (+20 pts to Code Quality)",
+          "Add License file exists (+40 pts to License)",
+          "Add CONTRIBUTING.md (+20 pts to Community)"
+        ],
+        "overall_score": 48,
+        "grade": "D",
+        "scored_at": "2026-04-27T23:55:41Z"
+      },
+      "winner": "a",
+      "score_delta": 45
+    }
+  }
+}

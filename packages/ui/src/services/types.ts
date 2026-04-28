@@ -135,24 +135,43 @@ export interface OrgScanService {
 
 // ─────────────────────────── Repo Picker ─────────────────────────────
 
-export interface RepoPickerProps {
-  /** Inline label text (matches the in-browser app's label styling). */
+export interface RepoSuggestion {
+  /** The string passed back to the page via onChange when a suggestion is chosen. */
+  value: string;
+  /** Primary text shown in the suggestion chip / row. */
+  label: string;
+  /** Optional secondary line (description, language, last-modified, …). */
+  hint?: string;
+}
+
+export interface RepoBrowseService {
+  /** Open the host's "browse for a repo" UI and return the chosen repo
+   *  string, or null if the user cancelled.
+   *   - Browser: opens the GitHub repo picker (or auth flow if no token).
+   *   - Desktop: opens the OS folder picker via Electron IPC. */
+  browse(): Promise<string | null>;
+  /** Recent suggestions to render under the input as chips. The shared
+   *  picker UI doesn't care where these come from. */
+  recents(): RepoSuggestion[];
+  /** Optional human-readable hint shown under the input (e.g. "Pick a folder
+   *  from your machine" or "Type owner/repo or sign in to browse"). Host
+   *  decides; if undefined, the picker shows no hint line. */
+  hint?: string;
+}
+
+export type RepoPickerProps = {
+  /** Visible label text (rendered identically across hosts). */
   label: string;
   value: string;
   onChange: (next: string) => void;
   /** Submit on Enter. */
   onSubmit?: () => void;
-  /** Greyed-out / disabled while a request is in flight. */
   disabled?: boolean;
-  /** DOM id for the input — pages set it so labels associate correctly. */
+  /** DOM id for the input. */
   inputId?: string;
-}
-
-/** A picker is a host-supplied React component (browser: GitHub repo
- *  search; desktop: filesystem browse + recent paths). Shared pages render
- *  it in their input form so the picker fits the host but the surrounding
- *  chrome stays identical. */
-export type RepoPickerComponent = (props: RepoPickerProps) => ReactNode;
+  /** Placeholder shown when value is empty. */
+  placeholder?: string;
+};
 
 // ─────────────────────────── Top-level services bag ──────────────────
 
@@ -162,11 +181,10 @@ export interface RepoGuruServices {
   techDetect: TechDetectService;
   policy: PolicyService;
   orgScan: OrgScanService;
-  /** Host-supplied repo picker component. */
-  RepoPicker: RepoPickerComponent;
-  /** Optional human-friendly description of where repos come from. Pages
-   *  use this to label inputs ("GitHub repository" vs "Local repository"). */
-  repoLabelSingular?: string;
+  /** Host-supplied repo browse / recents service. The shared <RepoPicker />
+   *  UI consumes this — both hosts render the SAME picker chrome; only the
+   *  data source differs (GitHub API vs filesystem). */
+  repoBrowse: RepoBrowseService;
   /** Whether this host is the desktop variant. Pages may render extra
    *  panels when the desktop has access to more data than the browser
    *  (e.g. ALL commits vs the browser's 1000-commit cap). */

@@ -5,6 +5,7 @@ import { PageContainer } from '../chrome/PageContainer.js';
 import { PageHero } from '../chrome/PageHero.js';
 import { PrimaryButton, SecondaryButton } from '../chrome/Buttons.js';
 import { LoadingPanel, ErrorPanel } from '../chrome/StatusPanels.js';
+import { RepoPicker } from '../chrome/RepoPicker.js';
 import type { CompareResult } from '../services/types.js';
 
 type Step = 'idle' | 'loading' | 'done' | 'error';
@@ -27,7 +28,7 @@ interface State {
  * is rendered identically across hosts.
  */
 export function ComparePage() {
-  const { compare, RepoPicker, repoLabelSingular } = useRepoGuru();
+  const { compare } = useRepoGuru();
 
   const [inputA, setInputA] = useState('');
   const [inputB, setInputB] = useState('');
@@ -69,14 +70,12 @@ export function ComparePage() {
     setState({ step: 'idle', progress: '', result: null, error: null });
   }, []);
 
-  const noun = (repoLabelSingular ?? 'GitHub repo').toLowerCase();
-
   return (
     <PageContainer>
       <PageHero
         title="Compare"
         highlight="Repositories"
-        subtitle={`Analyze two ${noun}s side by side. See which one scores higher across all categories.`}
+        subtitle="Analyze two repositories side by side. See which one scores higher across all categories."
       />
 
       <div className="mb-8">

@@ -6,12 +6,11 @@
 
 import {
   computeDeltasFromReports,
-  RepoInputField,
   type RepoGuruServices,
   type CompareResult,
   type CompareRunOptions,
-  type RepoPickerProps,
   type ReportCardData,
+  type RepoSuggestion,
 } from '@repoguru/ui';
 import { parseRepoUrl } from '../services/github/parser';
 import { githubFetch } from '../services/github/client';
@@ -22,31 +21,10 @@ import type {
   TreeEntry,
   LightAnalysisReport,
   TechStackItem,
+  RecentRepo,
 } from '../types';
 import type { GitHubRepoResponse, GitHubTreeResponse } from '../services/github/types';
 import { formatNumber } from '../utils/formatters';
-import { RepoPicker as BrowserPickerDropdown } from '../components/common/RepoPicker';
-
-// ─────────────────────────── Repo input picker ───────────────────────
-
-/** Browser-side RepoPicker: a labelled text input plus the existing
- *  GitHub repo dropdown below. Visual chrome around the input matches
- *  the lifted RepoInputField. */
-function BrowserRepoPicker({ inputId, label, value, onChange, onSubmit, disabled }: RepoPickerProps) {
-  const id = inputId ?? `repo-${label.replace(/\s+/g, '-').toLowerCase()}`;
-  return (
-    <RepoInputField
-      id={id}
-      label={label}
-      value={value}
-      onChange={onChange}
-      placeholder="owner/repo"
-      disabled={disabled}
-      onSubmit={onSubmit}
-      picker={<BrowserPickerDropdown onSelect={onChange} disabled={disabled} />}
-    />
-  );
-}
 
 // ─────────────────────────── Compare ─────────────────────────────────
 
@@ -200,11 +178,29 @@ function StatsComparison({ a, b, nameA, nameB }: { a: LightAnalysisReport; b: Li
 
 // ─────────────────────────── Service factory ─────────────────────────
 
-export function makeBrowserServices(getToken: () => string): RepoGuruServices {
+export function makeBrowserServices(
+  getToken: () => string,
+  getRecents: () => RecentRepo[],
+): RepoGuruServices {
   return {
-    repoLabelSingular: 'GitHub repo',
     isDesktop: false,
-    RepoPicker: (props) => <BrowserRepoPicker {...props} />,
+    repoBrowse: {
+      hint: 'Type owner/repo or paste a GitHub URL',
+      // Browser "browse" pops a one-shot prompt rather than a folder dialog
+      // — the real GitHub repo dropdown lives in the host's settings/sign-in
+      // flow. The recent chips already cover the common path.
+      async browse() {
+        const v = window.prompt('Repository (owner/repo or GitHub URL):', '');
+        return v && v.trim() ? v.trim() : null;
+      },
+      recents(): RepoSuggestion[] {
+        return getRecents().map<RepoSuggestion>((r) => ({
+          value: `${r.owner}/${r.repo}`,
+          label: `${r.owner}/${r.repo}`,
+          hint: `${r.grade} · ${r.overallScore}/100`,
+        }));
+      },
+    },
     compare: {
       async run(repoA, repoB, opts?: CompareRunOptions): Promise<CompareResult> {
         const token = getToken();

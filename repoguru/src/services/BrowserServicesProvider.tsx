@@ -10,8 +10,11 @@ import { makeBrowserServices } from './repoGuruServices';
 export function BrowserServicesProvider({ children }: { children: ReactNode }) {
   const { state } = useApp();
   const services = useMemo(
-    () => makeBrowserServices(() => state.githubToken ?? ''),
-    [state.githubToken],
+    () => makeBrowserServices(
+      () => state.githubToken ?? '',
+      () => state.recentRepos,
+    ),
+    [state.githubToken, state.recentRepos],
   );
   return <RepoGuruProvider services={services}>{children}</RepoGuruProvider>;
 }
