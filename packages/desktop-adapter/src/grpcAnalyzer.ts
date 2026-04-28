@@ -177,12 +177,28 @@ export function mapPatterns(wire: WirePatterns): PatternsSection {
       word,
       count,
     })),
-    languageBreakdown: (wire.language_breakdown ?? []).map((l) => ({
-      language: l.language,
-      percentage: l.percentage,
-      fileCount: l.file_count,
-      totalLines: l.total_lines,
-    })),
+    // The shipped binary emits language_breakdown either as an array
+     // of objects (legacy wire shape) or as a `{ Lang: fileCount }` map
+     // (current binary). Normalise both.
+    languageBreakdown: Array.isArray(wire.language_breakdown)
+      ? wire.language_breakdown.map((l) => ({
+          language: l.language,
+          percentage: l.percentage,
+          fileCount: l.file_count,
+          totalLines: l.total_lines,
+        }))
+      : (() => {
+          const entries = Object.entries(
+            (wire.language_breakdown ?? {}) as Record<string, number>,
+          );
+          const totalFiles = entries.reduce((s, [, n]) => s + (Number(n) || 0), 0);
+          return entries.map(([language, fileCount]) => ({
+            language,
+            percentage: totalFiles > 0 ? (Number(fileCount) / totalFiles) * 100 : 0,
+            fileCount: Number(fileCount) || 0,
+            totalLines: 0,
+          }));
+        })(),
     conventionalCommits: wire.conventional_commits ?? {},
   };
 }

@@ -2,37 +2,99 @@ import type { ReactNode } from 'react';
 
 export interface LoadingPanelProps {
   message: string;
+  /** Optional secondary line shown under the main message (e.g. current
+   *  step name like "Diffing commits"). */
+  subMessage?: string;
+  /** Overall progress 0–100. When provided, renders the overall bar. */
+  progress?: number;
+  /** Sub-progress 0–100. When provided, renders the second (smaller) bar. */
+  subProgress?: number;
 }
 
-/** Spinner + message panel matching the in-browser app's loading state. */
-export function LoadingPanel({ message }: LoadingPanelProps) {
-  return (
-    <div className="text-center py-16">
-      <div className="inline-flex items-center gap-3 px-6 py-4 rounded-xl bg-surface-alt border border-border">
-        <svg
-          className="animate-spin h-5 w-5 text-neon"
-          xmlns="http://www.w3.org/2000/svg"
-          fill="none"
-          viewBox="0 0 24 24"
-          aria-hidden="true"
-        >
-          <circle
-            className="opacity-25"
-            cx="12"
-            cy="12"
-            r="10"
-            stroke="currentColor"
-            strokeWidth="4"
-          />
-          <path
-            className="opacity-75"
-            fill="currentColor"
-            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-          />
-        </svg>
-        <span className="text-text-secondary">{message}</span>
+/** Spinner + double-progress-bar panel matching the in-browser app's
+ *  scan UI. Falls back to spinner-only when no progress numbers are
+ *  supplied. */
+export function LoadingPanel({
+  message,
+  subMessage,
+  progress,
+  subProgress,
+}: LoadingPanelProps) {
+  const showBars = typeof progress === 'number';
+  if (!showBars) {
+    return (
+      <div className="text-center py-16">
+        <div className="inline-flex items-center gap-3 px-6 py-4 rounded-xl bg-surface-alt border border-border">
+          <Spinner />
+          <span className="text-text-secondary">{message}</span>
+        </div>
       </div>
+    );
+  }
+  const overall = Math.max(0, Math.min(100, progress!));
+  const sub = Math.max(0, Math.min(100, subProgress ?? 0));
+  return (
+    <div className="max-w-3xl mx-auto py-12">
+      <div className="flex items-center justify-between text-sm mb-2">
+        <span className="font-medium text-text">Overall Progress</span>
+        <span className="text-neon font-bold tabular-nums">{Math.round(overall)}%</span>
+      </div>
+      <div className="h-3 bg-surface-alt rounded-full overflow-hidden border border-border">
+        <div
+          className="h-full bg-gradient-to-r from-primary-500 to-neon rounded-full transition-all duration-300 ease-out"
+          style={{ width: `${overall}%`, boxShadow: '0 0 12px rgba(56,189,248,0.4)' }}
+        />
+      </div>
+
+      <div className="flex items-center justify-between text-xs text-text-secondary mt-3 mb-1.5">
+        <div className="flex items-center gap-2">
+          <Spinner small />
+          <span>{subMessage || message}</span>
+        </div>
+        {typeof subProgress === 'number' && (
+          <span className="tabular-nums">{Math.round(sub)}%</span>
+        )}
+      </div>
+      {typeof subProgress === 'number' && (
+        <div className="h-1.5 bg-surface-alt rounded-full overflow-hidden border border-border/50">
+          <div
+            className="h-full bg-neon/60 rounded-full transition-all duration-200 ease-out"
+            style={{ width: `${sub}%` }}
+          />
+        </div>
+      )}
+
+      {message && subMessage && (
+        <p className="text-sm text-text-secondary mt-2">{message}</p>
+      )}
     </div>
+  );
+}
+
+function Spinner({ small = false }: { small?: boolean }) {
+  const size = small ? 'h-3.5 w-3.5' : 'h-5 w-5';
+  return (
+    <svg
+      className={`animate-spin ${size} text-neon`}
+      xmlns="http://www.w3.org/2000/svg"
+      fill="none"
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+    >
+      <circle
+        className="opacity-25"
+        cx="12"
+        cy="12"
+        r="10"
+        stroke="currentColor"
+        strokeWidth="4"
+      />
+      <path
+        className="opacity-75"
+        fill="currentColor"
+        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+      />
+    </svg>
   );
 }
 

@@ -69,7 +69,7 @@ export function TechDetectPage() {
       />
 
       {state.step !== 'done' && (
-        <div className="mb-8 max-w-2xl mx-auto">
+        <div className="mb-8 max-w-4xl mx-auto">
           <RepoPicker
             inputId="tech-detect-repo"
             label="Repository"

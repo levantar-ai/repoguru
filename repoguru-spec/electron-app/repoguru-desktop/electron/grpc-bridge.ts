@@ -39,9 +39,17 @@ export class GrpcBridge {
     const proto = grpc.loadPackageDefinition(packageDefinition);
     const service = (proto.repoanalyze as any).v1.RepoAnalyzeService;
 
+    // Section payloads for large repos (e.g. facebook/react ≈23k commits)
+    // can exceed the default 4 MB gRPC receive cap — getSection raises
+    // RESOURCE_EXHAUSTED otherwise. The CLI talks only to this same
+    // process locally, so a generous 256 MB cap is safe.
     this.client = new service(
       `[::1]:${this.port}`,
       grpc.credentials.createInsecure(),
+      {
+        'grpc.max_receive_message_length': 256 * 1024 * 1024,
+        'grpc.max_send_message_length': 256 * 1024 * 1024,
+      },
     ) as ServiceClient;
 
     // Wait for the channel to connect

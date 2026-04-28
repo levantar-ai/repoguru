@@ -7,7 +7,12 @@ process.on('exit', () => {
   try { process.kill(0, 'SIGTERM'); } catch {}
 });
 
-const LISTENING_PATTERN = /LISTENING ON \[::1\]:(\d+)/;
+// The shipped Rust binary prints "RepoAnalyze gRPC server listening on
+// [::1]:NNNN" once bound. It echoes back the requested port verbatim and
+// doesn't resolve OS-assigned ports — so we pass a known-free fixed port
+// rather than :0 and parse the line.
+const LISTENING_PATTERN = /listening on \[::1\]:(\d+)/i;
+const FIXED_PORT = 50051;
 const MAX_BACKOFF_MS = 30_000;
 const STARTUP_TIMEOUT_MS = 10_000;
 const SHUTDOWN_TIMEOUT_MS = 5_000;
@@ -57,7 +62,7 @@ export class ProcessManager {
   private spawnAndWaitForPort(): Promise<number> {
     return new Promise((resolve, reject) => {
       const binaryPath = this.getBinaryPath();
-      const child = spawn(binaryPath, ['serve', '--listen', '[::1]:0'], {
+      const child = spawn(binaryPath, ['serve', '--listen', `[::1]:${FIXED_PORT}`], {
         stdio: ['ignore', 'pipe', 'pipe'],
         env: { ...process.env },
         // Kill child when parent dies (Linux: prctl PR_SET_PDEATHSIG via detached=false)
@@ -75,7 +80,7 @@ export class ProcessManager {
         }
       }, STARTUP_TIMEOUT_MS);
 
-      child.stdout!.on('data', (data: Buffer) => {
+      const matchPort = (data: Buffer) => {
         const line = data.toString();
         const match = line.match(LISTENING_PATTERN);
         if (match && !resolved) {
@@ -85,9 +90,12 @@ export class ProcessManager {
           this.restartCount = 0;
           resolve(parseInt(match[1], 10));
         }
-      });
-
+      };
+      // The shipped Rust binary writes its "listening on" line to stderr,
+      // not stdout — watch both so the manager resolves regardless.
+      child.stdout!.on('data', matchPort);
       child.stderr!.on('data', (data: Buffer) => {
+        matchPort(data);
         console.error('[repoanalyze stderr]', data.toString());
       });
 

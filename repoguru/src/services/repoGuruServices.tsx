@@ -372,7 +372,13 @@ export function makeBrowserServices(
       async run(repo, opts) {
         const result = await browserAnalysisRunner.run(
           { source: repo, authToken: getToken() },
-          (e) => opts?.onProgress?.(e.message ?? `${e.phase}...`),
+          (e) =>
+            opts?.onProgress?.({
+              message: e.message ?? `${e.phase}…`,
+              overall: Math.max(0, Math.min(100, (e.progress ?? 0) * 100)),
+              sub: e.subProgress != null ? Math.max(0, Math.min(100, e.subProgress * 100)) : 0,
+              phase: String(e.phase ?? ''),
+            }),
         );
         return { analysis: result };
       },

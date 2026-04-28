@@ -1,6 +1,5 @@
 import { HashRouter, Routes, Route, NavLink } from 'react-router';
 import { ComparePage, ReportCardPage, TechDetectPage, PolicyPage, OrgScanPage, GitStatsPage, RepoGuruProvider } from '@repoguru/ui';
-import { Dashboard } from './pages/Dashboard';
 import { Settings } from './pages/Settings';
 import { ThemeToggle } from './components/common/ThemeToggle';
 import { desktopServices } from './services/repoGuruServices';
@@ -16,9 +15,10 @@ const NAV_ICONS: Record<string, string> = {
   '/settings': 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z',
 };
 
+// Nav items match the web app one-for-one. Home (/) is the Report Card
+// page, exactly like the web — there is no separate "Dashboard" page.
 const navItems = [
-  { to: '/', label: 'Dashboard' },
-  { to: '/report-card', label: 'Report Card' },
+  { to: '/', label: 'Report Card' },
   { to: '/git-stats', label: 'Git Stats' },
   { to: '/tech', label: 'Tech Detect' },
   { to: '/compare', label: 'Compare' },
@@ -70,7 +70,7 @@ export function App() {
         {/* Main content */}
         <main className="flex-1 overflow-y-auto">
           <Routes>
-            <Route path="/" element={<Dashboard />} />
+            <Route path="/" element={<ReportCardPage />} />
             <Route path="/report-card" element={<ReportCardPage />} />
             <Route path="/git-stats" element={<GitStatsPage />} />
             <Route path="/tech" element={<TechDetectPage />} />

@@ -184,14 +184,42 @@ export const desktopServices: RepoGuruServices = {
   gitStats: {
     async run(repo, opts): Promise<GitStatsResult> {
       const outPath = `/tmp/repoguru-${Date.now()}.bin`;
-      // Phase 1: scan the repo, producing a binary report file.
+      // Phase 1: scan the repo, producing a binary report file. Heuristic
+      // mapping for the overall progress: the scan phase covers 0–60%; the
+      // section-streaming phase covers 60–100%. Inside the scan phase we
+      // smooth-ramp the sub-progress from commits_processed.
+      const PHASE1_END = 60;
+      let scanTotal = 0;
       await new Promise<void>((resolve, reject) => {
         const req: ScanRequest = { repo_path: repo, out_path: outPath };
         grpcClient
           .scan(req, (p: ScanProgress) => {
             if (p.error) reject(new Error(p.error));
-            opts?.onProgress?.(p.message || `Scanning... commits ${p.commits_processed}`);
-            if (p.done) resolve();
+            // Estimate progress: until 'walk' completes we don't know the
+            // total commits, so cap sub at 30% during phases that have no
+            // total yet, then go off commits_processed/scanTotal.
+            if (p.commits_processed > scanTotal) scanTotal = p.commits_processed;
+            const sub = scanTotal > 0
+              ? Math.min(99, (p.commits_processed / Math.max(1, scanTotal)) * 100)
+              : 30;
+            const overall = scanTotal > 0
+              ? (p.commits_processed / Math.max(1, scanTotal)) * PHASE1_END
+              : Math.min(15, p.elapsed_seconds * 5);
+            opts?.onProgress?.({
+              message: p.message || `Scanned ${p.commits_processed.toLocaleString()} commits…`,
+              overall,
+              sub,
+              phase: p.phase || 'scanning',
+            });
+            if (p.done) {
+              opts?.onProgress?.({
+                message: `Scan complete · ${p.commits_processed.toLocaleString()} commits in ${p.elapsed_seconds.toFixed(1)}s`,
+                overall: PHASE1_END,
+                sub: 100,
+                phase: 'scanning',
+              });
+              resolve();
+            }
           })
           .catch(reject);
       });
@@ -212,11 +240,16 @@ export const desktopServices: RepoGuruServices = {
       const analyzer = new GrpcAnalyzer(wrapped);
       const wireData: Record<string, unknown> = {};
       const canonical: CanonicalGitStatsData = {};
+      // GrpcAnalyzer emits ~7 sections; advance overall progress 60→100%
+      // and reset sub-bar to a per-section ramp.
+      const SCAN_DONE_AT = 60;
+      const TOTAL_DONE = 100;
+      let sectionsLoaded = 0;
+      const TOTAL_SECTIONS = 7;
       for await (const event of analyzer.analyze({ source: repo, outPath })) {
         if (opts?.signal?.aborted) throw new DOMException('aborted', 'AbortError');
         if (event.kind === 'section') {
           (canonical as Record<string, unknown>)[event.section.name] = event.section.data;
-          opts?.onProgress?.(`Loaded ${event.section.name}`);
           if (event.section.name === 'overview') {
             const report = captured['__report'] ?? {};
             wireData['author_names'] = report['authors'] ?? {};
@@ -224,10 +257,26 @@ export const desktopServices: RepoGuruServices = {
             const raw = captured[event.section.name] ?? {};
             Object.assign(wireData, raw);
           }
+          sectionsLoaded += 1;
+          const overall =
+            SCAN_DONE_AT + ((TOTAL_DONE - SCAN_DONE_AT) * sectionsLoaded) / TOTAL_SECTIONS;
+          const sub = (sectionsLoaded / TOTAL_SECTIONS) * 100;
+          opts?.onProgress?.({
+            message: `Loading ${event.section.name}…`,
+            overall: Math.min(99, overall),
+            sub,
+            phase: 'sections',
+          });
         } else if (event.kind === 'error') {
           throw event.error;
         }
       }
+      opts?.onProgress?.({
+        message: 'Analysis complete',
+        overall: 100,
+        sub: 100,
+        phase: 'done',
+      });
       const reportRaw = (captured['__report'] ?? {}) as Record<string, unknown>;
       const overview = canonical.overview;
       const analysis = wireToLegacy(wireData as never, {

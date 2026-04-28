@@ -7,12 +7,14 @@ import { PrimaryButton, SecondaryButton } from '../chrome/Buttons.js';
 import { LoadingPanel, ErrorPanel } from '../chrome/StatusPanels.js';
 import { RepoPicker } from '../chrome/RepoPicker.js';
 import type { GitStatsAnalysis } from '../charts/legacyTypes.js';
+import type { GitStatsProgress } from '../services/types.js';
 
 type Step = 'idle' | 'loading' | 'done' | 'error';
 
 interface State {
   step: Step;
   message: string;
+  progress: GitStatsProgress | null;
   analysis: GitStatsAnalysis | null;
   error: string | null;
 }
@@ -27,6 +29,7 @@ export function GitStatsPage() {
   const [state, setState] = useState<State>({
     step: 'idle',
     message: '',
+    progress: null,
     analysis: null,
     error: null,
   });
@@ -37,16 +40,27 @@ export function GitStatsPage() {
     abortRef.current?.abort();
     const controller = new AbortController();
     abortRef.current = controller;
-    setState({ step: 'loading', message: 'Cloning repository...', analysis: null, error: null });
+    setState({
+      step: 'loading',
+      message: 'Cloning repository...',
+      progress: { message: 'Cloning repository...', overall: 1, sub: 0, phase: 'starting' },
+      analysis: null,
+      error: null,
+    });
     try {
       const result = await gitStats.run(input.trim(), {
         signal: controller.signal,
-        onProgress: (msg) =>
-          setState((prev) => (prev.step === 'loading' ? { ...prev, message: msg } : prev)),
+        onProgress: (p) =>
+          setState((prev) =>
+            prev.step === 'loading'
+              ? { ...prev, message: p.message, progress: p }
+              : prev,
+          ),
       });
       setState({
         step: 'done',
         message: '',
+        progress: null,
         analysis: result.analysis as GitStatsAnalysis,
         error: null,
       });
@@ -55,6 +69,7 @@ export function GitStatsPage() {
       setState({
         step: 'error',
         message: '',
+        progress: null,
         analysis: null,
         error: err instanceof Error ? err.message : 'An unexpected error occurred.',
       });
@@ -63,7 +78,7 @@ export function GitStatsPage() {
 
   const handleReset = useCallback(() => {
     abortRef.current?.abort();
-    setState({ step: 'idle', message: '', analysis: null, error: null });
+    setState({ step: 'idle', message: '', progress: null, analysis: null, error: null });
   }, []);
 
   return (
@@ -79,7 +94,7 @@ export function GitStatsPage() {
       />
 
       {state.step !== 'done' && (
-        <div className="mb-8 max-w-2xl mx-auto">
+        <div className="mb-8 max-w-4xl mx-auto">
           <RepoPicker
             inputId="git-stats-repo"
             label="Repository"
@@ -99,7 +114,14 @@ export function GitStatsPage() {
         </div>
       )}
 
-      {state.step === 'loading' && <LoadingPanel message={state.message} />}
+      {state.step === 'loading' && (
+        <LoadingPanel
+          message={state.message}
+          subMessage={state.progress?.phase}
+          progress={state.progress?.overall}
+          subProgress={state.progress?.sub}
+        />
+      )}
 
       {state.step === 'error' && state.error && (
         <ErrorPanel

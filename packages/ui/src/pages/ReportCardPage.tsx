@@ -93,7 +93,7 @@ export function ReportCardPage({ initialRepo, actions }: ReportCardPageProps) {
       />
 
       {state.step !== 'done' && (
-        <div className="mb-8 max-w-2xl mx-auto">
+        <div className="mb-8 max-w-4xl mx-auto">
           <RepoPicker
             inputId="report-card-repo"
             label="Repository"

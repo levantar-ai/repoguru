@@ -135,10 +135,21 @@ export interface OrgScanService {
 
 // ─────────────────────────── Git Stats ───────────────────────────────
 
+export interface GitStatsProgress {
+  /** Free-form line for the secondary status display. */
+  message: string;
+  /** 0–100, drives the overall progress bar. */
+  overall: number;
+  /** 0–100, drives the per-phase sub-progress bar. */
+  sub: number;
+  /** Optional explicit phase name (cloning / scanning / diffing / sizing / sectioning). */
+  phase?: string;
+}
+
 export interface GitStatsRunOptions {
   signal?: AbortSignal;
-  /** Free-form progress messages for the LoadingPanel. */
-  onProgress?: (message: string) => void;
+  /** Streaming progress for the LoadingPanel double-bar UI. */
+  onProgress?: (p: GitStatsProgress) => void;
 }
 
 /** The shape `<GitStatsView />` consumes is the legacy GitStatsAnalysis

@@ -88,7 +88,7 @@ export function OrgScanPage() {
       />
 
       {state.step !== 'done' && (
-        <div className="mb-8 max-w-2xl mx-auto space-y-4">
+        <div className="mb-8 max-w-4xl mx-auto space-y-4">
           <div>
             <label htmlFor="org-target" className="block text-sm font-medium text-text-secondary mb-1.5">
               Organization or Username
@@ -147,7 +147,7 @@ export function OrgScanPage() {
         <>
           <LoadingPanel message={state.message} />
           {state.progress && state.progress.total > 0 && (
-            <div className="max-w-2xl mx-auto -mt-8 mb-8">
+            <div className="max-w-4xl mx-auto -mt-8 mb-8">
               <div className="h-2 rounded-full bg-surface-alt overflow-hidden border border-border">
                 <div
                   className="h-full bg-neon transition-all duration-300"
