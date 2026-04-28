@@ -91,7 +91,10 @@ export const desktopServices: RepoGuruServices = {
     },
   },
   score: {
-    async run() { throw new Error('score not yet wired in DesktopServices'); },
+    async run(repo) {
+      const score = (await grpcClient.scoreReportCard(repo)) as ScoreResponse;
+      return { report: scoreToReportCardData(score, repo) };
+    },
   },
   techDetect: {
     async run() { throw new Error('techDetect not yet wired in DesktopServices'); },

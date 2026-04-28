@@ -232,8 +232,42 @@ export function makeBrowserServices(
     // The remaining services aren't lifted yet — pages still call them via
     // the legacy host code. They'll be wired as each page is lifted.
     score: {
-      async run() {
-        throw new Error('score service not yet wired in BrowserServices');
+      async run(repoInput, opts) {
+        const token = getToken();
+        const report = await analyzeOneForCompare(repoInput, 'repository', token, opts?.onProgress);
+        const card = lightReportToReportCardData(report);
+        const repoName = `${card.repo.owner}/${card.repo.repo}`;
+        const stats = (
+          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3 mt-4">
+            {[
+              ['Stars', formatNumber(report.repoInfo.stars)],
+              ['Forks', formatNumber(report.repoInfo.forks)],
+              ['Open Issues', formatNumber(report.repoInfo.openIssues)],
+              ['Language', report.repoInfo.language || 'N/A'],
+              ['License', report.repoInfo.license || 'None'],
+              ['Files', formatNumber(report.treeEntryCount)],
+            ].map(([label, val]) => (
+              <div key={label} className="rounded-xl bg-surface-alt border border-border px-4 py-3 text-center">
+                <div className="text-sm font-semibold text-text">{val}</div>
+                <div className="text-[10px] text-text-muted uppercase tracking-wider mt-0.5">{label}</div>
+              </div>
+            ))}
+          </div>
+        );
+        return {
+          report: card,
+          extras: report.techStack.length > 0 ? (
+            <div className="space-y-4">
+              {stats}
+              <TechStackComparison
+                techA={report.techStack}
+                techB={[]}
+                nameA={`${repoName} — detected tech`}
+                nameB="(no comparison)"
+              />
+            </div>
+          ) : stats,
+        };
       },
     },
     techDetect: {

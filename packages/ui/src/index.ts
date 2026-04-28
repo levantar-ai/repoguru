@@ -34,6 +34,8 @@ export type {
 // Lifted pages — both hosts mount the SAME component. VS Code-style
 // shared codebase: the page never imports anything host-specific.
 export { ComparePage } from './pages/ComparePage.js';
+export { ReportCardPage } from './pages/ReportCardPage.js';
+export type { ReportCardPageProps } from './pages/ReportCardPage.js';
 
 // Page chrome — used by both apps so headers/inputs/buttons/status
 // panels render identically across hosts. The in-browser app is the

@@ -1,7 +1,6 @@
 import { HashRouter, Routes, Route, NavLink } from 'react-router';
-import { ComparePage, RepoGuruProvider } from '@repoguru/ui';
+import { ComparePage, ReportCardPage, RepoGuruProvider } from '@repoguru/ui';
 import { Dashboard } from './pages/Dashboard';
-import { ReportCard } from './pages/ReportCard';
 import { GitStats } from './pages/GitStats';
 import { TechDetect } from './pages/TechDetect';
 import { OrgScan } from './pages/OrgScan';
@@ -76,7 +75,7 @@ export function App() {
         <main className="flex-1 overflow-y-auto">
           <Routes>
             <Route path="/" element={<Dashboard />} />
-            <Route path="/report-card" element={<ReportCard />} />
+            <Route path="/report-card" element={<ReportCardPage />} />
             <Route path="/git-stats" element={<GitStats />} />
             <Route path="/tech" element={<TechDetect />} />
             <Route path="/compare" element={<ComparePage />} />

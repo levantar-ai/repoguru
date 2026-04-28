@@ -5,7 +5,7 @@ import { BrowserServicesProvider } from './services/BrowserServicesProvider';
 import { Layout } from './components/layout/Layout';
 import { SettingsPanel } from './components/settings/SettingsPanel';
 import { LoadingScreen } from './components/common/LoadingScreen';
-import { HomePage } from './pages/HomePage';
+import { ReportCardPage } from '@repoguru/ui';
 import { trackPageView, trackEvent } from './utils/analytics';
 import {
   handleOAuthCallback,
@@ -174,7 +174,7 @@ function AppContent() {
     <Layout onNavigate={handleNavigate} currentPage={page}>
       {oauthToast && <OAuthToast message={oauthToast} onDone={() => setOauthToast(null)} />}
       <div style={{ display: page === 'home' ? undefined : 'none' }}>
-        <HomePage onNavigate={handleNavigate} initialRepo={pendingRepo} />
+        <ReportCardPage initialRepo={pendingRepo ?? undefined} />
       </div>
       <div style={{ display: page === 'docs' ? undefined : 'none' }}>
         {visitedPages.has('docs') && (
