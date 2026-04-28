@@ -14,7 +14,12 @@ import {
   type PolicyPreset,
   type PolicyEvalResult,
   type PolicyEvalRuleResult,
+  type OrgScanItem,
+  type OrgScanSummary,
+  type OrgScanResult,
+  type Grade,
 } from '@repoguru/ui';
+import { GITHUB_API_BASE, GRADE_THRESHOLDS } from '../utils/constants';
 import { evaluatePolicy as runEvalPolicy, DEFAULT_POLICIES } from './analysis/policyEngine';
 import { parseRepoUrl } from '../services/github/parser';
 import { githubFetch } from '../services/github/client';
@@ -363,8 +368,92 @@ export function makeBrowserServices(
       },
     },
     orgScan: {
-      async run() {
-        throw new Error('orgScan service not yet wired in BrowserServices');
+      async run(req, opts): Promise<OrgScanResult> {
+        const token = getToken();
+        const ghHeaders: Record<string, string> = { Accept: 'application/vnd.github.v3+json' };
+        if (token) ghHeaders.Authorization = `Bearer ${token}`;
+        const ghFetch = async (url: string) => {
+          const res = await fetch(url, { headers: ghHeaders, signal: opts?.signal });
+          if (!res.ok) throw new Error(`GitHub API ${res.status} ${res.statusText}`);
+          return res;
+        };
+
+        // List repos.
+        opts?.onProgress?.({
+          phase: 'listing',
+          total: 0,
+          completed: 0,
+          currentRepo: '',
+          items: [],
+        });
+        const listEndpoint = req.isUser ? `users/${encodeURIComponent(req.target)}/repos` : `orgs/${encodeURIComponent(req.target)}/repos`;
+        const allRepos: Array<Record<string, unknown>> = [];
+        const maxPages = 10;
+        for (let page = 1; page <= maxPages; page++) {
+          const r = await ghFetch(`${GITHUB_API_BASE}/${listEndpoint}?per_page=100&sort=updated&page=${page}`);
+          const batch = (await r.json()) as Array<Record<string, unknown>>;
+          if (!Array.isArray(batch) || batch.length === 0) break;
+          allRepos.push(...batch);
+          if (batch.length < 100) break;
+        }
+        const filtered = allRepos.filter((r) => {
+          if (req.skipForks && r.fork) return false;
+          if (req.skipArchived && r.archived) return false;
+          return true;
+        });
+        const cap = req.maxRepos && req.maxRepos > 0 ? Math.min(filtered.length, req.maxRepos) : filtered.length;
+        const list = filtered.slice(0, cap);
+
+        // Analyse each repo.
+        const items: OrgScanItem[] = [];
+        for (let i = 0; i < list.length; i++) {
+          if (opts?.signal?.aborted) throw new DOMException('aborted', 'AbortError');
+          const raw = list[i];
+          const repoName = raw.name as string;
+          const fullName = raw.full_name as string;
+          const owner = (fullName.split('/')[0] ?? '');
+          opts?.onProgress?.({
+            phase: 'analyzing',
+            total: list.length,
+            completed: i,
+            currentRepo: fullName,
+            items: [...items],
+          });
+          try {
+            const report = await analyzeOneForCompare(`${owner}/${repoName}`, repoName, token, undefined);
+            items.push({
+              repo: { owner: report.repo.owner, repo: report.repo.repo },
+              grade: report.grade,
+              overallScore: report.overallScore,
+              language: report.repoInfo.language ?? undefined,
+              categories: report.categories.map((c) => ({ key: c.key, label: c.label, score: c.score })),
+            });
+          } catch {
+            // Skip repos that fail to clone/analyze; org scan is best-effort.
+          }
+        }
+
+        const totalScore = items.reduce((s, it) => s + it.overallScore, 0);
+        const avg = items.length > 0 ? Math.round(totalScore / items.length) : 0;
+        const avgGrade: Grade = avg >= GRADE_THRESHOLDS.A ? 'A' : avg >= GRADE_THRESHOLDS.B ? 'B' : avg >= GRADE_THRESHOLDS.C ? 'C' : avg >= GRADE_THRESHOLDS.D ? 'D' : 'F';
+        const distribution = items.reduce<Partial<Record<Grade, number>>>(
+          (acc, it) => ({ ...acc, [it.grade]: (acc[it.grade] ?? 0) + 1 }),
+          {},
+        );
+        const summary: OrgScanSummary = {
+          totalRepos: items.length,
+          averageScore: avg,
+          averageGrade: avgGrade,
+          gradeDistribution: distribution,
+        };
+        opts?.onProgress?.({
+          phase: 'done',
+          total: list.length,
+          completed: list.length,
+          currentRepo: '',
+          items,
+        });
+        return { items, summary };
       },
     },
   };

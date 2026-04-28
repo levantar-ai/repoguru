@@ -12,6 +12,9 @@ import {
   type PolicyEvalRuleResult,
   type PolicySeverity,
   type PolicyPreset,
+  type OrgScanItem,
+  type OrgScanSummary,
+  type OrgScanResult,
 } from '@repoguru/ui';
 import { grpcClient, type ScoreResponse } from '@/services/grpc-client';
 import { getRecentRepos } from '@/services/storage';
@@ -175,6 +178,70 @@ export const desktopServices: RepoGuruServices = {
     },
   },
   orgScan: {
-    async run() { throw new Error('orgScan not yet wired in DesktopServices'); },
+    async run(req, opts): Promise<OrgScanResult> {
+      let items: OrgScanItem[] = [];
+      let summary: OrgScanSummary = { totalRepos: 0, averageScore: 0, averageGrade: 'F' };
+      await new Promise<void>((resolve, reject) => {
+        const onProgress = (p: {
+          phase: string;
+          repo_name: string;
+          repos_total: number;
+          repos_completed: number;
+          repo_scores: Array<{ repo_name: string; overall_score: number; grade: string; categories: Array<{ key: string; label: string; score: number }> }>;
+          average_score: number;
+          average_grade: string;
+          error: string;
+        }) => {
+          const repoScores = p.repo_scores ?? [];
+          const built: OrgScanItem[] = repoScores.map((r) => {
+            const slash = r.repo_name.indexOf('/');
+            const owner = slash >= 0 ? r.repo_name.slice(0, slash) : '';
+            const repo = slash >= 0 ? r.repo_name.slice(slash + 1) : r.repo_name;
+            return {
+              repo: { owner, repo },
+              grade: asGrade(r.grade),
+              overallScore: r.overall_score,
+              categories: (r.categories ?? []).map((c) => ({ key: c.key, label: c.label, score: c.score })),
+            };
+          });
+          items = built;
+          opts?.onProgress?.({
+            phase: p.phase === 'done' ? 'done' : p.phase === 'listing' ? 'listing' : 'analyzing',
+            total: p.repos_total,
+            completed: p.repos_completed,
+            currentRepo: p.repo_name,
+            items: built,
+          });
+          if (p.phase === 'done') {
+            summary = {
+              totalRepos: built.length,
+              averageScore: p.average_score,
+              averageGrade: asGrade(p.average_grade),
+              gradeDistribution: built.reduce<Partial<Record<Grade, number>>>(
+                (acc, it) => ({ ...acc, [it.grade]: (acc[it.grade] ?? 0) + 1 }),
+                {},
+              ),
+            };
+            resolve();
+          }
+          if (p.error) reject(new Error(p.error));
+        };
+        grpcClient
+          .scanOrg(
+            {
+              org_or_user: req.target,
+              is_user: !!req.isUser,
+              github_token: '',
+              clone_base_dir: '/tmp/repoguru-orgscan',
+              max_repos: req.maxRepos ?? 0,
+              skip_forks: req.skipForks ?? true,
+              skip_archived: req.skipArchived ?? true,
+            },
+            onProgress as never,
+          )
+          .catch(reject);
+      });
+      return { items, summary };
+    },
   },
 };

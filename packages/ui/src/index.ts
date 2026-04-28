@@ -39,6 +39,7 @@ export type { ReportCardPageProps } from './pages/ReportCardPage.js';
 export { TechDetectPage } from './pages/TechDetectPage.js';
 export { PolicyPage } from './pages/PolicyPage.js';
 export type { PolicyPageProps } from './pages/PolicyPage.js';
+export { OrgScanPage } from './pages/OrgScanPage.js';
 
 // Page chrome — used by both apps so headers/inputs/buttons/status
 // panels render identically across hosts. The in-browser app is the

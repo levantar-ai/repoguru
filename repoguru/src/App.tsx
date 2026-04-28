@@ -22,7 +22,7 @@ const HowItWorksPage = lazy(() =>
   import('./pages/HowItWorksPage').then((m) => ({ default: m.HowItWorksPage })),
 );
 const OrgScanPage = lazy(() =>
-  import('./pages/OrgScanPage').then((m) => ({ default: m.OrgScanPage })),
+  import('@repoguru/ui').then((m) => ({ default: m.OrgScanPage })),
 );
 // ComparePage now lives in @repoguru/ui — both the browser and the
 // desktop mount the same React component. The browser wires a
@@ -186,7 +186,7 @@ function AppContent() {
       <div style={{ display: page === 'org-scan' ? undefined : 'none' }}>
         {visitedPages.has('org-scan') && (
           <Suspense fallback={<LoadingScreen />}>
-            <OrgScanPage onAnalyze={() => handleNavigate('home')} githubToken={token} />
+            <OrgScanPage />
           </Suspense>
         )}
       </div>
