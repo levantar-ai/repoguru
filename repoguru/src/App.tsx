@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, lazy, Suspense } from 'react';
 import { AppProvider, useApp } from './context/AppContext';
 import { AnalysisProvider } from './context/AnalysisContext';
+import { BrowserServicesProvider } from './services/BrowserServicesProvider';
 import { Layout } from './components/layout/Layout';
 import { SettingsPanel } from './components/settings/SettingsPanel';
 import { LoadingScreen } from './components/common/LoadingScreen';
@@ -23,8 +24,12 @@ const HowItWorksPage = lazy(() =>
 const OrgScanPage = lazy(() =>
   import('./pages/OrgScanPage').then((m) => ({ default: m.OrgScanPage })),
 );
+// ComparePage now lives in @repoguru/ui — both the browser and the
+// desktop mount the same React component. The browser wires a
+// BrowserServices implementation via <RepoGuruProvider>; the desktop
+// wires a gRPC-backed DesktopServices.
 const ComparePage = lazy(() =>
-  import('./pages/ComparePage').then((m) => ({ default: m.ComparePage })),
+  import('@repoguru/ui').then((m) => ({ default: m.ComparePage })),
 );
 const PortfolioPage = lazy(() =>
   import('./pages/PortfolioPage').then((m) => ({ default: m.PortfolioPage })),
@@ -188,7 +193,7 @@ function AppContent() {
       <div style={{ display: page === 'compare' ? undefined : 'none' }}>
         {visitedPages.has('compare') && (
           <Suspense fallback={<LoadingScreen />}>
-            <ComparePage githubToken={token} />
+            <ComparePage />
           </Suspense>
         )}
       </div>
@@ -238,8 +243,10 @@ export default function App() {
   return (
     <AppProvider>
       <AnalysisProvider>
-        <AppContent />
-        <SettingsPanel />
+        <BrowserServicesProvider>
+          <AppContent />
+          <SettingsPanel />
+        </BrowserServicesProvider>
       </AnalysisProvider>
     </AppProvider>
   );

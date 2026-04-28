@@ -1,13 +1,14 @@
 import { HashRouter, Routes, Route, NavLink } from 'react-router';
+import { ComparePage, RepoGuruProvider } from '@repoguru/ui';
 import { Dashboard } from './pages/Dashboard';
 import { ReportCard } from './pages/ReportCard';
 import { GitStats } from './pages/GitStats';
 import { TechDetect } from './pages/TechDetect';
-import { Compare } from './pages/Compare';
 import { OrgScan } from './pages/OrgScan';
 import { PolicyEngine } from './pages/PolicyEngine';
 import { Settings } from './pages/Settings';
 import { ThemeToggle } from './components/common/ThemeToggle';
+import { desktopServices } from './services/repoGuruServices';
 
 const NAV_ICONS: Record<string, string> = {
   '/': 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6',
@@ -33,6 +34,7 @@ const navItems = [
 
 export function App() {
   return (
+    <RepoGuruProvider services={desktopServices}>
     <HashRouter>
       <div className="flex h-screen bg-gray-950 text-gray-100">
         {/* Sidebar */}
@@ -77,7 +79,7 @@ export function App() {
             <Route path="/report-card" element={<ReportCard />} />
             <Route path="/git-stats" element={<GitStats />} />
             <Route path="/tech" element={<TechDetect />} />
-            <Route path="/compare" element={<Compare />} />
+            <Route path="/compare" element={<ComparePage />} />
             <Route path="/org-scan" element={<OrgScan />} />
             <Route path="/policy" element={<PolicyEngine />} />
             <Route path="/settings" element={<Settings />} />
@@ -85,5 +87,6 @@ export function App() {
         </main>
       </div>
     </HashRouter>
+    </RepoGuruProvider>
   );
 }

@@ -4,6 +4,36 @@
 // apps render the same React tree against the same `GitStatsAnalysis`
 // (the legacy view contract — see `legacyTypes.ts`).
 
+// Service injection — hosts implement RepoGuruServices and wrap their
+// app in <RepoGuruProvider services={...}>. Shared pages then call
+// useRepoGuru() to get the host-injected processing engine. The same
+// React component runs in every host; only the engine differs.
+export { RepoGuruProvider, useRepoGuru } from './services/Provider.js';
+export type {
+  RepoGuruServices,
+  RepoRef,
+  CompareService,
+  CompareRunOptions,
+  CompareResult,
+  ScoreService,
+  ScoreRunOptions,
+  ScoreResult,
+  TechDetectService,
+  PolicyService,
+  PolicyPreset,
+  PolicyEvaluateRequest,
+  OrgScanService,
+  OrgScanRequest,
+  OrgScanProgress,
+  OrgScanResult,
+  RepoPickerProps,
+  RepoPickerComponent,
+} from './services/types.js';
+
+// Lifted pages — both hosts mount the SAME component. VS Code-style
+// shared codebase: the page never imports anything host-specific.
+export { ComparePage } from './pages/ComparePage.js';
+
 // Page chrome — used by both apps so headers/inputs/buttons/status
 // panels render identically across hosts. The in-browser app is the
 // visual reference for these (SPEC §1).
