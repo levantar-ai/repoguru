@@ -11,7 +11,11 @@ import {
   type CompareRunOptions,
   type ReportCardData,
   type RepoSuggestion,
+  type PolicyPreset,
+  type PolicyEvalResult,
+  type PolicyEvalRuleResult,
 } from '@repoguru/ui';
+import { evaluatePolicy as runEvalPolicy, DEFAULT_POLICIES } from './analysis/policyEngine';
 import { parseRepoUrl } from '../services/github/parser';
 import { githubFetch } from '../services/github/client';
 import { runLightAnalysis } from '../services/analysis/lightEngine';
@@ -319,9 +323,43 @@ export function makeBrowserServices(
       },
     },
     policy: {
-      listPresets: () => [],
-      async evaluate() {
-        throw new Error('policy service not yet wired in BrowserServices');
+      listPresets(): PolicyPreset[] {
+        return DEFAULT_POLICIES.map((p) => ({ id: p.id, label: p.name, description: p.description }));
+      },
+      async evaluate(req, opts): Promise<PolicyEvalResult> {
+        const policySet = DEFAULT_POLICIES.find((p) => p.id === req.presetId);
+        if (!policySet) throw new Error(`Unknown preset: ${req.presetId}`);
+        const token = getToken();
+        const lightReport = await analyzeOneForCompare(req.repo, 'repository', token, opts?.onProgress);
+        opts?.onProgress?.('Evaluating policy rules...');
+        // The policy engine only reads overallScore, categories, signals, and
+        // repo identity — LightAnalysisReport is a faithful subset for those
+        // fields. Cast through unknown so TS sees the structural compatibility.
+        const reportForPolicy = lightReport as unknown as Parameters<typeof runEvalPolicy>[1];
+        const evalResult = runEvalPolicy(policySet, reportForPolicy);
+        return {
+          passed: evalResult.passed,
+          passCount: evalResult.passCount,
+          failCount: evalResult.failCount,
+          policyName: policySet.name,
+          repoLabel: evalResult.repo,
+          results: evalResult.results.map<PolicyEvalRuleResult>((r) => ({
+            passed: r.passed,
+            actual: r.actual,
+            expected: r.expected,
+            rule: {
+              id: r.rule.id,
+              name: r.rule.name,
+              description: r.rule.description,
+              type: r.rule.type,
+              operator: r.rule.operator,
+              value: r.rule.value,
+              category: r.rule.category,
+              signal: r.rule.signal,
+              severity: r.rule.severity,
+            },
+          })),
+        };
       },
     },
     orgScan: {

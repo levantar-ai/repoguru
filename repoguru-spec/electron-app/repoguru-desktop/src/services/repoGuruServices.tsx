@@ -8,6 +8,10 @@ import {
   type ReportCardData,
   type Grade,
   type RepoSuggestion,
+  type PolicyEvalResult,
+  type PolicyEvalRuleResult,
+  type PolicySeverity,
+  type PolicyPreset,
 } from '@repoguru/ui';
 import { grpcClient, type ScoreResponse } from '@/services/grpc-client';
 import { getRecentRepos } from '@/services/storage';
@@ -50,6 +54,12 @@ interface CompareResponseWire {
   winner: string;
   score_delta: number;
 }
+
+const DESKTOP_PRESETS: PolicyPreset[] = [
+  { id: 'basic-hygiene', label: 'Basic Hygiene', description: 'README, LICENSE, CI/CD basics' },
+  { id: 'production-ready', label: 'Production Ready', description: 'Full CI/CD, security, quality' },
+  { id: 'security-focused', label: 'Security Focused', description: 'Strict security and supply chain' },
+];
 
 export const desktopServices: RepoGuruServices = {
   isDesktop: true,
@@ -123,8 +133,46 @@ export const desktopServices: RepoGuruServices = {
     },
   },
   policy: {
-    listPresets: () => [],
-    async evaluate() { throw new Error('policy not yet wired in DesktopServices'); },
+    listPresets: (): PolicyPreset[] => DESKTOP_PRESETS,
+    async evaluate(req): Promise<PolicyEvalResult> {
+      const score = (await grpcClient.scoreReportCard(req.repo)) as ScoreResponse;
+      const wire = (await grpcClient.evaluatePolicy(req.presetId, score)) as {
+        passed: boolean;
+        pass_count: number;
+        fail_count: number;
+        results: Array<{
+          rule: { id: string; name: string; description: string; type: string; operator: string; value: number; category: string; signal: string; severity: string };
+          passed: boolean;
+          actual: string;
+          expected: string;
+        }>;
+      };
+      const preset = DESKTOP_PRESETS.find((p) => p.id === req.presetId);
+      const asSeverity = (s: string): PolicySeverity => (s === 'error' || s === 'warning' || s === 'info' ? s : 'info');
+      return {
+        passed: wire.passed,
+        passCount: wire.pass_count,
+        failCount: wire.fail_count,
+        policyName: preset?.label ?? req.presetId,
+        repoLabel: req.repo,
+        results: wire.results.map<PolicyEvalRuleResult>((r) => ({
+          passed: r.passed,
+          actual: r.actual,
+          expected: r.expected,
+          rule: {
+            id: r.rule.id,
+            name: r.rule.name,
+            description: r.rule.description,
+            type: r.rule.type,
+            operator: r.rule.operator,
+            value: r.rule.value,
+            category: r.rule.category || undefined,
+            signal: r.rule.signal || undefined,
+            severity: asSeverity(r.rule.severity),
+          },
+        })),
+      };
+    },
   },
   orgScan: {
     async run() { throw new Error('orgScan not yet wired in DesktopServices'); },

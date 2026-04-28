@@ -38,7 +38,7 @@ const DiscoverPage = lazy(() =>
   import('./pages/DiscoverPage').then((m) => ({ default: m.DiscoverPage })),
 );
 const PolicyPage = lazy(() =>
-  import('./pages/PolicyPage').then((m) => ({ default: m.PolicyPage })),
+  import('@repoguru/ui').then((m) => ({ default: m.PolicyPage })),
 );
 const GitStatsPage = lazy(() =>
   import('./pages/GitStatsPage').then((m) => ({ default: m.GitStatsPage })),
@@ -217,7 +217,7 @@ function AppContent() {
       <div style={{ display: page === 'policy' ? undefined : 'none' }}>
         {visitedPages.has('policy') && (
           <Suspense fallback={<LoadingScreen />}>
-            <PolicyPage onNavigate={handleNavigate as (page: string) => void} />
+            <PolicyPage />
           </Suspense>
         )}
       </div>
