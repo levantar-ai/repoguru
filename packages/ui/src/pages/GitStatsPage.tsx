@@ -95,12 +95,12 @@ export function GitStatsPage() {
   return (
     <PageContainer>
       <PageHero
-        title="Git"
-        highlight="Stats"
+        title="Mine commits, contributors, and"
+        highlight="ownership."
         subtitle={
           isDesktop
-            ? 'Mine commit history, contributors, code ownership, and trends across every commit in the repository.'
-            : 'Mine commit history, contributors, code ownership, and trends across the most recent 1000 commits in the repository.'
+            ? 'Heatmaps, bus factor, code frequency, hotspots — across every commit in the repo.'
+            : 'Heatmaps, bus factor, code frequency, hotspots — across the most recent 1,000 commits.'
         }
       />
 

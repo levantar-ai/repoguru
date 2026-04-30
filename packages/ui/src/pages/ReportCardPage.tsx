@@ -5,6 +5,7 @@ import { PageContainer } from '../chrome/PageContainer.js';
 import { PageHero } from '../chrome/PageHero.js';
 import { PrimaryButton, SecondaryButton } from '../chrome/Buttons.js';
 import { LoadingPanel, ErrorPanel } from '../chrome/StatusPanels.js';
+import { PrivacyStrip } from '../chrome/PrivacyStrip.js';
 import { RepoPicker } from '../chrome/RepoPicker.js';
 import type { ScoreResult } from '../services/types.js';
 
@@ -108,10 +109,11 @@ export function ReportCardPage({ initialRepo, actions }: ReportCardPageProps) {
   return (
     <PageContainer>
       <PageHero
-        title="Repository"
-        highlight="Report Card"
-        subtitle="Analyze any repository for security, documentation, CI/CD, dependencies, and more. Instant letter grades."
+        title="Score any repo —"
+        highlight="instantly, in your browser."
+        subtitle="A–F grade across security, documentation, CI/CD, and code health. No code leaves your machine."
       />
+      <PrivacyStrip />
 
       <div className="mb-8 max-w-4xl mx-auto">
         <RepoPicker

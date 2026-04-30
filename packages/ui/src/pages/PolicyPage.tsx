@@ -75,9 +75,9 @@ export function PolicyPage({ editorSection }: PolicyPageProps) {
   return (
     <PageContainer>
       <PageHero
-        title="Compliance"
-        highlight="Policy"
-        subtitle="Evaluate a repository against a compliance preset. Each rule emits PASS/FAIL with severity and the threshold it tested."
+        title="Run a repo through your"
+        highlight="compliance policy."
+        subtitle="PASS / FAIL on every rule, with severity and threshold. Pick a preset or paste your own ruleset."
       />
 
       {editorSection}

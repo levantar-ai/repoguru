@@ -3,6 +3,7 @@ import { useRepoGuru } from '../services/Provider.js';
 import { TechDetectView } from '../views/TechDetectView.js';
 import { PageContainer } from '../chrome/PageContainer.js';
 import { PageHero } from '../chrome/PageHero.js';
+import { PrivacyStrip } from '../chrome/PrivacyStrip.js';
 import { PrimaryButton, SecondaryButton } from '../chrome/Buttons.js';
 import { LoadingPanel, ErrorPanel } from '../chrome/StatusPanels.js';
 import { RepoPicker } from '../chrome/RepoPicker.js';
@@ -63,10 +64,11 @@ export function TechDetectPage() {
   return (
     <PageContainer>
       <PageHero
-        title="Tech"
-        highlight="Detection"
-        subtitle="Scan any repository to detect frameworks, databases, cloud services, CI/CD pipelines, testing tools, and language dependencies."
+        title="Detect the"
+        highlight="tech stack."
+        subtitle="Frameworks, databases, cloud services, CI/CD, testing — every signal pulled from the repo, no third-party scanners."
       />
+      <PrivacyStrip />
 
       {state.step !== 'done' && (
         <div className="mb-8 max-w-4xl mx-auto">

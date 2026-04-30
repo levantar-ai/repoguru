@@ -82,9 +82,9 @@ export function OrgScanPage() {
   return (
     <PageContainer>
       <PageHero
-        title="Organization"
-        highlight="Scanner"
-        subtitle="Scan all repositories in a GitHub organization or local portfolio. Get a bird's-eye view of engineering practices."
+        title="Score every repo in your"
+        highlight="organisation."
+        subtitle="One letter grade per repo. Rank by health, find the F-graded outliers, focus where it counts."
       />
 
       {state.step !== 'done' && (

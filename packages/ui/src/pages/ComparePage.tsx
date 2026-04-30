@@ -3,6 +3,7 @@ import { useRepoGuru } from '../services/Provider.js';
 import { CompareView } from '../views/CompareView.js';
 import { PageContainer } from '../chrome/PageContainer.js';
 import { PageHero } from '../chrome/PageHero.js';
+import { PrivacyStrip } from '../chrome/PrivacyStrip.js';
 import { PrimaryButton, SecondaryButton } from '../chrome/Buttons.js';
 import { LoadingPanel, ErrorPanel } from '../chrome/StatusPanels.js';
 import { RepoPicker } from '../chrome/RepoPicker.js';
@@ -74,9 +75,10 @@ export function ComparePage() {
     <PageContainer>
       <PageHero
         title="Compare"
-        highlight="Repositories"
-        subtitle="Analyze two repositories side by side. See which one scores higher across all categories."
+        highlight="two repositories side by side."
+        subtitle="See which one scores higher across security, code quality, and CI/CD — runs locally."
       />
+      <PrivacyStrip />
 
       <div className="mb-8">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
