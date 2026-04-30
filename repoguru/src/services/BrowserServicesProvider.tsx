@@ -13,8 +13,9 @@ export function BrowserServicesProvider({ children }: { children: ReactNode }) {
     () => makeBrowserServices(
       () => state.githubToken ?? '',
       () => state.recentRepos,
+      () => (state.githubUser ? { login: state.githubUser.login } : null),
     ),
-    [state.githubToken, state.recentRepos],
+    [state.githubToken, state.recentRepos, state.githubUser],
   );
   return <RepoGuruProvider services={services}>{children}</RepoGuruProvider>;
 }

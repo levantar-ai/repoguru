@@ -210,7 +210,11 @@ function AppContent() {
       <PageMount active={page === 'portfolio'}>
         {visitedPages.has('portfolio') && (
           <Suspense fallback={<LoadingScreen />}>
-            <PortfolioPage onAnalyze={() => handleNavigate('home')} githubToken={token} />
+            <PortfolioPage
+              onAnalyze={() => handleNavigate('home')}
+              githubToken={token}
+              defaultUsername={appState.githubUser?.login}
+            />
           </Suspense>
         )}
       </PageMount>

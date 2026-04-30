@@ -233,6 +233,12 @@ export interface RepoBrowseService {
    *  when present. Pages may pass this as a fragment via React; using
    *  string here keeps the type host-neutral. */
   tokenSetupHelp?: string;
+
+  /** The authenticated GitHub user's login, if known. Lets pages
+   *  pre-fill inputs with the most-likely value (Org Scan defaults
+   *  to the user's own login; Portfolio defaults the same). Returns
+   *  null/undefined when not authed or not yet fetched. */
+  currentUser?(): { login: string } | null;
 }
 
 export type RepoPickerProps = {

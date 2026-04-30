@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { useRepoGuru } from '../services/Provider.js';
 import { OrgScanView } from '../views/OrgScanView.js';
 import { PageContainer } from '../chrome/PageContainer.js';
@@ -22,8 +22,19 @@ interface State {
  *  paginated GitHub API + light analysis per repo; desktop: gRPC
  *  ScanOrg streaming RPC against the CLI). */
 export function OrgScanPage() {
-  const { orgScan } = useRepoGuru();
-  const [target, setTarget] = useState('');
+  const { orgScan, repoBrowse } = useRepoGuru();
+  const currentLogin = repoBrowse.currentUser?.()?.login ?? '';
+  // Pre-fill with the signed-in user's login when authed. Use a lazy
+  // initialiser AND a one-shot effect for the case where the /user
+  // fetch hasn't resolved by first render — auto-fill if the user
+  // hasn't started typing yet, but never overwrite once they have.
+  const [target, setTarget] = useState(currentLogin);
+  useEffect(() => {
+    if (currentLogin && !target) setTarget(currentLogin);
+    // intentionally only dependent on currentLogin so we don't re-run
+    // every keystroke and clobber the user's typing
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentLogin]);
   const [skipForks, setSkipForks] = useState(true);
   const [skipArchived, setSkipArchived] = useState(true);
   const [maxRepos, setMaxRepos] = useState(0);

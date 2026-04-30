@@ -13,6 +13,9 @@ import { scoreToGrade, gradeColorClass, formatNumber } from '../utils/formatters
 interface Props {
   onAnalyze: (url: string) => void;
   githubToken: string;
+  /** Pre-fill the GitHub username input — used to default to the
+   *  signed-in user's login so they don't have to retype it. */
+  defaultUsername?: string;
 }
 
 // ── Internal types ──
@@ -494,8 +497,10 @@ function buildPortfolioData(trimmed: string, analyses: RepoAnalysis[]): Portfoli
 
 // ── Component ──
 
-export function PortfolioPage({ onAnalyze, githubToken }: Props) {
-  const [username, setUsername] = useState('');
+export function PortfolioPage({ onAnalyze, githubToken, defaultUsername }: Props) {
+  // Pre-fill with the signed-in user's login when authed — the most
+  // likely value, and one fewer keystroke before "Analyse my portfolio".
+  const [username, setUsername] = useState(defaultUsername ?? '');
   const [loading, setLoading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [progressLabel, setProgressLabel] = useState('');
@@ -611,7 +616,7 @@ export function PortfolioPage({ onAnalyze, githubToken }: Props) {
             <button
               type="submit"
               disabled={loading || !username.trim()}
-              className="px-6 py-3.5 rounded-xl bg-neon/10 border border-neon/30 text-neon font-semibold text-base hover:bg-neon/20 hover:border-neon/50 transition-all disabled:opacity-40 disabled:cursor-not-allowed neon-glow whitespace-nowrap"
+              className="px-6 py-3.5 rounded-lg bg-neon text-surface font-semibold text-base hover:bg-neon/90 active:bg-neon/80 transition-colors disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap"
             >
               {loading ? (
                 <span className="inline-flex items-center gap-2">

@@ -211,11 +211,13 @@ function StatsComparison({ a, b, nameA, nameB }: { a: LightAnalysisReport; b: Li
 export function makeBrowserServices(
   getToken: () => string,
   getRecents: () => RecentRepo[],
+  getCurrentUser: () => { login: string } | null = () => null,
 ): RepoGuruServices {
   return {
     isDesktop: false,
     repoBrowse: {
       hint: 'Type owner/repo or paste a GitHub URL',
+      currentUser: getCurrentUser,
       async browse() {
         const v = window.prompt('Repository (owner/repo or GitHub URL):', '');
         return v && v.trim() ? v.trim() : null;
