@@ -86,6 +86,11 @@ export function SectionLayout({ sections, header, defaultActiveId }: SectionLayo
                   type="button"
                   onClick={() => setActiveId(s.id)}
                   aria-current={isActive ? 'page' : undefined}
+                  // aria-label is the authoritative accessible name when
+                  // the visible label is hidden in collapsed mode. title=
+                  // alone is a last-resort fallback per HTML AAM and is
+                  // skipped by some screen readers.
+                  aria-label={collapsed ? s.label : undefined}
                   title={collapsed ? s.label : undefined}
                   className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
                     isActive
@@ -94,7 +99,7 @@ export function SectionLayout({ sections, header, defaultActiveId }: SectionLayo
                   } ${collapsed ? 'justify-center' : ''}`}
                 >
                   <span className="h-5 w-5 shrink-0" aria-hidden="true">{s.icon}</span>
-                  {!collapsed && <span className="truncate">{s.label}</span>}
+                  <span className={collapsed ? 'sr-only' : 'truncate'}>{s.label}</span>
                 </button>
               </li>
             );
@@ -102,6 +107,12 @@ export function SectionLayout({ sections, header, defaultActiveId }: SectionLayo
         </ul>
       </nav>
       <div className="flex-1 min-w-0 px-8 lg:px-12 xl:px-16 py-8">
+        {/* Live region announces section changes for SR users. The button
+            click swaps content silently otherwise — focus stays on the
+            rail and there's no spoken cue that the right pane updated. */}
+        <span role="status" aria-live="polite" className="sr-only">
+          {active ? `${active.label} section` : ''}
+        </span>
         {header && <div className="mb-8">{header}</div>}
         {active?.content}
       </div>
