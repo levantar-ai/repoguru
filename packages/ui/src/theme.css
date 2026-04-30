@@ -100,6 +100,17 @@ html {
   font-size: 16px;
   text-rendering: optimizeLegibility;
   -webkit-text-size-adjust: 100%;
+  /* Inter is loaded but its stylistic sets aren't enabled by default.
+   * cv11 (single-storey a) + ss01 (one-storey g) + ss03 (rounded) are
+   * what make Stripe / Linear / Vercel's UI feel deliberate. cv02–cv04
+   * tweak the digits to read crisply at small sizes.
+   * tabular-nums applied globally so any number column lines up
+   * without per-component opt-in.
+   * letter-spacing tightened a touch (Inter ships slightly loose by
+   * default at body sizes). */
+  font-feature-settings: 'cv11' on, 'ss01' on, 'ss03' on, 'cv02' on, 'cv03' on, 'cv04' on;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.005em;
 }
 
 body {

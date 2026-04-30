@@ -251,18 +251,25 @@ function LetterGrade({ grade, score }: { grade: ReportCardData['grade']; score: 
           strokeLinecap="round"
           strokeDasharray={circumference}
           strokeDashoffset={offset}
-          className="transition-all duration-1000 ease-out"
-          style={{ filter: `drop-shadow(0 0 8px ${color}60)` }}
+          // Lighter ring shadow (was 60% alpha → punitive for an F).
+          // The grade is diagnostic, not a verdict.
+          className="transition-all duration-700 ease-out"
+          style={{ filter: `drop-shadow(0 0 4px ${color}30)` }}
         />
       </svg>
       <div className="text-center" aria-hidden="true">
-        <div
-          className="text-6xl font-black"
-          style={{ color, textShadow: `0 0 20px ${color}40` }}
-        >
-          {grade}
+        {/* Score is more diagnostic than the letter — render it
+         *  larger. The letter is the at-a-glance summary; the number
+         *  is what tells you how far from the next grade you are. */}
+        <div className="text-3xl font-bold tabular-nums" style={{ color }}>
+          {score}
         </div>
-        <div className="text-base text-text-secondary font-semibold mt-1">{score}/100</div>
+        <div
+          className="text-lg font-semibold mt-0.5"
+          style={{ color }}
+        >
+          Grade {grade}
+        </div>
       </div>
     </div>
   );
