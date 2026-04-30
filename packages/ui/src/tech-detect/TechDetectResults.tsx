@@ -18,8 +18,22 @@ import { QualityCoverageChart } from './QualityCoverageChart';
 import { PackagesByEcosystem } from './PackagesByEcosystem';
 import { ResourceFileMatrix } from './ResourceFileMatrix';
 
+/** Optional section filter — when set, TechDetectResults renders ONLY
+ *  the blocks belonging to that section. The TechDetectView page
+ *  composes the report by mounting one TechDetectResults per
+ *  SectionLayout section, each with the relevant filter, so the data
+ *  + rendering knowledge stays in one file. Omit to render everything
+ *  (legacy / fallback behaviour). */
+export type TechDetectSection =
+  | 'overview'
+  | 'cloud'
+  | 'stack'
+  | 'quality'
+  | 'dependencies';
+
 interface Props {
   result: TechDetectResult;
+  section?: TechDetectSection;
 }
 
 const VIA_LABELS: Record<string, string> = {
@@ -692,7 +706,8 @@ const PythonIcon = () => (
 );
 
 /* ─── Main Results Component ─── */
-export function TechDetectResults({ result }: Props) {
+export function TechDetectResults({ result, section }: Props) {
+  const show = (s: TechDetectSection) => !section || section === s;
   const hasCloud = result.aws.length > 0 || result.azure.length > 0 || result.gcp.length > 0;
   const hasFrameworks = result.frameworks.length > 0;
   const hasDatabases = result.databases.length > 0;
@@ -773,91 +788,89 @@ export function TechDetectResults({ result }: Props) {
 
   return (
     <div className="space-y-6">
-      {/* Executive Summary */}
-      <TechExecutiveSummary result={result} />
-
-      {/* Cloud sections */}
-      {hasCloud && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-          <CloudServiceSection<DetectedAWSService>
-            title="AWS Services"
-            color="#FF9900"
-            items={result.aws}
-            icon={<AWSIcon />}
-          />
-          <CloudServiceSection<DetectedAzureService>
-            title="Azure Services"
-            color="#0078D4"
-            items={result.azure}
-            icon={<AzureIcon />}
-          />
-          <CloudServiceSection<DetectedGCPService>
-            title="GCP Services"
-            color="#4285F4"
-            items={result.gcp}
-            icon={<GCPIcon />}
-          />
-        </div>
-      )}
-
-      {/* Language breakdown table */}
-      {hasLanguages && <LanguageTable result={result} />}
-
-      {/* Frameworks */}
-      {hasFrameworks && <FrameworksSection result={result} />}
-
-      {/* Databases */}
-      {hasDatabases && <DatabasesSection result={result} />}
-
-      {/* CI/CD & DevOps */}
-      {hasCicd && <CicdSection result={result} />}
-
-      {/* Testing & Quality */}
-      {hasTesting && <TestingSection result={result} />}
-
-      {/* CI/CD and Quality coverage charts side by side */}
-      {(hasCicd || hasTesting) && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {hasCicd && <CICDCoverageChart cicd={result.cicd} />}
-          {hasTesting && <QualityCoverageChart testing={result.testing} />}
-        </div>
-      )}
-
-      {/* Packages by ecosystem donut */}
-      {hasPackages && (
-        <PackagesByEcosystem
-          node={result.node}
-          python={result.python}
-          go={result.go}
-          java={result.java}
-          php={result.php}
-          rust={result.rust}
-          ruby={result.ruby}
-        />
-      )}
-
-      {/* Resource / File Matrix for cloud services */}
-      {hasCloud && <ResourceFileMatrix aws={result.aws} azure={result.azure} gcp={result.gcp} />}
-
-      {/* All libraries table (collapsed by default) */}
-      {hasLibraries && <LibrariesTable result={result} />}
-
-      {/* Per-source package sections */}
-      {langSections.length > 0 && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {langSections.map((s) => (
-            <PackageSection
-              key={s.title}
-              title={s.title}
-              color={s.color}
-              packages={s.packages}
-              icon={s.icon}
+      {show('overview') && (
+        <>
+          <TechExecutiveSummary result={result} />
+          {hasLanguages && <LanguageTable result={result} />}
+          {hasPackages && (
+            <PackagesByEcosystem
+              node={result.node}
+              python={result.python}
+              go={result.go}
+              java={result.java}
+              php={result.php}
+              rust={result.rust}
+              ruby={result.ruby}
             />
-          ))}
-        </div>
+          )}
+        </>
       )}
 
-      <ManifestFilesSection result={result} />
+      {show('cloud') && hasCloud && (
+        <>
+          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+            <CloudServiceSection<DetectedAWSService>
+              title="AWS Services"
+              color="#FF9900"
+              items={result.aws}
+              icon={<AWSIcon />}
+            />
+            <CloudServiceSection<DetectedAzureService>
+              title="Azure Services"
+              color="#0078D4"
+              items={result.azure}
+              icon={<AzureIcon />}
+            />
+            <CloudServiceSection<DetectedGCPService>
+              title="GCP Services"
+              color="#4285F4"
+              items={result.gcp}
+              icon={<GCPIcon />}
+            />
+          </div>
+          <ResourceFileMatrix aws={result.aws} azure={result.azure} gcp={result.gcp} />
+        </>
+      )}
+
+      {show('stack') && (
+        <>
+          {hasFrameworks && <FrameworksSection result={result} />}
+          {hasDatabases && <DatabasesSection result={result} />}
+        </>
+      )}
+
+      {show('quality') && (
+        <>
+          {hasCicd && <CicdSection result={result} />}
+          {hasTesting && <TestingSection result={result} />}
+          {(hasCicd || hasTesting) && (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {hasCicd && <CICDCoverageChart cicd={result.cicd} />}
+              {hasTesting && <QualityCoverageChart testing={result.testing} />}
+            </div>
+          )}
+        </>
+      )}
+
+      {show('dependencies') && (
+        <>
+          {hasLibraries && <LibrariesTable result={result} />}
+          {langSections.length > 0 && (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {langSections.map((s) => (
+                <PackageSection
+                  key={s.title}
+                  title={s.title}
+                  color={s.color}
+                  packages={s.packages}
+                  icon={s.icon}
+                />
+              ))}
+            </div>
+          )}
+          <ManifestFilesSection result={result} />
+        </>
+      )}
     </div>
   );
 }

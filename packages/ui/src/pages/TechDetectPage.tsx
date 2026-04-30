@@ -61,6 +61,18 @@ export function TechDetectPage() {
     setState({ step: 'idle', progress: '', result: null, error: null });
   }, []);
 
+  // Done state: render the View flush against the page area's left
+  // edge so the SectionLayout rail can sit next to the app sidebar.
+  // Same pattern as Report Card and Git Stats.
+  if (state.step === 'done' && state.result) {
+    return (
+      <TechDetectView
+        result={state.result}
+        actions={<SecondaryButton onClick={handleReset}>New Scan</SecondaryButton>}
+      />
+    );
+  }
+
   return (
     <PageContainer>
       <PageHero
@@ -70,26 +82,24 @@ export function TechDetectPage() {
       />
       <PrivacyStrip />
 
-      {state.step !== 'done' && (
-        <div className="mb-8 max-w-4xl mx-auto">
-          <RepoPicker
-            inputId="tech-detect-repo"
-            label="Repository"
-            value={input}
-            onChange={setInput}
-            onSubmit={handleDetect}
-            disabled={state.step === 'loading'}
-          />
-          <div className="flex justify-center gap-3 mt-4">
-            <PrimaryButton
-              onClick={handleDetect}
-              disabled={state.step === 'loading' || !input.trim()}
-            >
-              {state.step === 'loading' ? 'Scanning...' : 'Detect'}
-            </PrimaryButton>
-          </div>
+      <div className="mb-8 max-w-4xl mx-auto">
+        <RepoPicker
+          inputId="tech-detect-repo"
+          label="Repository"
+          value={input}
+          onChange={setInput}
+          onSubmit={handleDetect}
+          disabled={state.step === 'loading'}
+        />
+        <div className="flex justify-center gap-3 mt-4">
+          <PrimaryButton
+            onClick={handleDetect}
+            disabled={state.step === 'loading' || !input.trim()}
+          >
+            {state.step === 'loading' ? 'Scanning…' : 'Detect'}
+          </PrimaryButton>
         </div>
-      )}
+      </div>
 
       {state.step === 'loading' && <LoadingPanel message={state.progress} />}
 
@@ -98,13 +108,6 @@ export function TechDetectPage() {
           title="Tech detection failed"
           message={state.error}
           action={<SecondaryButton onClick={handleReset}>Try again</SecondaryButton>}
-        />
-      )}
-
-      {state.step === 'done' && state.result && (
-        <TechDetectView
-          result={state.result}
-          actions={<SecondaryButton onClick={handleReset}>New Scan</SecondaryButton>}
         />
       )}
     </PageContainer>
