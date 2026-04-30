@@ -41,8 +41,10 @@ SPEC.md                    # specs live in S3: ai.levantar.specs
 resources/bin/repoanalyze-*
 .playwright-mcp/
 
-# Agent / tool scratch
-.claude/
+# Agent / tool scratch — but keep .claude/agents/ which holds shared
+# project sub-agent definitions (UI/UX review team etc.).
+.claude/*
+!.claude/agents/
 
 # Playwright/Probe artefacts
 *.png
