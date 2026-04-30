@@ -45,6 +45,7 @@
     "mermaid": "^10.9.5",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
+    "sonner": "^2.0.7",
     "tailwindcss": "^4.2.0"
   },
   "devDependencies": {

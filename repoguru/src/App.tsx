@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, lazy, Suspense, type ReactNode } from 'react';
+import { Toaster, toast } from 'sonner';
 import { AppProvider, useApp } from './context/AppContext';
 import { AnalysisProvider } from './context/AnalysisContext';
 import { BrowserServicesProvider } from './services/BrowserServicesProvider';
@@ -47,39 +48,6 @@ const TechDetectPage = lazy(() =>
   import('@repoguru/ui').then((m) => ({ default: m.TechDetectPage })),
 );
 
-function OAuthToast({ message, onDone }: { message: string; onDone: () => void }) {
-  useEffect(() => {
-    const id = setTimeout(onDone, 3000);
-    return () => clearTimeout(id);
-  }, [onDone]);
-
-  return (
-    // role=status + aria-live=polite so the OAuth-success toast is
-    // announced (most NVDA/JAWS configs surface polite live updates
-    // even on a fixed-position element). aria-atomic=true so the whole
-    // message is read each time it changes.
-    <div
-      className="fixed top-4 left-1/2 -translate-x-1/2 z-[100] animate-in fade-in slide-in-from-top-2"
-      role="status"
-      aria-live="polite"
-      aria-atomic="true"
-    >
-      <div className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-grade-a/10 border border-grade-a/30 text-sm text-grade-a shadow-lg">
-        <svg
-          className="h-4 w-4 shrink-0"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-          strokeWidth={2}
-          aria-hidden="true"
-        >
-          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-        </svg>
-        {message}
-      </div>
-    </div>
-  );
-}
 
 function AppContent() {
   const [page, setPage] = useState<PageId>('home');
@@ -89,7 +57,6 @@ function AppContent() {
     const params = new URLSearchParams(window.location.search);
     return params.has('code') || params.has('setup_action');
   });
-  const [oauthToast, setOauthToast] = useState<string | null>(null);
   const { state: appState, dispatch } = useApp();
   const token = appState.githubToken || '';
 
@@ -129,7 +96,7 @@ function AppContent() {
         }
 
         if (isInstallationCallback()) {
-          setOauthToast('Organization access updated!');
+          toast.success('Organization access updated');
         } else if (accessToken) {
           // After OAuth, check for installations — if none, open the org picker
           const manageUrl = getInstallationManageUrl();
@@ -138,19 +105,19 @@ function AppContent() {
               const installs = await fetchInstallations(accessToken);
               if (installs.length === 0) {
                 window.open(manageUrl, '_blank');
-                setOauthToast('Connected! Select which organizations to grant access to.');
+                toast.info('Connected — select which organisations to grant access to.');
                 return;
               }
             } catch {
               // Ignore — still connected, just skip the auto-redirect
             }
           }
-          setOauthToast('Connected to GitHub!');
+          toast.success('Connected to GitHub');
         }
       })
       .catch((err) => {
         console.error('OAuth callback failed:', err);
-        setOauthToast(err instanceof Error ? err.message : 'OAuth sign-in failed.');
+        toast.error(err instanceof Error ? err.message : 'OAuth sign-in failed.');
       })
       .finally(() => setOauthLoading(false));
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -223,7 +190,6 @@ function AppContent() {
   return (
     <Layout onNavigate={handleNavigate} currentPage={page}>
       <CommandPalette tools={paletteTools} actions={paletteActions} />
-      {oauthToast && <OAuthToast message={oauthToast} onDone={() => setOauthToast(null)} />}
       <PageMount active={page === 'home'}>
         <ReportCardPage initialRepo={pendingRepo ?? undefined} />
       </PageMount>
@@ -317,6 +283,17 @@ export default function App() {
         <BrowserServicesProvider>
           <AppContent />
           <SettingsPanel />
+          {/* Sonner: stacked toast surface used by OAuth flows + future
+              async actions. Themed dark by default since RepoGuru's
+              chrome is dark; theme-class auto-detects light mode via
+              the .light class on <html>. */}
+          <Toaster
+            position="top-center"
+            theme="dark"
+            closeButton
+            richColors
+            toastOptions={{ className: 'tabular-nums' }}
+          />
         </BrowserServicesProvider>
       </AnalysisProvider>
     </AppProvider>
