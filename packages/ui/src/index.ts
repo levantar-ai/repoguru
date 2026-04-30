@@ -62,6 +62,7 @@ export type { LoadingPanelProps, ErrorPanelProps } from './chrome/StatusPanels.j
 export { PrivacyStrip } from './chrome/PrivacyStrip.js';
 export { DemoChips, DEMO_REPOS } from './chrome/DemoChips.js';
 export type { DemoChip, DemoChipsProps } from './chrome/DemoChips.js';
+export { Skeleton } from './chrome/Skeleton.js';
 export { CommandPalette } from './chrome/CommandPalette.js';
 export type { CommandPaletteProps, PaletteCommand } from './chrome/CommandPalette.js';
 export { SectionLayout } from './chrome/SectionLayout.js';

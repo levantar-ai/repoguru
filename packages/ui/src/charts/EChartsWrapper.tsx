@@ -1,4 +1,5 @@
 import { useRef, useEffect, useState } from 'react';
+import { Skeleton } from '../chrome/Skeleton.js';
 
 // Tree-shaken ECharts imports.
 import * as echarts from 'echarts/core';
@@ -132,28 +133,20 @@ export function EChartsWrapper({
       aria-label={a11yLabel}
     >
       {!ready && (
+        // Content-shaped skeleton instead of a centered spinner.
+        // Three pulsing horizontal blocks at decreasing opacity vaguely
+        // suggest "data viz coming" without committing to a specific
+        // shape (the wrapper hosts bars / lines / radars / heatmaps).
+        // Eliminates the brief layout-shift flash when the canvas
+        // actually mounts.
         <div
-          className="absolute inset-0 flex items-center justify-center bg-surface-alt rounded-xl"
+          className="absolute inset-0 flex flex-col justify-end gap-2 p-4 bg-surface-alt/60 rounded-xl"
           style={{ height }}
         >
-          <div className="flex items-center gap-2 text-sm text-text-muted">
-            <svg className="h-4 w-4 animate-spin text-neon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-              <circle
-                className="opacity-25"
-                cx="12"
-                cy="12"
-                r="10"
-                stroke="currentColor"
-                strokeWidth="4"
-              />
-              <path
-                className="opacity-75"
-                fill="currentColor"
-                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-              />
-            </svg>
-            Loading chart...
-          </div>
+          <Skeleton className="h-3 w-2/5 opacity-30" />
+          <Skeleton className="h-1/3 w-full opacity-25" />
+          <Skeleton className="h-1/4 w-3/4 opacity-20" />
+          <Skeleton className="h-1/5 w-1/2 opacity-15" />
         </div>
       )}
       <div ref={containerRef} style={{ height, width: '100%' }} />
