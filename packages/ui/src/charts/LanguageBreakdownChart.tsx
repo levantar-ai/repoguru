@@ -125,7 +125,13 @@ export function LanguageBreakdownChart({
           Treemap
         </button>
       </div>
-      <EChartsWrapper option={view === 'donut' ? donutOption : treemapOption} height={height} />
+      <EChartsWrapper
+        option={view === 'donut' ? donutOption : treemapOption}
+        height={height}
+        ariaLabel={`Languages by lines of code — ${view} view${
+          languages[0] ? `, top language ${languages[0].name}` : ''
+        }.`}
+      />
     </div>
   );
 }

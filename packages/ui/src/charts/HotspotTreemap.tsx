@@ -81,5 +81,11 @@ export function HotspotTreemap({ hotspots }: Props) {
 
   if (hotspots.length === 0) return null;
 
-  return <EChartsWrapper option={option} height="450px" />;
+  return (
+    <EChartsWrapper
+      option={option}
+      height="450px"
+      ariaLabel="Hotspot treemap — files sized by churn (changes over time), with deeper colours indicating more concentrated activity."
+    />
+  );
 }

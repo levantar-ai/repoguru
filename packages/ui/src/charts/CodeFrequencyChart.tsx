@@ -93,5 +93,11 @@ export function CodeFrequencyChart({ codeFrequency }: Props) {
 
   if (!codeFrequency || codeFrequency.length === 0) return null;
 
-  return <EChartsWrapper option={option} height="350px" />;
+  return (
+    <EChartsWrapper
+      option={option}
+      height="350px"
+      ariaLabel="Code frequency — additions and deletions per week, with positive bars for additions and negative bars for deletions."
+    />
+  );
 }

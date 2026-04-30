@@ -100,5 +100,11 @@ export function CommitHeatmap({ commitActivity }: Props) {
     return null;
   }
 
-  return <EChartsWrapper option={option} height="200px" />;
+  return (
+    <EChartsWrapper
+      option={option}
+      height="200px"
+      ariaLabel="Commit activity heatmap — one cell per day across the last 52 weeks, colour intensity scales with commit count."
+    />
+  );
 }
