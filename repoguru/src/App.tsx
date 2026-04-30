@@ -6,7 +6,7 @@ import { BrowserServicesProvider } from './services/BrowserServicesProvider';
 import { Layout } from './components/layout/Layout';
 import { SettingsPanel } from './components/settings/SettingsPanel';
 import { LoadingScreen } from './components/common/LoadingScreen';
-import { ReportCardPage, CommandPalette, type PaletteCommand } from '@repoguru/ui';
+import { ReportCardPage, CommandPalette, TooltipProvider, type PaletteCommand } from '@repoguru/ui';
 import { trackPageView, trackEvent } from './utils/analytics';
 import {
   handleOAuthCallback,
@@ -281,19 +281,21 @@ export default function App() {
     <AppProvider>
       <AnalysisProvider>
         <BrowserServicesProvider>
-          <AppContent />
-          <SettingsPanel />
-          {/* Sonner: stacked toast surface used by OAuth flows + future
-              async actions. Themed dark by default since RepoGuru's
-              chrome is dark; theme-class auto-detects light mode via
-              the .light class on <html>. */}
-          <Toaster
-            position="top-center"
-            theme="dark"
-            closeButton
-            richColors
-            toastOptions={{ className: 'tabular-nums' }}
-          />
+          <TooltipProvider>
+            <AppContent />
+            <SettingsPanel />
+            {/* Sonner: stacked toast surface used by OAuth flows + future
+                async actions. Themed dark by default since RepoGuru's
+                chrome is dark; theme-class auto-detects light mode via
+                the .light class on <html>. */}
+            <Toaster
+              position="top-center"
+              theme="dark"
+              closeButton
+              richColors
+              toastOptions={{ className: 'tabular-nums' }}
+            />
+          </TooltipProvider>
         </BrowserServicesProvider>
       </AnalysisProvider>
     </AppProvider>

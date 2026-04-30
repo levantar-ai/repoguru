@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useRepoGuru } from '../services/Provider.js';
+import { Tooltip } from './Tooltip.js';
 import type { GitHubRepoSummary, RepoPickerProps } from '../services/types.js';
 
 /** Authoritative repo picker. Both hosts mount this same component:
@@ -187,16 +188,16 @@ export function RepoPicker({
       {!disabled && recents.length > 0 && (
         <div className="mt-2 flex flex-wrap gap-1.5">
           {recents.slice(0, 6).map((s) => (
-            <button
-              key={s.value}
-              type="button"
-              onClick={() => onChange(s.value)}
-              title={s.hint ?? s.value}
-              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs bg-surface-alt border border-border text-text-secondary hover:text-neon hover:border-neon/30 transition-all max-w-[260px]"
-            >
-              {s.grade && <RecentGradePill grade={s.grade} />}
-              <span className="truncate">{s.label}</span>
-            </button>
+            <Tooltip key={s.value} content={s.hint ?? s.value}>
+              <button
+                type="button"
+                onClick={() => onChange(s.value)}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs bg-surface-alt border border-border text-text-secondary hover:text-neon hover:border-neon/30 transition-all max-w-[260px]"
+              >
+                {s.grade && <RecentGradePill grade={s.grade} />}
+                <span className="truncate">{s.label}</span>
+              </button>
+            </Tooltip>
           ))}
         </div>
       )}

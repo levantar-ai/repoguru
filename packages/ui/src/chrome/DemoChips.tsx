@@ -1,3 +1,5 @@
+import { Tooltip } from './Tooltip.js';
+
 /** Curated demo repos for the Report Card / Compare / Tech Detect
  *  cold-start flows. Replaces the previous lone `octocat/hello-world`
  *  chip — a stub repo that scored 4/100 F with empty insights and was
@@ -36,16 +38,16 @@ export function DemoChips({ onPick, disabled }: DemoChipsProps) {
       </span>
       <div className="flex flex-wrap justify-center gap-1.5">
         {DEMO_REPOS.map((d) => (
-          <button
-            key={d.slug}
-            type="button"
-            disabled={disabled}
-            onClick={() => onPick(d.slug)}
-            title={d.hint}
-            className="px-3 py-1.5 rounded-lg text-xs bg-surface-alt border border-border text-text-secondary hover:text-neon hover:border-neon/30 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            {d.slug}
-          </button>
+          <Tooltip key={d.slug} content={d.hint}>
+            <button
+              type="button"
+              disabled={disabled}
+              onClick={() => onPick(d.slug)}
+              className="px-3 py-1.5 rounded-lg text-xs bg-surface-alt border border-border text-text-secondary hover:text-neon hover:border-neon/30 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              {d.slug}
+            </button>
+          </Tooltip>
         ))}
       </div>
     </div>

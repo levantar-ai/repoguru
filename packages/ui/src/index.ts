@@ -63,6 +63,8 @@ export { PrivacyStrip } from './chrome/PrivacyStrip.js';
 export { DemoChips, DEMO_REPOS } from './chrome/DemoChips.js';
 export type { DemoChip, DemoChipsProps } from './chrome/DemoChips.js';
 export { Skeleton } from './chrome/Skeleton.js';
+export { Tooltip, TooltipProvider } from './chrome/Tooltip.js';
+export type { TooltipProps } from './chrome/Tooltip.js';
 export { CommandPalette } from './chrome/CommandPalette.js';
 export type { CommandPaletteProps, PaletteCommand } from './chrome/CommandPalette.js';
 export { SectionLayout } from './chrome/SectionLayout.js';
