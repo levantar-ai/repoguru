@@ -1,5 +1,5 @@
 import { HashRouter, Routes, Route, NavLink } from 'react-router';
-import { ComparePage, ReportCardPage, TechDetectPage, PolicyPage, OrgScanPage, GitStatsPage, RepoGuruProvider } from '@repoguru/ui';
+import { ComparePage, ReportCardPage, TechDetectPage, PolicyPage, OrgScanPage, GitStatsPage, RepoGuruProvider, TooltipProvider } from '@repoguru/ui';
 import { Settings } from './pages/Settings';
 import { ThemeToggle } from './components/common/ThemeToggle';
 import { desktopServices } from './services/repoGuruServices';
@@ -30,6 +30,7 @@ const navItems = [
 export function App() {
   return (
     <RepoGuruProvider services={desktopServices}>
+    <TooltipProvider>
     <HashRouter>
       <div className="flex h-screen bg-gray-950 text-gray-100">
         {/* Sidebar */}
@@ -83,6 +84,7 @@ export function App() {
         </main>
       </div>
     </HashRouter>
+    </TooltipProvider>
     </RepoGuruProvider>
   );
 }
