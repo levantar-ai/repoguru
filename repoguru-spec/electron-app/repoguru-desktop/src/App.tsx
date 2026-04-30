@@ -36,7 +36,8 @@ export function App() {
         <nav className="w-56 flex-shrink-0 border-r border-gray-800 bg-gray-900 flex flex-col">
           <div className="px-4 py-5 border-b border-gray-800 flex items-center justify-between">
             <div>
-              <h1 className="text-lg font-bold tracking-tight text-white">RepoGuru</h1>
+              {/* div, not h1 — the page hero owns the document's H1. */}
+              <div className="text-lg font-bold tracking-tight text-white">RepoGuru</div>
               <p className="text-[10px] text-gray-500 mt-0.5">Desktop DevSecOps</p>
             </div>
             <ThemeToggle />

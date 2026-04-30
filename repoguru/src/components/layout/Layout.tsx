@@ -88,7 +88,6 @@ export function Layout({ children, onNavigate, currentPage }: Props) {
           <button
             onClick={() => onNavigate('home')}
             className="flex items-center gap-2.5 text-left"
-            aria-label="Repo Guru — Go to home page"
           >
             <img
               src="/logo.png"
@@ -97,9 +96,15 @@ export function Layout({ children, onNavigate, currentPage }: Props) {
               aria-hidden="true"
             />
             <div>
-              <h1 className="text-lg font-bold tracking-tight text-text leading-none">
+              {/* div, not h1 — the page hero owns the document's H1.
+                  Two visible H1s per page tripped 1.3.1 / 2.4.6. The
+                  surrounding <nav aria-label="Main navigation"> already
+                  carries the landmark name. The visible text "RepoGuru"
+                  is also the button's accessible name (no aria-label
+                  override → "Label in Name" 2.5.3 holds for voice). */}
+              <div className="text-lg font-bold tracking-tight text-text leading-none">
                 Repo<span className="text-neon">Guru</span>
-              </h1>
+              </div>
               <p className="text-[10px] text-text-muted mt-0.5">In-Browser DevSecOps</p>
             </div>
           </button>
