@@ -59,6 +59,11 @@ export { RepoPicker } from './chrome/RepoPicker.js';
 export { PrimaryButton, SecondaryButton } from './chrome/Buttons.js';
 export { LoadingPanel, ErrorPanel } from './chrome/StatusPanels.js';
 export type { LoadingPanelProps, ErrorPanelProps } from './chrome/StatusPanels.js';
+export { PrivacyStrip } from './chrome/PrivacyStrip.js';
+export { CommandPalette } from './chrome/CommandPalette.js';
+export type { CommandPaletteProps, PaletteCommand } from './chrome/CommandPalette.js';
+export { SectionLayout } from './chrome/SectionLayout.js';
+export type { SectionDef, SectionLayoutProps } from './chrome/SectionLayout.js';
 
 // Primitives
 export { EChartsWrapper } from './charts/EChartsWrapper.js';

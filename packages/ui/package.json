@@ -17,7 +17,8 @@
     "build": "tsc"
   },
   "dependencies": {
-    "@repoguru/core": "workspace:*"
+    "@repoguru/core": "workspace:*",
+    "cmdk": "^1.1.1"
   },
   "peerDependencies": {
     "d3": "^7.0.0",

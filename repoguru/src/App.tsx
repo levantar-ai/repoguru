@@ -5,7 +5,7 @@ import { BrowserServicesProvider } from './services/BrowserServicesProvider';
 import { Layout } from './components/layout/Layout';
 import { SettingsPanel } from './components/settings/SettingsPanel';
 import { LoadingScreen } from './components/common/LoadingScreen';
-import { ReportCardPage } from '@repoguru/ui';
+import { ReportCardPage, CommandPalette, type PaletteCommand } from '@repoguru/ui';
 import { trackPageView, trackEvent } from './utils/analytics';
 import {
   handleOAuthCallback,
@@ -180,8 +180,49 @@ function AppContent() {
     );
   }
 
+  // ⌘K command palette: jump to nav destinations + recents + settings
+  // actions. Tools mirror the sidebar one-for-one. Actions surface
+  // settings + theme toggle so power users never have to mouse.
+  const paletteTools: Omit<PaletteCommand, 'group'>[] = [
+    { id: 't:home',        label: 'Report Card',  shortcut: 'g r', onSelect: () => handleNavigate('home') },
+    { id: 't:git-stats',   label: 'Git Stats',    shortcut: 'g s', onSelect: () => handleNavigate('git-stats') },
+    { id: 't:tech-detect', label: 'Tech Stack',   shortcut: 'g t', onSelect: () => handleNavigate('tech-detect') },
+    { id: 't:compare',     label: 'Compare',      shortcut: 'g c', onSelect: () => handleNavigate('compare') },
+    { id: 't:org-scan',    label: 'Org Scan',     shortcut: 'g o', onSelect: () => handleNavigate('org-scan') },
+    { id: 't:policy',      label: 'Policy',                       onSelect: () => handleNavigate('policy') },
+    { id: 't:portfolio',   label: 'Portfolio',    shortcut: 'g p', onSelect: () => handleNavigate('portfolio') },
+    { id: 't:discover',    label: 'Search',                       onSelect: () => handleNavigate('discover') },
+    { id: 't:docs',        label: 'Help',                         onSelect: () => handleNavigate('docs') },
+  ];
+  const paletteActions: Omit<PaletteCommand, 'group'>[] = [
+    { id: 'a:settings', label: 'Open Settings', onSelect: () => dispatch({ type: 'TOGGLE_SETTINGS' }) },
+    {
+      id: 'a:theme',
+      label: appState.settings.theme === 'light' ? 'Switch to dark theme' : 'Switch to light theme',
+      onSelect: () =>
+        dispatch({
+          type: 'SET_THEME',
+          theme: appState.settings.theme === 'light' ? 'dark' : 'light',
+        }),
+    },
+  ];
+
+  // The palette dispatches a custom event when a recents row is picked
+  // — bring the user back to Report Card with the slug pre-filled.
+  useEffect(() => {
+    const onPick = (e: Event) => {
+      const detail = (e as CustomEvent<{ value: string }>).detail;
+      if (detail?.value) {
+        handleNavigateWithRepo('home', detail.value);
+      }
+    };
+    window.addEventListener('repoguru:palette-pick-repo', onPick);
+    return () => window.removeEventListener('repoguru:palette-pick-repo', onPick);
+  }, [handleNavigateWithRepo]);
+
   return (
     <Layout onNavigate={handleNavigate} currentPage={page}>
+      <CommandPalette tools={paletteTools} actions={paletteActions} />
       {oauthToast && <OAuthToast message={oauthToast} onDone={() => setOauthToast(null)} />}
       <PageMount active={page === 'home'}>
         <ReportCardPage initialRepo={pendingRepo ?? undefined} />
