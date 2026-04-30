@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, lazy, Suspense } from 'react';
+import { useState, useCallback, useEffect, lazy, Suspense, type ReactNode } from 'react';
 import { AppProvider, useApp } from './context/AppContext';
 import { AnalysisProvider } from './context/AnalysisContext';
 import { BrowserServicesProvider } from './services/BrowserServicesProvider';
@@ -183,38 +183,38 @@ function AppContent() {
   return (
     <Layout onNavigate={handleNavigate} currentPage={page}>
       {oauthToast && <OAuthToast message={oauthToast} onDone={() => setOauthToast(null)} />}
-      <div style={{ display: page === 'home' ? undefined : 'none' }}>
+      <PageMount active={page === 'home'}>
         <ReportCardPage initialRepo={pendingRepo ?? undefined} />
-      </div>
-      <div style={{ display: page === 'docs' ? undefined : 'none' }}>
+      </PageMount>
+      <PageMount active={page === 'docs'}>
         {visitedPages.has('docs') && (
           <Suspense fallback={<LoadingScreen />}>
             <HowItWorksPage />
           </Suspense>
         )}
-      </div>
-      <div style={{ display: page === 'org-scan' ? undefined : 'none' }}>
+      </PageMount>
+      <PageMount active={page === 'org-scan'}>
         {visitedPages.has('org-scan') && (
           <Suspense fallback={<LoadingScreen />}>
             <OrgScanPage />
           </Suspense>
         )}
-      </div>
-      <div style={{ display: page === 'compare' ? undefined : 'none' }}>
+      </PageMount>
+      <PageMount active={page === 'compare'}>
         {visitedPages.has('compare') && (
           <Suspense fallback={<LoadingScreen />}>
             <ComparePage />
           </Suspense>
         )}
-      </div>
-      <div style={{ display: page === 'portfolio' ? undefined : 'none' }}>
+      </PageMount>
+      <PageMount active={page === 'portfolio'}>
         {visitedPages.has('portfolio') && (
           <Suspense fallback={<LoadingScreen />}>
             <PortfolioPage onAnalyze={() => handleNavigate('home')} githubToken={token} />
           </Suspense>
         )}
-      </div>
-      <div style={{ display: page === 'discover' ? undefined : 'none' }}>
+      </PageMount>
+      <PageMount active={page === 'discover'}>
         {visitedPages.has('discover') && (
           <Suspense fallback={<LoadingScreen />}>
             <DiscoverPage
@@ -223,29 +223,45 @@ function AppContent() {
             />
           </Suspense>
         )}
-      </div>
-      <div style={{ display: page === 'policy' ? undefined : 'none' }}>
+      </PageMount>
+      <PageMount active={page === 'policy'}>
         {visitedPages.has('policy') && (
           <Suspense fallback={<LoadingScreen />}>
             <PolicyPage />
           </Suspense>
         )}
-      </div>
-      <div style={{ display: page === 'git-stats' ? undefined : 'none' }}>
+      </PageMount>
+      <PageMount active={page === 'git-stats'}>
         {visitedPages.has('git-stats') && (
           <Suspense fallback={<LoadingScreen />}>
             <GitStatsPage />
           </Suspense>
         )}
-      </div>
-      <div style={{ display: page === 'tech-detect' ? undefined : 'none' }}>
+      </PageMount>
+      <PageMount active={page === 'tech-detect'}>
         {visitedPages.has('tech-detect') && (
           <Suspense fallback={<LoadingScreen />}>
             <TechDetectPage />
           </Suspense>
         )}
-      </div>
+      </PageMount>
     </Layout>
+  );
+}
+
+/** Wraps a page so the inactive ones are hidden visually AND removed
+ *  from the accessibility tree + focus order. The previous pattern
+ *  (display: none) hid them from sighted users but DOM-walking ATs
+ *  (JAWS browse mode, VoiceOver) still read every cached page's H1
+ *  and landmarks — fails WCAG 1.3.1 / 2.4.6 / 4.1.2. `inert` (baseline
+ *  in all evergreen browsers) makes the subtree unreachable for AT,
+ *  focus, and pointer events; we keep `display:none` so it doesn't
+ *  contribute layout. */
+function PageMount({ active, children }: { active: boolean; children: ReactNode }) {
+  return (
+    <div style={{ display: active ? undefined : 'none' }} inert={!active || undefined}>
+      {children}
+    </div>
   );
 }
 
