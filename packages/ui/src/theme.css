@@ -140,8 +140,15 @@ body {
 /* ── Skip to Content Link ──────────────────────────────── */
 
 .skip-link {
+  /* Clip-path parking instead of off-screen positioning. The previous
+   * top:-100% + transition meant the link was 900px above the viewport
+   * on focus and slid down — for the duration of the transition the
+   * focus ring sat in mid-air with the link itself off-screen. WCAG
+   * 2.4.1 + 1.4.13. clip-path keeps the element exactly where the focus
+   * ring is, just visually clipped, so :focus-visible is instantaneous
+   * and the ring lands on the actual link. */
   position: absolute;
-  top: -100%;
+  top: 0;
   left: 50%;
   transform: translateX(-50%);
   z-index: 9999;
@@ -152,11 +159,11 @@ body {
   font-size: 0.875rem;
   border-radius: 0 0 0.5rem 0.5rem;
   text-decoration: none;
-  transition: top 0.15s ease;
+  clip-path: inset(50%);
 }
 
-.skip-link:focus {
-  top: 0;
+.skip-link:focus-visible {
+  clip-path: none;
   outline: 2px solid var(--color-neon);
   outline-offset: 2px;
 }
