@@ -1,8 +1,75 @@
 import { app, BrowserWindow, ipcMain, dialog, shell, safeStorage } from 'electron';
 import { join } from 'path';
 import { readFileSync, writeFileSync, mkdirSync } from 'fs';
+import { randomUUID, createHash } from 'node:crypto';
+import { createServer, type Server } from 'node:http';
+import { AddressInfo } from 'node:net';
+import { spawn } from 'node:child_process';
+import { existsSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { request as httpsRequest } from 'node:https';
+import type { OutgoingHttpHeaders } from 'node:http';
 import { ProcessManager } from './process-manager';
 import { GrpcBridge } from './grpc-bridge';
+
+// Parallels' GPU passthrough is flaky and Chromium's GPU process dying
+// takes the network service down with it (the user got "TypeError: fetch
+// failed" right after a GPU crash). Software rendering is plenty fast
+// for our UI and dodges the entire problem.
+app.disableHardwareAcceleration();
+
+// Lightweight Node-native HTTPS POST/GET that doesn't share fate with
+// Chromium's network service — survives even if Electron's GPU crashes.
+function nodeHttpsRequest(url: string, opts: { method?: string; headers?: OutgoingHttpHeaders; body?: string } = {}): Promise<{ status: number; body: string }> {
+  return new Promise((resolve, reject) => {
+    const u = new URL(url);
+    const req = httpsRequest({
+      method: opts.method || 'GET',
+      hostname: u.hostname,
+      port: u.port || 443,
+      path: u.pathname + u.search,
+      headers: opts.headers,
+    }, (res) => {
+      const chunks: Buffer[] = [];
+      res.on('data', (c) => chunks.push(c as Buffer));
+      res.on('end', () => resolve({ status: res.statusCode || 0, body: Buffer.concat(chunks).toString('utf-8') }));
+    });
+    req.on('error', reject);
+    if (opts.body) req.write(opts.body);
+    req.end();
+  });
+}
+
+function runGit(args: string[]): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const proc = spawn('git', args, { stdio: ['ignore', 'ignore', 'pipe'] });
+    let stderr = '';
+    proc.stderr.on('data', (d) => { stderr += d.toString(); });
+    proc.on('error', (err) => reject(new Error(`git failed: ${err.message}`)));
+    proc.on('close', (code) => {
+      if (code === 0) resolve();
+      // Strip the embedded token from any error output before surfacing
+      else reject(new Error(`git ${args[0]} exited ${code}: ${stderr.replace(/x-access-token:[^@]+@/g, '<token>@').slice(0, 500)}`));
+    });
+  });
+}
+
+function renderCallbackHtml(opts: { ok: boolean; message: string }): string {
+  const color = opts.ok ? '#22c55e' : '#ef4444';
+  const title = opts.ok ? 'Connected to GitHub' : 'GitHub authorization failed';
+  return `<!doctype html><html><head><meta charset="utf-8"><title>${title}</title>
+<style>
+  html,body{margin:0;height:100%;background:#0b0d12;color:#e5e7eb;font-family:-apple-system,Segoe UI,Roboto,sans-serif}
+  .wrap{height:100%;display:flex;align-items:center;justify-content:center}
+  .card{max-width:420px;padding:32px;border:1px solid #1f2937;border-radius:12px;text-align:center;background:#111827}
+  h1{font-size:18px;margin:0 0 12px;color:${color}}
+  p{font-size:14px;color:#9ca3af;margin:8px 0}
+  small{font-size:12px;color:#6b7280}
+</style></head><body><div class="wrap"><div class="card">
+<h1>${title}</h1><p>${opts.message}</p>
+<small>RepoGuru Desktop</small>
+</div></div><script>setTimeout(()=>window.close(),1500)</script></body></html>`;
+}
 
 // Secure store helpers (encrypted file in userData)
 function getSecureStorePath(): string {
@@ -213,6 +280,232 @@ app.whenReady().then(async () => {
       return { has: !!store[key], fallback: false };
     }
     return { has: false, fallback: true };
+  });
+
+  // GitHub OAuth — loopback HTTP server + the user's REAL default browser
+  // (RFC 8252 native-app OAuth pattern). We:
+  //   1. Bind a tiny HTTP server on 127.0.0.1 with an OS-assigned port
+  //   2. Open https://github.com/login/oauth/authorize?... in the user's
+  //      default browser via shell.openExternal — they're already signed
+  //      in there with their full set of passkeys / password manager /
+  //      2FA, so the auth flow is exactly as smooth as the web app's
+  //   3. Pass redirect_uri=http://127.0.0.1:PORT/oauth/callback so GitHub
+  //      sends the user back to our local server with ?code=&state=
+  //   4. Capture, validate state, exchange via the same CORS proxy the
+  //      web uses, return token, render a "you can close this tab" page,
+  //      shut down the server.
+  // No embedded webview (so no partial-passkey warning), no codes to
+  // copy, no Device Flow toggle. The App's callback-URL list does need
+  // http://127.0.0.1 (any port) registered as a permitted callback —
+  // that's a one-time setting on the GitHub App.
+  let oauthInFlight: { server: Server; cleanup: () => void } | null = null;
+
+  ipcMain.handle('githubOAuthBrowser', async (_event, args: { clientId: string; corsProxy: string }) => {
+    const { clientId, corsProxy } = args;
+    if (!clientId) throw new Error('GitHub OAuth not configured (no client_id).');
+    if (oauthInFlight) {
+      try { oauthInFlight.cleanup(); } catch { /* ignore */ }
+      oauthInFlight = null;
+    }
+
+    const state = randomUUID();
+    const scope = 'repo read:org';
+
+    return new Promise<{ token: string }>((resolve, reject) => {
+      let settled = false;
+      const server = createServer((req, res) => {
+        try {
+          const url = new URL(req.url || '/', 'http://127.0.0.1');
+          if (url.pathname !== '/oauth/callback') {
+            res.writeHead(404, { 'Content-Type': 'text/plain' });
+            res.end('Not found');
+            return;
+          }
+          const code = url.searchParams.get('code');
+          const stateParam = url.searchParams.get('state');
+          const ghError = url.searchParams.get('error_description') || url.searchParams.get('error');
+
+          if (ghError) {
+            res.writeHead(400, { 'Content-Type': 'text/html' });
+            res.end(renderCallbackHtml({ ok: false, message: ghError }));
+            settle(new Error(ghError));
+            return;
+          }
+          if (!code || stateParam !== state) {
+            res.writeHead(400, { 'Content-Type': 'text/html' });
+            res.end(renderCallbackHtml({ ok: false, message: 'Invalid OAuth callback (state mismatch).' }));
+            settle(new Error('OAuth state mismatch — possible CSRF, please try again.'));
+            return;
+          }
+
+          // Render the success page right away so the user sees a clean
+          // close-this-tab message; exchange the code in parallel.
+          res.writeHead(200, { 'Content-Type': 'text/html' });
+          res.end(renderCallbackHtml({ ok: true, message: 'You can close this tab and return to RepoGuru.' }));
+
+          (async () => {
+            try {
+              const tokenRes = await nodeHttpsRequest(`${corsProxy}/api/oauth/token`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  // CORS proxy enforces a browser-style Origin allowlist;
+                  // without it server-to-server requests get 403. Use the
+                  // apex domain that's already whitelisted for the web app.
+                  'Origin': 'https://repo.guru',
+                },
+                body: JSON.stringify({ code }),
+              });
+              let data: { access_token?: string; error?: string; error_description?: string } = {};
+              try { data = JSON.parse(tokenRes.body); } catch { /* keep empty */ }
+              if (tokenRes.status < 200 || tokenRes.status >= 300 || !data.access_token) {
+                throw new Error(data.error_description || data.error || `Token exchange failed (HTTP ${tokenRes.status})`);
+              }
+              settle(null, data.access_token);
+            } catch (err) {
+              settle(err instanceof Error ? err : new Error(String(err)));
+            }
+          })();
+        } catch (err) {
+          settle(err instanceof Error ? err : new Error(String(err)));
+        }
+      });
+
+      const settle = (err: Error | null, token?: string) => {
+        if (settled) return;
+        settled = true;
+        try { server.close(); } catch { /* ignore */ }
+        if (oauthInFlight?.server === server) oauthInFlight = null;
+        if (err) reject(err);
+        else if (token) resolve({ token });
+        else reject(new Error('OAuth flow ended without token'));
+      };
+
+      // 5-minute hard cap so we don't hold a server open forever.
+      const timeout = setTimeout(() => settle(new Error('GitHub authorization timed out.')), 5 * 60 * 1000);
+
+      // Fixed port so the App's callback-URL list only needs ONE entry
+      // (not one per random ephemeral port). 47821 is unassigned by IANA
+      // and unlikely to clash with anything else on the user's machine.
+      const FIXED_PORT = 47821;
+
+      server.on('error', (err: NodeJS.ErrnoException) => {
+        if (err.code === 'EADDRINUSE') {
+          settle(new Error(`Port ${FIXED_PORT} is busy — close whatever's using it and try Connect again.`));
+        } else {
+          settle(err);
+        }
+      });
+      // Bind to 127.0.0.1 and use the same hostname in redirect_uri.
+      // GitHub does exact host-string matching against the App's
+      // registered callback URLs, so the hostname spelling here MUST
+      // match exactly what's saved on the App ("127.0.0.1" — not
+      // "localhost", even though they resolve identically).
+      server.listen(FIXED_PORT, '127.0.0.1', () => {
+        const port = (server.address() as AddressInfo).port;
+        const redirectUri = `http://127.0.0.1:${port}/oauth/callback`;
+        const authUrl =
+          `https://github.com/login/oauth/authorize?client_id=${encodeURIComponent(clientId)}` +
+          `&scope=${encodeURIComponent(scope)}` +
+          `&state=${encodeURIComponent(state)}` +
+          `&redirect_uri=${encodeURIComponent(redirectUri)}`;
+        oauthInFlight = {
+          server,
+          cleanup: () => {
+            clearTimeout(timeout);
+            try { server.close(); } catch { /* ignore */ }
+          },
+        };
+        // Open in the user's default browser — passkeys, password
+        // managers, 2FA all work the way they normally do.
+        shell.openExternal(authUrl).catch((err) => settle(err));
+      });
+    });
+  });
+
+  ipcMain.handle('githubOAuthCancel', async () => {
+    if (oauthInFlight) {
+      try { oauthInFlight.cleanup(); } catch { /* ignore */ }
+      oauthInFlight = null;
+    }
+  });
+
+  // List the user's repos — done in main so we sidestep any CORS edge
+  // cases and so failures bubble up as real errors (the renderer-side
+  // fetch was silently swallowing 401s, leaving the picker blank).
+  ipcMain.handle('githubListRepos', async (_event, token: string) => {
+    if (!token) throw new Error('No GitHub token');
+    const res = await nodeHttpsRequest('https://api.github.com/user/repos?per_page=100&sort=updated', {
+      headers: {
+        Accept: 'application/vnd.github+json',
+        Authorization: `Bearer ${token}`,
+        'X-GitHub-Api-Version': '2022-11-28',
+        'User-Agent': 'RepoGuru-Desktop',
+      },
+    });
+    if (res.status === 401) {
+      // Token is rejected (expired/revoked). Drop it from secureStore so the
+      // picker shows Connect again instead of looping on bad credentials.
+      try {
+        const store = loadSecureStore();
+        delete store['repoguru:github-token'];
+        saveSecureStore(store);
+      } catch { /* ignore */ }
+      throw new Error('GitHub token expired or revoked. Please reconnect.');
+    }
+    if (res.status < 200 || res.status >= 300) {
+      throw new Error(`GitHub API ${res.status}: ${res.body.slice(0, 300)}`);
+    }
+    const json = JSON.parse(res.body) as Array<{
+      name: string;
+      full_name: string;
+      description: string | null;
+      language: string | null;
+      stargazers_count: number;
+      owner: { login: string };
+    }>;
+    return json.map((r) => ({
+      owner: r.owner.login,
+      repo: r.name,
+      description: r.description ?? undefined,
+      language: r.language ?? undefined,
+      stars: r.stargazers_count,
+      ownerLabel: r.owner.login,
+    }));
+  });
+
+  // Clone a GitHub repo to a deterministic temp folder so the local CLI
+  // (which only knows how to scan filesystem paths) can run against it.
+  // Reused across score/compare/git-stats/tech-detect/policy. If the
+  // repo already exists on disk we skip the clone (idempotent).
+  ipcMain.handle('githubCloneRepo', async (_event, args: { slug: string; token?: string }) => {
+    const { slug, token } = args;
+    if (!/^[A-Za-z0-9][\w.-]*\/[\w.-]+$/.test(slug)) {
+      throw new Error(`Not a valid GitHub slug: ${slug}`);
+    }
+    // Hash the slug to keep the path safe regardless of weird chars; cache
+    // dir is per-slug so multiple repos co-exist.
+    const safe = createHash('sha1').update(slug).digest('hex').slice(0, 12);
+    const cacheRoot = join(tmpdir(), 'repoguru-cache');
+    mkdirSync(cacheRoot, { recursive: true });
+    const dest = join(cacheRoot, `${slug.replace('/', '__')}-${safe}`);
+
+    // If the clone already exists and looks like a git repo, fast-path
+    // to a `git fetch` so we get any new commits without re-cloning.
+    if (existsSync(join(dest, '.git'))) {
+      await runGit(['-C', dest, 'fetch', '--all', '--quiet']);
+      return { path: dest };
+    }
+
+    // Build the clone URL. For private repos the user-token gets
+    // embedded as the basic-auth username (GitHub recipe). Public repos
+    // work without it but pass the token anyway when present so we hit
+    // the higher rate-limit bucket.
+    const repoUrl = token
+      ? `https://x-access-token:${token}@github.com/${slug}.git`
+      : `https://github.com/${slug}.git`;
+    await runGit(['clone', '--quiet', repoUrl, dest]);
+    return { path: dest };
   });
 
   try {

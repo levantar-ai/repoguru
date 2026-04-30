@@ -22,22 +22,24 @@ import { GrpcAnalyzer, type GrpcSectionClient } from '@repoguru/desktop-adapter'
 import type { GitStatsData as CanonicalGitStatsData } from '@repoguru/core';
 import { wireToLegacy } from '@/services/wireToLegacy';
 import { getRecentRepos } from '@/services/storage';
+import { loadToken, saveToken } from '@/services/token';
 
-/** Lazy cache for the desktop's GitHub token. We read from secureStore on
- *  demand (rather than holding state in a hook) so the picker UI can
- *  call hasGitHubToken() synchronously. The cache is invalidated by
- *  refreshGitHubRepos() and by the Settings page when the user updates
- *  the token. */
+const GITHUB_CLIENT_ID = (import.meta.env.VITE_GITHUB_CLIENT_ID as string) || '';
+const CORS_PROXY = (import.meta.env.VITE_CORS_PROXY_URL as string) || 'https://proxy.repo.guru';
+
+/** Lazy cache for the desktop's GitHub token. We read it via the canonical
+ *  `loadToken()` helper (same key the Settings page uses) so the picker UI
+ *  can call hasGitHubToken() synchronously. The cache is invalidated after
+ *  a successful OAuth completion and by refreshGitHubRepos(). */
 let desktopTokenCache: string | undefined;
 function loadCachedDesktopToken(): string {
   if (desktopTokenCache !== undefined) return desktopTokenCache;
-  // window.repoGuru.secureLoad is async; we kick off the load and return
-  // empty for the first synchronous read. The picker re-renders when the
-  // promise resolves because the React state updates trigger.
+  // loadToken is async; kick off the load and return empty for the first
+  // synchronous read. The picker re-renders once the promise resolves
+  // (it re-queries via hasGitHubToken on next render).
   void (async () => {
     try {
-      const res = await window.repoGuru.secureLoad('githubToken');
-      desktopTokenCache = (res as { value?: string })?.value ?? '';
+      desktopTokenCache = await loadToken();
     } catch {
       desktopTokenCache = '';
     }
@@ -90,6 +92,25 @@ const DESKTOP_PRESETS: PolicyPreset[] = [
   { id: 'security-focused', label: 'Security Focused', description: 'Strict security and supply chain' },
 ];
 
+// Pages call our services with whatever the user typed/picked — that's
+// either a filesystem path the CLI can scan directly, or a GitHub
+// "owner/repo" slug that needs cloning first. The CLI doesn't fetch
+// from GitHub itself for single-repo flows, so we materialise the slug
+// to a local path before the gRPC call.
+const GITHUB_SLUG_RE = /^[A-Za-z0-9][\w.-]*\/[\w.-]+$/;
+async function resolveRepoPath(repo: string): Promise<string> {
+  if (!repo) return repo;
+  if (!GITHUB_SLUG_RE.test(repo)) return repo;
+  // It's a slug — clone (or fetch into existing clone) and return the
+  // local path. Token is best-effort; public repos clone unauthenticated.
+  let token: string | undefined;
+  try {
+    token = (await loadToken()) || undefined;
+  } catch { /* no-op */ }
+  const { path } = await window.repoGuru.githubCloneRepo({ slug: repo, token });
+  return path;
+}
+
 export const desktopServices: RepoGuruServices = {
   isDesktop: true,
   repoBrowse: {
@@ -112,57 +133,49 @@ export const desktopServices: RepoGuruServices = {
       return !!loadCachedDesktopToken();
     },
     async connectGitHub() {
-      // Until a full OAuth device-flow is wired, point the user at the
-      // token-create page and have them paste it into Settings. Same flow
-      // the web app's token-only path uses.
-      try {
-        await window.repoGuru.openExternal(
-          'https://github.com/settings/personal-access-tokens/new',
-        );
-      } catch {
-        /* no-op */
-      }
+      // Pop up GitHub's normal login/authorize page in a small Electron
+      // BrowserWindow, watch for the OAuth callback, exchange the code
+      // via the same CORS proxy the web uses. Same flow as the web,
+      // delivered through the OS's native window pattern instead of
+      // hijacking page navigation. No App-config changes required.
+      if (!GITHUB_CLIENT_ID) throw new Error('GitHub OAuth not configured (VITE_GITHUB_CLIENT_ID missing).');
+      const { token } = await window.repoGuru.githubOAuthBrowser({
+        clientId: GITHUB_CLIENT_ID,
+        corsProxy: CORS_PROXY,
+      });
+      await saveToken(token);
+      desktopTokenCache = token;
+      // The picker's hasGitHubToken() is synchronous and React-driven;
+      // emit a global event so the shared RepoPicker can re-evaluate
+      // (web doesn't need this — its OAuth navigates the page).
+      window.dispatchEvent(new CustomEvent('repoguru:github-connected'));
     },
     async listGitHubRepos() {
-      const token = loadCachedDesktopToken();
-      if (!token) return [];
-      try {
-        const res = await fetch('https://api.github.com/user/repos?per_page=100&sort=updated', {
-          headers: {
-            Accept: 'application/vnd.github.v3+json',
-            Authorization: `Bearer ${token}`,
-          },
-        });
-        if (!res.ok) return [];
-        const json = (await res.json()) as Array<{
-          name: string;
-          full_name: string;
-          description: string | null;
-          language: string | null;
-          stargazers_count: number;
-          owner: { login: string };
-        }>;
-        return json.map((r) => ({
-          owner: r.owner.login,
-          repo: r.name,
-          description: r.description ?? undefined,
-          language: r.language ?? undefined,
-          stars: r.stargazers_count,
-          ownerLabel: r.owner.login,
-        }));
-      } catch {
-        return [];
+      // Wait for the lazy cache to populate (loadCachedDesktopToken kicks
+      // off an async secureStore read on first call). Without this the
+      // first invocation right after OAuth returns "" and we'd 401.
+      let token = loadCachedDesktopToken();
+      if (!token) {
+        token = await loadToken();
+        desktopTokenCache = token;
       }
+      if (!token) throw new Error('Not connected to GitHub');
+      // Goes through main process so we get real error messages instead
+      // of CORS/silent failures the renderer used to swallow.
+      return await window.repoGuru.githubListRepos(token);
     },
     async refreshGitHubRepos() {
       desktopTokenCache = undefined; // re-read from secureStore on next listGitHubRepos
     },
     tokenSetupHelp:
-      'Open Settings and paste a GitHub token (Contents + Metadata read scopes). Selecting a GitHub repo here will clone it to a temp folder and run the local CLI on the clone.',
+      'Click "Connect to GitHub" — your default browser opens GitHub\'s authorize page (passkeys, password manager, 2FA all work as normal). First-run only: the GitHub App needs http://127.0.0.1:47821/oauth/callback in its callback URL list (Settings → Developer settings → GitHub Apps → gitrepoguru → Callback URL).',
   },
   compare: {
     async run(repoA, repoB) {
-      const res = (await grpcClient.compareRepos(repoA, repoB)) as CompareResponseWire;
+      // Resolve both inputs in parallel — clones happen concurrently if
+      // both are GitHub slugs.
+      const [pathA, pathB] = await Promise.all([resolveRepoPath(repoA), resolveRepoPath(repoB)]);
+      const res = (await grpcClient.compareRepos(pathA, pathB)) as CompareResponseWire;
       const cardA = scoreToReportCardData(res.report_card_a, repoA);
       const cardB = scoreToReportCardData(res.report_card_b, repoB);
       return {
@@ -182,13 +195,15 @@ export const desktopServices: RepoGuruServices = {
   },
   score: {
     async run(repo) {
-      const score = (await grpcClient.scoreReportCard(repo)) as ScoreResponse;
+      const path = await resolveRepoPath(repo);
+      const score = (await grpcClient.scoreReportCard(path)) as ScoreResponse;
       return { report: scoreToReportCardData(score, repo) };
     },
   },
   techDetect: {
     async run(repo) {
-      const res = (await grpcClient.detectTech(repo)) as { json?: string };
+      const path = await resolveRepoPath(repo);
+      const res = (await grpcClient.detectTech(path)) as { json?: string };
       const raw = res?.json ? JSON.parse(res.json) as Record<string, unknown> : {};
       const arr = (k: string) => (Array.isArray(raw[k]) ? raw[k] : []);
       return {
@@ -215,7 +230,8 @@ export const desktopServices: RepoGuruServices = {
   policy: {
     listPresets: (): PolicyPreset[] => DESKTOP_PRESETS,
     async evaluate(req): Promise<PolicyEvalResult> {
-      const score = (await grpcClient.scoreReportCard(req.repo)) as ScoreResponse;
+      const path = await resolveRepoPath(req.repo);
+      const score = (await grpcClient.scoreReportCard(path)) as ScoreResponse;
       const wire = (await grpcClient.evaluatePolicy(req.presetId, score)) as {
         passed: boolean;
         pass_count: number;
@@ -256,6 +272,17 @@ export const desktopServices: RepoGuruServices = {
   },
   gitStats: {
     async run(repo, opts): Promise<GitStatsResult> {
+      // Surface the clone (if any) as part of the progress UI so the
+      // user knows what's happening while a 30k-commit repo downloads.
+      if (GITHUB_SLUG_RE.test(repo)) {
+        opts?.onProgress?.({
+          message: `Cloning ${repo}…`,
+          overall: 1,
+          sub: 0,
+          phase: 'cloning',
+        });
+      }
+      const path = await resolveRepoPath(repo);
       const outPath = `/tmp/repoguru-${Date.now()}.bin`;
       // Phase 1: scan the repo, producing a binary report file. Heuristic
       // mapping for the overall progress: the scan phase covers 0–60%; the
@@ -264,7 +291,7 @@ export const desktopServices: RepoGuruServices = {
       const PHASE1_END = 60;
       let scanTotal = 0;
       await new Promise<void>((resolve, reject) => {
-        const req: ScanRequest = { repo_path: repo, out_path: outPath };
+        const req: ScanRequest = { repo_path: path, out_path: outPath };
         grpcClient
           .scan(req, (p: ScanProgress) => {
             if (p.error) reject(new Error(p.error));
@@ -319,7 +346,7 @@ export const desktopServices: RepoGuruServices = {
       const TOTAL_DONE = 100;
       let sectionsLoaded = 0;
       const TOTAL_SECTIONS = 7;
-      for await (const event of analyzer.analyze({ source: repo, outPath })) {
+      for await (const event of analyzer.analyze({ source: path, outPath })) {
         if (opts?.signal?.aborted) throw new DOMException('aborted', 'AbortError');
         if (event.kind === 'section') {
           (canonical as Record<string, unknown>)[event.section.name] = event.section.data;

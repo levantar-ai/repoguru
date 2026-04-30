@@ -32,6 +32,19 @@ export function RepoPicker({
 }: RepoPickerProps) {
   const { repoBrowse } = useRepoGuru();
   const [browsing, setBrowsing] = useState(false);
+  const [connecting, setConnecting] = useState(false);
+  const [connectError, setConnectError] = useState<string | null>(null);
+  // Bumped after a successful OAuth so hasGitHubToken() re-evaluates.
+  // Web doesn't need this (its OAuth navigates the page), but desktop
+  // OAuth resolves in-place and dispatches a custom event we listen for.
+  const [tokenTick, setTokenTick] = useState(0);
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const handler = () => setTokenTick((n) => n + 1);
+    window.addEventListener('repoguru:github-connected', handler);
+    return () => window.removeEventListener('repoguru:github-connected', handler);
+  }, []);
+
   const recents = repoBrowse.recents();
   const id = inputId ?? `repo-${label.replace(/\s+/g, '-').toLowerCase()}`;
 
@@ -41,6 +54,9 @@ export function RepoPicker({
     repoBrowse.connectGitHub ||
     repoBrowse.listGitHubRepos
   );
+  // Reference tokenTick so eslint sees it as load-bearing for
+  // re-renders that re-evaluate hasGitHubToken.
+  void tokenTick;
 
   const [ghRepos, setGhRepos] = useState<GitHubRepoSummary[]>([]);
   const [ghLoading, setGhLoading] = useState(false);
@@ -190,14 +206,36 @@ export function RepoPicker({
             <div className="mb-3">
               <button
                 type="button"
-                onClick={() => repoBrowse.connectGitHub?.()}
-                className="flex items-center justify-center gap-2 w-full px-4 py-2.5 rounded-lg bg-[#24292f] hover:bg-[#32383f] text-white text-sm font-medium transition-colors"
+                disabled={connecting}
+                onClick={async () => {
+                  if (connecting) return;
+                  setConnecting(true);
+                  setConnectError(null);
+                  try {
+                    await repoBrowse.connectGitHub?.();
+                    // hasGitHubToken() polls synchronously; force a
+                    // re-eval in case the host didn't dispatch the event.
+                    setTokenTick((n) => n + 1);
+                  } catch (err) {
+                    const message = err instanceof Error ? err.message : String(err);
+                    // Drop "Cancelled" — that's a user choice, not an error.
+                    if (!/cancel/i.test(message)) setConnectError(message);
+                  } finally {
+                    setConnecting(false);
+                  }
+                }}
+                className="flex items-center justify-center gap-2 w-full px-4 py-2.5 rounded-lg bg-[#24292f] hover:bg-[#32383f] disabled:opacity-60 text-white text-sm font-medium transition-colors"
               >
                 <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                   <path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" />
                 </svg>
-                Connect to GitHub
+                {connecting ? 'Waiting for GitHub…' : 'Connect to GitHub'}
               </button>
+              {connectError && (
+                <div className="mt-2 px-3 py-2 rounded-md bg-red-500/10 border border-red-500/30 text-xs text-red-400">
+                  {connectError}
+                </div>
+              )}
               <div className="text-center text-xs text-text-muted mt-2">
                 to browse your repos, unlock private access, and get 80× rate limits
               </div>

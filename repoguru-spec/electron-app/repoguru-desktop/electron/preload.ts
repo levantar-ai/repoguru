@@ -74,6 +74,22 @@ export interface RepoGuruAPI {
   secureLoad(key: string): Promise<{ value: string; fallback: boolean }>;
   secureDelete(key: string): Promise<{ fallback: boolean }>;
   secureHas(key: string): Promise<{ has: boolean; fallback: boolean }>;
+
+  // GitHub OAuth — opens GitHub's authorize URL in the user's default
+  // browser, captures the redirect on a localhost loopback server,
+  // exchanges the code via the CORS proxy, returns the token. Same
+  // flow desktop OAuth tools (gh CLI, gcloud, etc.) use.
+  githubOAuthBrowser(args: { clientId: string; corsProxy: string }): Promise<{ token: string }>;
+  githubOAuthCancel(): Promise<void>;
+  githubListRepos(token: string): Promise<Array<{
+    owner: string;
+    repo: string;
+    description?: string;
+    language?: string;
+    stars?: number;
+    ownerLabel?: string;
+  }>>;
+  githubCloneRepo(args: { slug: string; token?: string }): Promise<{ path: string }>;
 }
 
 const api: RepoGuruAPI = {
@@ -173,6 +189,20 @@ const api: RepoGuruAPI = {
   },
   secureHas(key) {
     return ipcRenderer.invoke('secureHas', key);
+  },
+
+  // OAuth (loopback HTTP server + system browser)
+  githubOAuthBrowser(args) {
+    return ipcRenderer.invoke('githubOAuthBrowser', args);
+  },
+  githubOAuthCancel() {
+    return ipcRenderer.invoke('githubOAuthCancel');
+  },
+  githubListRepos(token) {
+    return ipcRenderer.invoke('githubListRepos', token);
+  },
+  githubCloneRepo(args) {
+    return ipcRenderer.invoke('githubCloneRepo', args);
   },
 };
 
