@@ -29,6 +29,7 @@ export function RepoPicker({
   disabled,
   inputId,
   placeholder = 'owner/repo or /path/to/repo',
+  hideAuthChrome = false,
 }: RepoPickerProps) {
   const { repoBrowse } = useRepoGuru();
   const [browsing, setBrowsing] = useState(false);
@@ -201,7 +202,10 @@ export function RepoPicker({
       )}
 
       {/* ── GitHub Connect / repo finder ───────────────────────────── */}
-      {supportsGitHub && !hasToken && (
+      {/* hideAuthChrome lets pages with multiple pickers (Compare) keep
+          the Connect/Finder UI on only one of them, instead of rendering
+          identical 217-row repo lists side-by-side. */}
+      {!hideAuthChrome && supportsGitHub && !hasToken && (
         <div className="mt-4 px-5 py-4 rounded-xl bg-neon/5 border border-neon/20 text-sm text-text-secondary">
           {repoBrowse.connectGitHub && (
             <div className="mb-3">
@@ -264,7 +268,7 @@ export function RepoPicker({
         </div>
       )}
 
-      {supportsGitHub && hasToken && ghLoading && ghRepos.length === 0 && (
+      {!hideAuthChrome && supportsGitHub && hasToken && ghLoading && ghRepos.length === 0 && (
         <div className="mt-4 flex items-center gap-2 px-4 py-3 rounded-xl border border-border bg-surface-alt text-sm text-text-muted">
           <svg className="h-4 w-4 text-neon animate-spin shrink-0" viewBox="0 0 24 24" fill="none">
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
@@ -274,7 +278,7 @@ export function RepoPicker({
         </div>
       )}
 
-      {supportsGitHub && hasToken && ghError && ghRepos.length === 0 && (
+      {!hideAuthChrome && supportsGitHub && hasToken && ghError && ghRepos.length === 0 && (
         <div className="mt-4 flex items-center gap-2 px-4 py-3 rounded-xl border border-grade-f/25 bg-grade-f/5 text-sm text-grade-f">
           <span>{ghError}</span>
           {repoBrowse.refreshGitHubRepos && (
@@ -285,7 +289,7 @@ export function RepoPicker({
         </div>
       )}
 
-      {supportsGitHub && hasToken && ghRepos.length > 0 && (
+      {!hideAuthChrome && supportsGitHub && hasToken && ghRepos.length > 0 && (
         <div className="mt-4 rounded-xl border border-border bg-surface-alt overflow-hidden">
           <div className="p-2.5 border-b border-border flex gap-2">
             <input

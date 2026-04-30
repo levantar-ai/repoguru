@@ -95,6 +95,7 @@ export function ComparePage() {
             onChange={setInputB}
             onSubmit={handleCompare}
             disabled={state.step === 'loading'}
+            hideAuthChrome
           />
         </div>
         <div className="flex justify-center gap-3">

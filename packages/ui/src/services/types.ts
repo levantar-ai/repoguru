@@ -247,6 +247,12 @@ export type RepoPickerProps = {
   inputId?: string;
   /** Placeholder shown when value is empty. */
   placeholder?: string;
+  /** Suppress the GitHub Connect call-to-action AND the populated repo
+   *  finder list. Use when the page mounts more than one picker — set
+   *  `false` on the first to keep the auth chrome there, `true` on the
+   *  rest so the panel doesn't visually duplicate. The input itself is
+   *  always rendered. */
+  hideAuthChrome?: boolean;
 };
 
 // ─────────────────────────── Top-level services bag ──────────────────
