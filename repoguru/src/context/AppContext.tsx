@@ -12,9 +12,18 @@ import { loadSettings, saveSettings } from '../services/persistence/settingsStor
 import { loadRecentRepos, saveRecentRepo } from '../services/persistence/repoCache';
 import { loadGithubToken } from '../services/persistence/credentials';
 
+/** Minimal GitHub user identity surfaced in the chrome so signed-in
+ *  users see who they're acting as. Populated from /user once a token
+ *  is set (saved or restored). Cleared when the token clears. */
+export interface GitHubUserIdentity {
+  login: string;
+  avatarUrl: string;
+}
+
 interface AppState {
   settings: AppSettings;
   githubToken: string;
+  githubUser: GitHubUserIdentity | null;
   anthropicKey: string;
   rateLimit: RateLimitInfo | null;
   recentRepos: RecentRepo[];
@@ -27,6 +36,7 @@ type AppAction =
   | { type: 'SET_THEME'; theme: AppSettings['theme'] }
   | { type: 'SET_LLM_MODE'; mode: AppSettings['llmMode'] }
   | { type: 'SET_GITHUB_TOKEN'; token: string }
+  | { type: 'SET_GITHUB_USER'; user: GitHubUserIdentity | null }
   | { type: 'SET_ANTHROPIC_KEY'; key: string }
   | { type: 'SET_RATE_LIMIT'; info: RateLimitInfo }
   | { type: 'SET_RECENT_REPOS'; repos: RecentRepo[] }
@@ -37,6 +47,7 @@ type AppAction =
 const initialState: AppState = {
   settings: { theme: 'dark', llmMode: 'off' },
   githubToken: '',
+  githubUser: null,
   anthropicKey: '',
   rateLimit: null,
   recentRepos: [],
@@ -53,7 +64,11 @@ function appReducer(state: AppState, action: AppAction): AppState {
     case 'SET_LLM_MODE':
       return { ...state, settings: { ...state.settings, llmMode: action.mode } };
     case 'SET_GITHUB_TOKEN':
-      return { ...state, githubToken: action.token };
+      // Clear cached identity when the token changes/clears so we never
+      // render a stale "@user" against a different token.
+      return { ...state, githubToken: action.token, githubUser: null };
+    case 'SET_GITHUB_USER':
+      return { ...state, githubUser: action.user };
     case 'SET_ANTHROPIC_KEY':
       return { ...state, anthropicKey: action.key };
     case 'SET_RATE_LIMIT':
@@ -120,6 +135,36 @@ export function AppProvider({ children }: { children: ReactNode }) {
       saveSettings(state.settings).catch(() => {});
     }
   }, [state.settings, state.loaded]);
+
+  // Fetch the signed-in user's login + avatar whenever the token
+  // changes. The chrome uses this for a "Connected as @user"
+  // indicator — without it, returning users (token restored from
+  // IDB) had no visible signal they were authed beyond the absence
+  // of the Connect panel.
+  useEffect(() => {
+    if (!state.githubToken) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch('https://api.github.com/user', {
+          headers: {
+            Accept: 'application/vnd.github+json',
+            Authorization: `Bearer ${state.githubToken}`,
+          },
+        });
+        if (!res.ok) return; // 401 is handled by githubFetch elsewhere
+        const data: { login?: string; avatar_url?: string } = await res.json();
+        if (cancelled || !data.login) return;
+        dispatch({
+          type: 'SET_GITHUB_USER',
+          user: { login: data.login, avatarUrl: data.avatar_url || '' },
+        });
+      } catch {
+        /* ignore — chrome falls back to the rate-limit-only indicator */
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [state.githubToken]);
 
   // Apply theme — dark is the default base, .light overrides
   useEffect(() => {

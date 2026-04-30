@@ -144,48 +144,73 @@ export function Layout({ children, onNavigate, currentPage }: Props) {
           })}
         </div>
 
-        <div className="px-4 py-3 border-t border-border flex items-center justify-between gap-2">
-          <button
-            onClick={() => dispatch({ type: 'TOGGLE_SETTINGS' })}
-            className="text-xs text-text-muted hover:text-neon transition-colors inline-flex items-center gap-1.5"
-            aria-label="Open settings"
-          >
-            <svg
-              className="h-4 w-4"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth={1.5}
-              aria-hidden="true"
+        <div className="px-3 py-3 border-t border-border flex items-center gap-2">
+          {state.githubUser ? (
+            // Authenticated: avatar + login is the primary identity
+            // affordance, with rate-limit attached. Clicking opens
+            // Settings (where the Disconnect button lives).
+            <button
+              onClick={() => dispatch({ type: 'TOGGLE_SETTINGS' })}
+              className="flex-1 min-w-0 inline-flex items-center gap-2 px-1.5 py-1 rounded-md text-text-secondary hover:bg-surface-hover/50 hover:text-text transition-colors"
+              aria-label={`Connected as @${state.githubUser.login} — open settings`}
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
-              />
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-              />
-            </svg>
-            Settings
-          </button>
-          {state.rateLimit && (
-            <output
-              className="px-1.5 py-0.5 rounded text-[10px] tabular-nums"
-              style={{
-                background: 'var(--color-surface)',
-                border: '1px solid var(--color-border)',
-                color:
-                  state.rateLimit.remaining < 10
-                    ? 'var(--color-grade-f)'
-                    : 'var(--color-text-muted)',
-              }}
-              aria-label={`GitHub API rate limit: ${state.rateLimit.remaining} of ${state.rateLimit.limit} requests remaining`}
+              {state.githubUser.avatarUrl ? (
+                <img
+                  src={state.githubUser.avatarUrl}
+                  alt=""
+                  className="h-6 w-6 rounded-full shrink-0"
+                  aria-hidden="true"
+                />
+              ) : (
+                <div className="h-6 w-6 rounded-full bg-surface-hover shrink-0" aria-hidden="true" />
+              )}
+              <span className="text-xs font-medium truncate">@{state.githubUser.login}</span>
+              {state.rateLimit && (
+                <span
+                  className="ml-auto px-1.5 py-0.5 rounded text-[10px] tabular-nums shrink-0"
+                  style={{
+                    background: 'var(--color-surface)',
+                    border: '1px solid var(--color-border)',
+                    color:
+                      state.rateLimit.remaining < 10
+                        ? 'var(--color-grade-f)'
+                        : 'var(--color-text-muted)',
+                  }}
+                  aria-label={`GitHub API rate limit: ${state.rateLimit.remaining} of ${state.rateLimit.limit} requests remaining`}
+                >
+                  {state.rateLimit.remaining}
+                </span>
+              )}
+            </button>
+          ) : (
+            // Unauthenticated: keep the original "Settings" entrypoint
+            // visible since that's where Connect lives.
+            <button
+              onClick={() => dispatch({ type: 'TOGGLE_SETTINGS' })}
+              className="text-xs text-text-muted hover:text-neon transition-colors inline-flex items-center gap-1.5"
+              aria-label="Open settings"
             >
-              {state.rateLimit.remaining}/{state.rateLimit.limit}
-            </output>
+              <svg
+                className="h-4 w-4"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={1.5}
+                aria-hidden="true"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+                />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                />
+              </svg>
+              Settings
+            </button>
           )}
         </div>
       </nav>
