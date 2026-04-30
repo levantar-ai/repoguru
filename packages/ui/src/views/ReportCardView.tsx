@@ -149,7 +149,8 @@ function OverviewSection({ report }: { report: ReportCardData }) {
           <div className="hidden lg:block">
             <RadarChart data={radarData} size={220} />
           </div>
-          <div className="text-center">
+          <div className="text-center inline-flex items-center justify-center gap-1.5">
+            <GradeStatusBadge grade={report.grade} />
             <span
               className="text-sm font-medium"
               style={{ color: GRADE_COLORS[report.grade] }}
@@ -171,6 +172,44 @@ function OverviewSection({ report }: { report: ReportCardData }) {
 
 // ───────────────────────── primitives ─────────────────────────
 
+/** Maps a letter grade to a non-colour cue so users with red/amber
+ *  colour-blindness (Deutan/Protan) can distinguish F from D, A from B
+ *  etc. The shapes are also redundantly meaningful for reduced-vision
+ *  users where a 12px hue is hard to read. */
+function gradeShape(grade: ReportCardData['grade']): { kind: 'check' | 'warn' | 'cross'; label: string } {
+  if (grade === 'A' || grade === 'B') return { kind: 'check', label: 'Healthy' };
+  if (grade === 'C') return { kind: 'warn', label: 'Needs attention' };
+  return { kind: 'cross', label: 'Critical' };
+}
+
+function GradeStatusBadge({ grade, className = '' }: { grade: ReportCardData['grade']; className?: string }) {
+  const shape = gradeShape(grade);
+  const color = GRADE_COLORS[grade];
+  return (
+    <span
+      className={`inline-flex items-center gap-1 ${className}`}
+      style={{ color }}
+      aria-label={shape.label}
+    >
+      {shape.kind === 'check' && (
+        <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3} aria-hidden="true">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+        </svg>
+      )}
+      {shape.kind === 'warn' && (
+        <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3} aria-hidden="true">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v4M12 17h.01M4.93 19h14.14a2 2 0 001.74-3l-7.07-12a2 2 0 00-3.48 0l-7.07 12a2 2 0 001.74 3z" />
+        </svg>
+      )}
+      {shape.kind === 'cross' && (
+        <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3} aria-hidden="true">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      )}
+    </span>
+  );
+}
+
 function LetterGrade({ grade, score }: { grade: ReportCardData['grade']; score: number }) {
   const color = GRADE_COLORS[grade];
   const radius = 80;
@@ -178,11 +217,12 @@ function LetterGrade({ grade, score }: { grade: ReportCardData['grade']; score: 
   const offset = circumference - (score / 100) * circumference;
   const viewBox = 176;
   const center = viewBox / 2;
+  const shape = gradeShape(grade);
 
   return (
     <div
       className="relative h-44 w-44 flex items-center justify-center"
-      aria-label={`Overall grade: ${grade}, score ${score} out of 100`}
+      aria-label={`Overall grade: ${grade}, score ${score} out of 100, ${shape.label}`}
     >
       <svg
         className="absolute inset-0 -rotate-90"
@@ -241,9 +281,10 @@ function CategoryScores({ categories }: { categories: ReportCardCategory[] }) {
                 </span>
               </div>
               <span
-                className="text-lg font-bold"
+                className="inline-flex items-center gap-1.5 text-lg font-bold"
                 style={{ color, textShadow: `0 0 10px ${color}30` }}
               >
+                <GradeStatusBadge grade={grade} />
                 {cat.score}
               </span>
             </div>
