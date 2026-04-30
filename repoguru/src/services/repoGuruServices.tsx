@@ -221,11 +221,26 @@ export function makeBrowserServices(
         return v && v.trim() ? v.trim() : null;
       },
       recents(): RepoSuggestion[] {
-        return getRecents().map<RepoSuggestion>((r) => ({
-          value: `${r.owner}/${r.repo}`,
-          label: `${r.owner}/${r.repo}`,
-          hint: `${r.grade} · ${r.overallScore}/100`,
-        }));
+        // Dedupe by owner/repo (the underlying store can accumulate
+        // duplicates over time) and project the persisted grade onto
+        // the suggestion so the chip can render a coloured pill.
+        const seen = new Set<string>();
+        const isGrade = (g: unknown): g is 'A' | 'B' | 'C' | 'D' | 'F' =>
+          g === 'A' || g === 'B' || g === 'C' || g === 'D' || g === 'F';
+        const out: RepoSuggestion[] = [];
+        for (const r of getRecents()) {
+          const key = `${r.owner}/${r.repo}`;
+          if (seen.has(key)) continue;
+          seen.add(key);
+          out.push({
+            value: key,
+            label: key,
+            hint: `${r.grade} · ${r.overallScore}/100`,
+            grade: isGrade(r.grade) ? r.grade : undefined,
+            score: r.overallScore,
+          });
+        }
+        return out;
       },
       hasGitHubToken() {
         return !!getToken();

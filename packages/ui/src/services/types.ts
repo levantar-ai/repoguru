@@ -174,6 +174,13 @@ export interface RepoSuggestion {
   label: string;
   /** Optional secondary line (description, language, last-modified, …). */
   hint?: string;
+  /** Optional grade letter from a previous analysis (A–F). When set the
+   *  picker chip renders a coloured grade pill so the user can recognise
+   *  past results at a glance. */
+  grade?: 'A' | 'B' | 'C' | 'D' | 'F';
+  /** Optional overall score (0-100) — paired with `grade` for the chip
+   *  tooltip. */
+  score?: number;
 }
 
 /** Summary of a GitHub repo a user owns / has access to — used by the

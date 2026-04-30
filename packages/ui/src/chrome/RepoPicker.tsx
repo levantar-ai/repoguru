@@ -191,9 +191,10 @@ export function RepoPicker({
               type="button"
               onClick={() => onChange(s.value)}
               title={s.hint ?? s.value}
-              className="px-2.5 py-1 rounded-lg text-xs bg-surface-alt border border-border text-text-secondary hover:text-neon hover:border-neon/30 transition-all max-w-[260px] truncate"
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs bg-surface-alt border border-border text-text-secondary hover:text-neon hover:border-neon/30 transition-all max-w-[260px]"
             >
-              {s.label}
+              {s.grade && <RecentGradePill grade={s.grade} />}
+              <span className="truncate">{s.label}</span>
             </button>
           ))}
         </div>
@@ -403,5 +404,26 @@ export function RepoPicker({
         </div>
       )}
     </div>
+  );
+}
+
+/** Small coloured grade pill for recents chips so users can recognise
+ *  past results at a glance. Mirrors the grade colour tokens used in
+ *  ReportCardView so the visual language is consistent across pages. */
+function RecentGradePill({ grade }: { grade: 'A' | 'B' | 'C' | 'D' | 'F' }) {
+  const colorClass = {
+    A: 'bg-grade-a/15 text-grade-a border-grade-a/30',
+    B: 'bg-grade-b/15 text-grade-b border-grade-b/30',
+    C: 'bg-grade-c/15 text-grade-c border-grade-c/30',
+    D: 'bg-grade-d/15 text-grade-d border-grade-d/30',
+    F: 'bg-grade-f/15 text-grade-f border-grade-f/30',
+  }[grade];
+  return (
+    <span
+      className={`inline-flex items-center justify-center w-4 h-4 rounded text-[10px] font-bold border ${colorClass}`}
+      aria-label={`Last graded ${grade}`}
+    >
+      {grade}
+    </span>
   );
 }
