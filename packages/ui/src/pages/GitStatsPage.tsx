@@ -81,6 +81,17 @@ export function GitStatsPage() {
     setState({ step: 'idle', message: '', progress: null, analysis: null, error: null });
   }, []);
 
+  // Done state: full-width so the section nav rail sits flush against the
+  // app's main left sidebar. Other states keep the centred PageContainer.
+  if (state.step === 'done' && state.analysis) {
+    return (
+      <GitStatsView
+        analysis={state.analysis}
+        actions={<SecondaryButton onClick={handleReset}>New Analysis</SecondaryButton>}
+      />
+    );
+  }
+
   return (
     <PageContainer>
       <PageHero
@@ -93,26 +104,24 @@ export function GitStatsPage() {
         }
       />
 
-      {state.step !== 'done' && (
-        <div className="mb-8 max-w-4xl mx-auto">
-          <RepoPicker
-            inputId="git-stats-repo"
-            label="Repository"
-            value={input}
-            onChange={setInput}
-            onSubmit={handleAnalyze}
-            disabled={state.step === 'loading'}
-          />
-          <div className="flex justify-center gap-3 mt-4">
-            <PrimaryButton
-              onClick={handleAnalyze}
-              disabled={state.step === 'loading' || !input.trim()}
-            >
-              {state.step === 'loading' ? 'Analyzing...' : 'Analyze Git Stats'}
-            </PrimaryButton>
-          </div>
+      <div className="mb-8 max-w-4xl mx-auto">
+        <RepoPicker
+          inputId="git-stats-repo"
+          label="Repository"
+          value={input}
+          onChange={setInput}
+          onSubmit={handleAnalyze}
+          disabled={state.step === 'loading'}
+        />
+        <div className="flex justify-center gap-3 mt-4">
+          <PrimaryButton
+            onClick={handleAnalyze}
+            disabled={state.step === 'loading' || !input.trim()}
+          >
+            {state.step === 'loading' ? 'Analyzing...' : 'Analyze Git Stats'}
+          </PrimaryButton>
         </div>
-      )}
+      </div>
 
       {state.step === 'loading' && (
         <LoadingPanel
@@ -128,13 +137,6 @@ export function GitStatsPage() {
           title="Analysis failed"
           message={state.error}
           action={<SecondaryButton onClick={handleReset}>Try again</SecondaryButton>}
-        />
-      )}
-
-      {state.step === 'done' && state.analysis && (
-        <GitStatsView
-          analysis={state.analysis}
-          actions={<SecondaryButton onClick={handleReset}>New Analysis</SecondaryButton>}
         />
       )}
     </PageContainer>

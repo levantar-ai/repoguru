@@ -84,6 +84,27 @@ export function ReportCardPage({ initialRepo, actions }: ReportCardPageProps) {
     queueMicrotask(() => handleScore(initialRepo));
   }
 
+  // The "done" state renders the report at full main-area width so the
+  // section nav rail can sit flush against the app's main left sidebar.
+  // The hero / picker / status panels remain inside the padded
+  // PageContainer for centred layout.
+  if (state.step === 'done' && state.result) {
+    return (
+      <>
+        <ReportCardView
+          report={state.result.report}
+          actions={
+            <div className="flex flex-wrap gap-2 items-center">
+              {actions}
+              <SecondaryButton onClick={handleReset}>New Analysis</SecondaryButton>
+            </div>
+          }
+        />
+        {state.result.extras}
+      </>
+    );
+  }
+
   return (
     <PageContainer>
       <PageHero
@@ -92,26 +113,24 @@ export function ReportCardPage({ initialRepo, actions }: ReportCardPageProps) {
         subtitle="Analyze any repository for security, documentation, CI/CD, dependencies, and more. Instant letter grades."
       />
 
-      {state.step !== 'done' && (
-        <div className="mb-8 max-w-4xl mx-auto">
-          <RepoPicker
-            inputId="report-card-repo"
-            label="Repository"
-            value={input}
-            onChange={setInput}
-            onSubmit={() => handleScore()}
-            disabled={state.step === 'loading'}
-          />
-          <div className="flex justify-center gap-3 mt-4">
-            <PrimaryButton
-              onClick={() => handleScore()}
-              disabled={state.step === 'loading' || !input.trim()}
-            >
-              {state.step === 'loading' ? 'Analyzing...' : 'Score'}
-            </PrimaryButton>
-          </div>
+      <div className="mb-8 max-w-4xl mx-auto">
+        <RepoPicker
+          inputId="report-card-repo"
+          label="Repository"
+          value={input}
+          onChange={setInput}
+          onSubmit={() => handleScore()}
+          disabled={state.step === 'loading'}
+        />
+        <div className="flex justify-center gap-3 mt-4">
+          <PrimaryButton
+            onClick={() => handleScore()}
+            disabled={state.step === 'loading' || !input.trim()}
+          >
+            {state.step === 'loading' ? 'Analyzing...' : 'Score'}
+          </PrimaryButton>
         </div>
-      )}
+      </div>
 
       {state.step === 'loading' && <LoadingPanel message={state.progress} />}
 
@@ -121,21 +140,6 @@ export function ReportCardPage({ initialRepo, actions }: ReportCardPageProps) {
           message={state.error}
           action={<SecondaryButton onClick={handleReset}>Try again</SecondaryButton>}
         />
-      )}
-
-      {state.step === 'done' && state.result && (
-        <>
-          <ReportCardView
-            report={state.result.report}
-            actions={
-              <div className="flex flex-wrap gap-2 items-center">
-                {actions}
-                <SecondaryButton onClick={handleReset}>New Analysis</SecondaryButton>
-              </div>
-            }
-          />
-          {state.result.extras}
-        </>
       )}
     </PageContainer>
   );

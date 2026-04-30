@@ -1,5 +1,12 @@
 import type { ReactNode } from 'react';
 import { RadarChart } from '../charts/RadarChart.js';
+import { SectionLayout, type SectionDef } from '../chrome/SectionLayout.js';
+import {
+  OverviewIcon,
+  StrengthsIcon,
+  RisksIcon,
+  NextStepsIcon,
+} from '../chrome/SectionIcons.js';
 import {
   type ReportCardData,
   type ReportCardCategory,
@@ -18,8 +25,113 @@ export interface ReportCardViewProps {
  * Authoritative report card view. Rendered identically by both apps:
  * the browser app passes its AnalysisReport projected into ReportCardData;
  * the desktop app projects its gRPC ScoreResponse the same way.
+ *
+ * Header (repo name, stats, action bar) stays visible always; the body
+ * is split into Overview / Strengths / Risks / Next Steps and switched
+ * via the section nav rather than scrolled.
  */
 export function ReportCardView({ report, actions }: ReportCardViewProps) {
+  const sections: SectionDef[] = [
+    {
+      id: 'overview',
+      label: 'Overview',
+      icon: <OverviewIcon />,
+      content: <OverviewSection report={report} />,
+    },
+    {
+      id: 'strengths',
+      label: 'Strengths',
+      icon: <StrengthsIcon />,
+      content: <InsightsList title="Strengths" items={report.strengths} variant="green" />,
+    },
+    {
+      id: 'risks',
+      label: 'Risks',
+      icon: <RisksIcon />,
+      content: <InsightsList title="Risks" items={report.risks} variant="yellow" />,
+    },
+    {
+      id: 'next-steps',
+      label: 'Next Steps',
+      icon: <NextStepsIcon />,
+      content: <InsightsList title="Next Steps" items={report.nextSteps} variant="blue" />,
+    },
+  ];
+
+  return (
+    <article
+      className="w-full"
+      aria-label={`Report card for ${report.repo.owner}/${report.repo.repo}`}
+    >
+      <SectionLayout
+        sections={sections}
+        header={
+          <>
+            <ReportCardHeader report={report} actions={actions} />
+            {report.repoInfo?.archived && (
+              <div className="mt-4 text-sm">
+                <span className="text-grade-c font-semibold" role="alert">
+                  This repository is archived.
+                </span>
+              </div>
+            )}
+          </>
+        }
+      />
+    </article>
+  );
+}
+
+// ───────────────────────── header ─────────────────────────
+
+function ReportCardHeader({
+  report,
+  actions,
+}: {
+  report: ReportCardData;
+  actions?: ReactNode;
+}) {
+  return (
+    <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
+      <div>
+        <h1 className="text-3xl lg:text-4xl font-bold text-text">
+          {report.repo.owner}/<span className="text-neon">{report.repo.repo}</span>
+        </h1>
+        {report.repoInfo?.description && (
+          <p className="text-lg text-text-secondary mt-2 max-w-2xl">
+            {report.repoInfo.description}
+          </p>
+        )}
+        <div className="flex flex-wrap items-center gap-4 mt-3 text-sm text-text-muted">
+          {report.repoInfo?.stars !== undefined && (
+            <>
+              <span>{formatNumber(report.repoInfo.stars)} stars</span>
+              <span className="text-border" aria-hidden="true">|</span>
+            </>
+          )}
+          {report.repoInfo?.forks !== undefined && (
+            <>
+              <span>{formatNumber(report.repoInfo.forks)} forks</span>
+              <span className="text-border" aria-hidden="true">|</span>
+            </>
+          )}
+          {report.repoInfo?.openIssues !== undefined && (
+            <>
+              <span>{formatNumber(report.repoInfo.openIssues)} issues</span>
+              <span className="text-border" aria-hidden="true">|</span>
+            </>
+          )}
+          <span>Analyzed {formatDate(report.analyzedAt)}</span>
+        </div>
+      </div>
+      {actions}
+    </div>
+  );
+}
+
+// ───────────────────────── overview section ─────────────────────────
+
+function OverviewSection({ report }: { report: ReportCardData }) {
   const radarData = report.categories.map((c) => ({
     label: c.label,
     value: c.score,
@@ -27,101 +139,33 @@ export function ReportCardView({ report, actions }: ReportCardViewProps) {
   }));
 
   return (
-    <article
-      className="w-full px-8 lg:px-12 xl:px-16 py-10"
-      aria-label={`Report card for ${report.repo.owner}/${report.repo.repo}`}
-    >
-      {/* Header */}
-      <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 mb-10">
-        <div>
-          <h1 className="text-3xl lg:text-4xl font-bold text-text">
-            {report.repo.owner}/<span className="text-neon">{report.repo.repo}</span>
-          </h1>
-          {report.repoInfo?.description && (
-            <p className="text-lg text-text-secondary mt-2 max-w-2xl">
-              {report.repoInfo.description}
-            </p>
-          )}
-          <div className="flex flex-wrap items-center gap-4 mt-3 text-sm text-text-muted">
-            {report.repoInfo?.stars !== undefined && (
-              <>
-                <span>{formatNumber(report.repoInfo.stars)} stars</span>
-                <span className="text-border" aria-hidden="true">
-                  |
-                </span>
-              </>
-            )}
-            {report.repoInfo?.forks !== undefined && (
-              <>
-                <span>{formatNumber(report.repoInfo.forks)} forks</span>
-                <span className="text-border" aria-hidden="true">
-                  |
-                </span>
-              </>
-            )}
-            {report.repoInfo?.openIssues !== undefined && (
-              <>
-                <span>{formatNumber(report.repoInfo.openIssues)} issues</span>
-                <span className="text-border" aria-hidden="true">
-                  |
-                </span>
-              </>
-            )}
-            <span>Analyzed {formatDate(report.analyzedAt)}</span>
+    <section aria-labelledby="scores-heading">
+      <h2 id="scores-heading" className="sr-only">
+        Overall Score and Category Breakdown
+      </h2>
+      <div className="grid grid-cols-1 lg:grid-cols-[220px_1fr] gap-10">
+        <div className="flex flex-col items-center gap-6 lg:pt-2">
+          <LetterGrade grade={report.grade} score={report.overallScore} />
+          <div className="hidden lg:block">
+            <RadarChart data={radarData} size={220} />
+          </div>
+          <div className="text-center">
+            <span
+              className="text-sm font-medium"
+              style={{ color: GRADE_COLORS[report.grade] }}
+            >
+              {gradeAdjective(report.grade)}
+            </span>
           </div>
         </div>
-        {actions}
+        <div className="min-w-0">
+          <CategoryScores categories={report.categories} />
+        </div>
       </div>
-
-      {/* Grade + Radar + Categories */}
-      <section aria-labelledby="scores-heading" className="mb-10">
-        <h2 id="scores-heading" className="sr-only">
-          Overall Score and Category Breakdown
-        </h2>
-        <div className="grid grid-cols-1 lg:grid-cols-[220px_1fr] gap-10">
-          <div className="flex flex-col items-center gap-6 lg:pt-2">
-            <LetterGrade grade={report.grade} score={report.overallScore} />
-            <div className="hidden lg:block">
-              <RadarChart data={radarData} size={220} />
-            </div>
-            <div className="text-center">
-              <span
-                className="text-sm font-medium"
-                style={{ color: GRADE_COLORS[report.grade] }}
-              >
-                {gradeAdjective(report.grade)}
-              </span>
-            </div>
-          </div>
-          <div className="min-w-0">
-            <CategoryScores categories={report.categories} />
-          </div>
-        </div>
-      </section>
-
-      <div className="lg:hidden flex justify-center mb-10">
+      <div className="lg:hidden flex justify-center mt-10">
         <RadarChart data={radarData} size={280} />
       </div>
-
-      {/* Insights Grid */}
-      <section
-        className="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-10"
-        aria-label="Analysis insights"
-      >
-        <InsightsList title="Strengths" items={report.strengths} variant="green" />
-        <InsightsList title="Risks" items={report.risks} variant="yellow" />
-        <InsightsList title="Next Steps" items={report.nextSteps} variant="blue" />
-      </section>
-
-      {/* Footer */}
-      {report.repoInfo?.archived && (
-        <footer className="text-sm border-t border-border pt-5">
-          <span className="text-grade-c font-semibold" role="alert">
-            This repository is archived.
-          </span>
-        </footer>
-      )}
-    </article>
+    </section>
   );
 }
 
@@ -217,11 +261,7 @@ function CategoryScores({ categories }: { categories: ReportCardCategory[] }) {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1.5 ml-1">
               {cat.signals.map((signal) => (
                 <div key={signal.name} className="flex items-center gap-2 text-sm">
-                  {signal.found ? (
-                    <CheckIcon />
-                  ) : (
-                    <XIcon />
-                  )}
+                  {signal.found ? <CheckIcon /> : <XIcon />}
                   <span className={signal.found ? 'text-text-secondary' : 'text-text-muted'}>
                     {signal.name}
                     {signal.details && (
@@ -247,12 +287,20 @@ function InsightsList({
   items: string[];
   variant: 'green' | 'yellow' | 'blue';
 }) {
-  if (items.length === 0) return null;
   const colorClass = {
     green: 'text-grade-a border-grade-a/25 bg-grade-a/10',
     yellow: 'text-grade-c border-grade-c/25 bg-grade-c/10',
     blue: 'text-neon border-neon/25 bg-neon/10',
   }[variant];
+
+  if (items.length === 0) {
+    return (
+      <section className={`rounded-xl border p-5 ${colorClass}`}>
+        <h3 className="text-sm font-semibold uppercase tracking-wider mb-3">{title}</h3>
+        <p className="text-sm text-text-muted">No items.</p>
+      </section>
+    );
+  }
 
   return (
     <section className={`rounded-xl border p-5 ${colorClass}`}>
