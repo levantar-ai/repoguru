@@ -61,8 +61,18 @@ export async function githubFetch<T>(
       );
     }
     if (res.status === 404) {
+      // GitHub returns 404 in two distinct cases:
+      //   (a) the resource genuinely doesn't exist
+      //   (b) it exists but the caller can't see it
+      // For unauth callers (b) is "private repo, sign in." For authed
+      // callers (b) is "your token lacks access" — org SAML not granted,
+      // a fine-grained PAT that omitted this repo, etc. The previous
+      // single message ("make it public") was actively misleading for
+      // signed-in users hitting a permission-shaped 404.
       throw new GitHubApiError(
-        'Repository not found. Check the URL and ensure it is public.',
+        token
+          ? "Repository not found. It may not exist, or your GitHub token may not have access (e.g. org SAML not authorised, or the repo isn't in your fine-grained PAT's selection). Manage access in Settings."
+          : 'Repository not found. Check the URL — if it’s private, connect to GitHub in Settings.',
         404,
         rateLimit,
       );
