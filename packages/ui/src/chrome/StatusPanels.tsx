@@ -22,14 +22,30 @@ export function LoadingPanel({
 }: LoadingPanelProps) {
   const showBars = typeof progress === 'number';
   if (!showBars) {
+    // No numeric % yet → indeterminate progress bar with a sliding
+    // gradient so the user sees motion while the pipeline emits phase
+    // strings ("Cloning…", "Scoring CI/CD…", etc.). Visually matches
+    // the determinate bars below for consistency across pages.
     return (
-      // role=status + aria-live=polite so AT users hear "Analyzing…" /
-      // "Cloning…" / etc. updates instead of silence during long
-      // scoring runs (WCAG 4.1.3 Status Messages).
-      <div className="text-center py-16" role="status" aria-live="polite" aria-atomic="true">
-        <div className="inline-flex items-center gap-3 px-6 py-4 rounded-xl bg-surface-alt border border-border">
-          <Spinner />
-          <span className="text-text-secondary">{message}</span>
+      <div
+        className="max-w-3xl mx-auto py-12"
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+      >
+        <div className="flex items-center justify-between text-sm mb-2">
+          <span className="font-medium text-text">{message || 'Working…'}</span>
+          {subMessage && (
+            <span className="text-xs text-text-secondary">{subMessage}</span>
+          )}
+        </div>
+        <div
+          className="h-3 bg-surface-alt rounded-full overflow-hidden border border-border relative"
+          role="progressbar"
+          aria-label={message || 'Analysis progress'}
+          aria-valuetext={message || 'Working'}
+        >
+          <div className="absolute inset-y-0 w-1/3 bg-gradient-to-r from-transparent via-neon to-transparent animate-progress-indeterminate" />
         </div>
       </div>
     );

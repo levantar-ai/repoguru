@@ -98,7 +98,7 @@ export function OrgScanPage() {
         subtitle="One letter grade per repo. Rank by health, find the F-graded outliers, focus where it counts."
       />
 
-      {state.step !== 'done' && (
+      {state.step === 'idle' && (
         <div className="mb-8 max-w-4xl mx-auto space-y-4">
           <div>
             <label htmlFor="org-target" className="block text-sm font-medium text-text-secondary mb-1.5">
@@ -110,7 +110,6 @@ export function OrgScanPage() {
               value={target}
               onChange={(e) => setTarget(e.target.value)}
               placeholder="e.g. facebook"
-              disabled={state.step === 'loading'}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') handleScan();
               }}
@@ -144,11 +143,8 @@ export function OrgScanPage() {
           </div>
 
           <div className="flex justify-center">
-            <PrimaryButton
-              onClick={handleScan}
-              disabled={state.step === 'loading' || !target.trim()}
-            >
-              {state.step === 'loading' ? 'Scanning...' : 'Scan Organization'}
+            <PrimaryButton onClick={handleScan} disabled={!target.trim()}>
+              Scan Organization
             </PrimaryButton>
           </div>
         </div>

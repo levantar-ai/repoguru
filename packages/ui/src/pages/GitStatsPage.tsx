@@ -104,24 +104,24 @@ export function GitStatsPage() {
         }
       />
 
-      <div className="mb-8 max-w-4xl mx-auto">
-        <RepoPicker
-          inputId="git-stats-repo"
-          label="Repository"
-          value={input}
-          onChange={setInput}
-          onSubmit={handleAnalyze}
-          disabled={state.step === 'loading'}
-        />
-        <div className="flex justify-center gap-3 mt-4">
-          <PrimaryButton
-            onClick={handleAnalyze}
-            disabled={state.step === 'loading' || !input.trim()}
-          >
-            {state.step === 'loading' ? 'Analyzing...' : 'Analyze Git Stats'}
-          </PrimaryButton>
+      {/* Picker only in idle state — once Analyze is hit, the loading
+       *  panel takes the page. */}
+      {state.step === 'idle' && (
+        <div className="mb-8 max-w-4xl mx-auto">
+          <RepoPicker
+            inputId="git-stats-repo"
+            label="Repository"
+            value={input}
+            onChange={setInput}
+            onSubmit={handleAnalyze}
+          />
+          <div className="flex justify-center gap-3 mt-4">
+            <PrimaryButton onClick={handleAnalyze} disabled={!input.trim()}>
+              Analyze Git Stats
+            </PrimaryButton>
+          </div>
         </div>
-      </div>
+      )}
 
       {state.step === 'loading' && (
         <LoadingPanel

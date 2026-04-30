@@ -116,31 +116,35 @@ export function ReportCardPage({ initialRepo, actions }: ReportCardPageProps) {
       />
       <PrivacyStrip />
 
-      <div className="mb-8 max-w-4xl mx-auto">
-        <RepoPicker
-          inputId="report-card-repo"
-          label="Repository"
-          value={input}
-          onChange={setInput}
-          onSubmit={() => handleScore()}
-          disabled={state.step === 'loading'}
-        />
-        <div className="flex justify-center gap-3 mt-4 mb-6">
-          <PrimaryButton
-            onClick={() => handleScore()}
-            disabled={state.step === 'loading' || !input.trim()}
-          >
-            {state.step === 'loading' ? 'Analyzing…' : 'Score'}
-          </PrimaryButton>
+      {/* The picker chrome (input + browse + recents + finder + demo
+       *  chips) only shows in the idle state. Once analysis starts,
+       *  the loading panel takes over the page so the user isn't
+       *  visually distracted by the form they just submitted. */}
+      {state.step === 'idle' && (
+        <div className="mb-8 max-w-4xl mx-auto">
+          <RepoPicker
+            inputId="report-card-repo"
+            label="Repository"
+            value={input}
+            onChange={setInput}
+            onSubmit={() => handleScore()}
+          />
+          <div className="flex justify-center gap-3 mt-4 mb-6">
+            <PrimaryButton
+              onClick={() => handleScore()}
+              disabled={!input.trim()}
+            >
+              Score
+            </PrimaryButton>
+          </div>
+          <DemoChips
+            onPick={(slug) => {
+              setInput(slug);
+              handleScore(slug);
+            }}
+          />
         </div>
-        <DemoChips
-          disabled={state.step === 'loading'}
-          onPick={(slug) => {
-            setInput(slug);
-            handleScore(slug);
-          }}
-        />
-      </div>
+      )}
 
       {state.step === 'loading' && <LoadingPanel message={state.progress} />}
 

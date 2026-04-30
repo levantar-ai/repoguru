@@ -80,38 +80,35 @@ export function ComparePage() {
       />
       <PrivacyStrip />
 
-      <div className="mb-8">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
-          <RepoPicker
-            inputId="compare-repo-a"
-            label="Repo A"
-            value={inputA}
-            onChange={setInputA}
-            onSubmit={handleCompare}
-            disabled={state.step === 'loading'}
-          />
-          <RepoPicker
-            inputId="compare-repo-b"
-            label="Repo B"
-            value={inputB}
-            onChange={setInputB}
-            onSubmit={handleCompare}
-            disabled={state.step === 'loading'}
-            hideAuthChrome
-          />
+      {state.step === 'idle' && (
+        <div className="mb-8">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+            <RepoPicker
+              inputId="compare-repo-a"
+              label="Repo A"
+              value={inputA}
+              onChange={setInputA}
+              onSubmit={handleCompare}
+            />
+            <RepoPicker
+              inputId="compare-repo-b"
+              label="Repo B"
+              value={inputB}
+              onChange={setInputB}
+              onSubmit={handleCompare}
+              hideAuthChrome
+            />
+          </div>
+          <div className="flex justify-center gap-3">
+            <PrimaryButton
+              onClick={handleCompare}
+              disabled={!inputA.trim() || !inputB.trim()}
+            >
+              Compare
+            </PrimaryButton>
+          </div>
         </div>
-        <div className="flex justify-center gap-3">
-          <PrimaryButton
-            onClick={handleCompare}
-            disabled={state.step === 'loading' || !inputA.trim() || !inputB.trim()}
-          >
-            {state.step === 'loading' ? 'Comparing...' : 'Compare'}
-          </PrimaryButton>
-          {state.step === 'done' && (
-            <SecondaryButton onClick={handleReset}>Reset</SecondaryButton>
-          )}
-        </div>
-      </div>
+      )}
 
       {state.step === 'loading' && <LoadingPanel message={state.progress} />}
 
@@ -120,14 +117,19 @@ export function ComparePage() {
       )}
 
       {state.step === 'done' && state.result && (
-        <CompareView
-          reportA={state.result.reportA}
-          reportB={state.result.reportB}
-          deltas={state.result.deltas}
-          winner={state.result.winner}
-          scoreDelta={state.result.scoreDelta}
-          extras={state.result.extras}
-        />
+        <>
+          <div className="max-w-3xl mx-auto mb-4 flex justify-end">
+            <SecondaryButton onClick={handleReset}>New Comparison</SecondaryButton>
+          </div>
+          <CompareView
+            reportA={state.result.reportA}
+            reportB={state.result.reportB}
+            deltas={state.result.deltas}
+            winner={state.result.winner}
+            scoreDelta={state.result.scoreDelta}
+            extras={state.result.extras}
+          />
+        </>
       )}
     </PageContainer>
   );

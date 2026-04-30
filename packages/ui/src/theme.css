@@ -179,6 +179,20 @@ body {
   outline-offset: 2px;
 }
 
+/* ── Indeterminate progress bar ─────────────────────────── */
+
+/* A sliding-gradient stripe used by LoadingPanel when no numeric %
+ * is available (most pipelines just emit phase strings). Matches the
+ * visual language of the determinate bars elsewhere so all loading
+ * states look like the same affordance. */
+@keyframes progress-indeterminate {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(400%); }
+}
+.animate-progress-indeterminate {
+  animation: progress-indeterminate 1.4s ease-in-out infinite;
+}
+
 /* ── Reduced Motion ────────────────────────────────────── */
 
 @media (prefers-reduced-motion: reduce) {

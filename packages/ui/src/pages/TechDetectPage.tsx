@@ -82,24 +82,22 @@ export function TechDetectPage() {
       />
       <PrivacyStrip />
 
-      <div className="mb-8 max-w-4xl mx-auto">
-        <RepoPicker
-          inputId="tech-detect-repo"
-          label="Repository"
-          value={input}
-          onChange={setInput}
-          onSubmit={handleDetect}
-          disabled={state.step === 'loading'}
-        />
-        <div className="flex justify-center gap-3 mt-4">
-          <PrimaryButton
-            onClick={handleDetect}
-            disabled={state.step === 'loading' || !input.trim()}
-          >
-            {state.step === 'loading' ? 'Scanning…' : 'Detect'}
-          </PrimaryButton>
+      {state.step === 'idle' && (
+        <div className="mb-8 max-w-4xl mx-auto">
+          <RepoPicker
+            inputId="tech-detect-repo"
+            label="Repository"
+            value={input}
+            onChange={setInput}
+            onSubmit={handleDetect}
+          />
+          <div className="flex justify-center gap-3 mt-4">
+            <PrimaryButton onClick={handleDetect} disabled={!input.trim()}>
+              Detect
+            </PrimaryButton>
+          </div>
         </div>
-      </div>
+      )}
 
       {state.step === 'loading' && <LoadingPanel message={state.progress} />}
 
