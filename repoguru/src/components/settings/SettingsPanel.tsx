@@ -84,7 +84,7 @@ function GitHubTokenField() {
             </div>
             <button
               onClick={handleClear}
-              className="px-3 py-1.5 text-xs rounded-lg border border-border hover:bg-surface-hover hover:border-grade-f/30 text-text-muted hover:text-grade-f transition-all"
+              className="px-3 py-1.5 text-xs font-medium rounded-lg border border-grade-f/30 text-grade-f hover:bg-grade-f/10 hover:border-grade-f/50 transition-all"
               aria-label="Disconnect GitHub"
             >
               Disconnect
@@ -260,45 +260,31 @@ export function SettingsPanel() {
     dispatch({ type: 'TOGGLE_SETTINGS' });
   }, [dispatch]);
 
-  // Focus the close button when panel opens
+  // Native <dialog>.showModal() gives us proper modality for free:
+  //  - focus trap (Tab can't escape the dialog into the document)
+  //  - ESC dismissal (fires the 'cancel' event)
+  //  - the rest of the document is automatically `inert` while open
+  //  - ::backdrop pseudo-element renders the scrim
+  // The previous manual implementation was 30+ lines of bespoke
+  // focus-trap + keyboard handling that audited as leaky (B5).
   useEffect(() => {
+    const dlg = panelRef.current;
+    if (!dlg) return;
     if (state.settingsOpen) {
+      if (!dlg.open) dlg.showModal();
+      // APG dialog pattern recommends focusing the first interactive
+      // control rather than Close — but our existing tests + muscle
+      // memory expect Close. Keep current behaviour.
       closeButtonRef.current?.focus();
-    }
-  }, [state.settingsOpen]);
-
-  // Escape key closes panel
-  useEffect(() => {
-    if (!state.settingsOpen) return;
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
+      const onCancel = (e: Event) => {
+        e.preventDefault();
         handleClose();
-        return;
-      }
-
-      // Focus trap
-      if (e.key === 'Tab' && panelRef.current) {
-        const focusable = panelRef.current.querySelectorAll<HTMLElement>(
-          'button, input, select, textarea, [tabindex]:not([tabindex="-1"])',
-        );
-        if (focusable.length === 0) return;
-
-        const first = focusable[0];
-        const last = focusable[focusable.length - 1];
-
-        if (e.shiftKey && document.activeElement === first) {
-          e.preventDefault();
-          last.focus();
-        } else if (!e.shiftKey && document.activeElement === last) {
-          e.preventDefault();
-          first.focus();
-        }
-      }
-    };
-
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
+      };
+      dlg.addEventListener('cancel', onCancel);
+      return () => dlg.removeEventListener('cancel', onCancel);
+    } else if (dlg.open) {
+      dlg.close();
+    }
   }, [state.settingsOpen, handleClose]);
 
   if (!state.settingsOpen) return null;
@@ -312,19 +298,15 @@ export function SettingsPanel() {
 
   return (
     <>
-      {/* Backdrop */}
-      <div
-        className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40"
-        onClick={handleClose}
-        aria-hidden="true"
-      />
-
-      {/* Panel */}
+      {/* Panel — showModal() provides the ::backdrop scrim, focus
+          trap, ESC dismissal, and inerts the rest of the document.
+          aria-modal=true is the explicit signal modern AT uses to
+          treat this as a dialog landmark (UA defaults vary). */}
       <dialog
         ref={panelRef}
-        className="fixed top-0 right-0 h-full w-full max-w-md bg-surface border-l border-border shadow-2xl z-50 overflow-y-auto m-0 p-0"
+        className="fixed top-0 right-0 bottom-0 left-auto h-full w-full max-w-md bg-surface border-l border-border shadow-2xl overflow-y-auto m-0 p-0 backdrop:bg-black/50 backdrop:backdrop-blur-sm"
         aria-label="Settings"
-        open
+        aria-modal="true"
       >
         <div className="p-8">
           <div className="flex items-center justify-between mb-8">
