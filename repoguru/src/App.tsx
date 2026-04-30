@@ -54,7 +54,16 @@ function OAuthToast({ message, onDone }: { message: string; onDone: () => void }
   }, [onDone]);
 
   return (
-    <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[100] animate-in fade-in slide-in-from-top-2">
+    // role=status + aria-live=polite so the OAuth-success toast is
+    // announced (most NVDA/JAWS configs surface polite live updates
+    // even on a fixed-position element). aria-atomic=true so the whole
+    // message is read each time it changes.
+    <div
+      className="fixed top-4 left-1/2 -translate-x-1/2 z-[100] animate-in fade-in slide-in-from-top-2"
+      role="status"
+      aria-live="polite"
+      aria-atomic="true"
+    >
       <div className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-grade-a/10 border border-grade-a/30 text-sm text-grade-a shadow-lg">
         <svg
           className="h-4 w-4 shrink-0"
@@ -62,6 +71,7 @@ function OAuthToast({ message, onDone }: { message: string; onDone: () => void }
           viewBox="0 0 24 24"
           stroke="currentColor"
           strokeWidth={2}
+          aria-hidden="true"
         >
           <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
         </svg>

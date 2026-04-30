@@ -23,7 +23,10 @@ export function LoadingPanel({
   const showBars = typeof progress === 'number';
   if (!showBars) {
     return (
-      <div className="text-center py-16">
+      // role=status + aria-live=polite so AT users hear "Analyzing…" /
+      // "Cloning…" / etc. updates instead of silence during long
+      // scoring runs (WCAG 4.1.3 Status Messages).
+      <div className="text-center py-16" role="status" aria-live="polite" aria-atomic="true">
         <div className="inline-flex items-center gap-3 px-6 py-4 rounded-xl bg-surface-alt border border-border">
           <Spinner />
           <span className="text-text-secondary">{message}</span>
@@ -34,8 +37,20 @@ export function LoadingPanel({
   const overall = Math.max(0, Math.min(100, progress!));
   const sub = Math.max(0, Math.min(100, subProgress ?? 0));
   return (
-    <div className="max-w-3xl mx-auto py-12">
-      <div className="flex items-center justify-between text-sm mb-2">
+    <div
+      className="max-w-3xl mx-auto py-12"
+      role="status"
+      aria-live="polite"
+      aria-atomic="true"
+    >
+      <div
+        className="flex items-center justify-between text-sm mb-2"
+        role="progressbar"
+        aria-label="Overall analysis progress"
+        aria-valuenow={Math.round(overall)}
+        aria-valuemin={0}
+        aria-valuemax={100}
+      >
         <span className="font-medium text-text">Overall Progress</span>
         <span className="text-neon font-bold tabular-nums">{Math.round(overall)}%</span>
       </div>
@@ -56,7 +71,14 @@ export function LoadingPanel({
         )}
       </div>
       {typeof subProgress === 'number' && (
-        <div className="h-1.5 bg-surface-alt rounded-full overflow-hidden border border-border/50">
+        <div
+          className="h-1.5 bg-surface-alt rounded-full overflow-hidden border border-border/50"
+          role="progressbar"
+          aria-label={subMessage || 'Sub-task progress'}
+          aria-valuenow={Math.round(sub)}
+          aria-valuemin={0}
+          aria-valuemax={100}
+        >
           <div
             className="h-full bg-neon/60 rounded-full transition-all duration-200 ease-out"
             style={{ width: `${sub}%` }}
@@ -108,7 +130,13 @@ export interface ErrorPanelProps {
 /** Error panel matching the in-browser app's failure state. */
 export function ErrorPanel({ title, message, action }: ErrorPanelProps) {
   return (
-    <div className="max-w-2xl mx-auto mb-8 px-5 py-4 rounded-xl bg-grade-f/10 border border-grade-f/25">
+    // role=alert (which implies aria-live=assertive + aria-atomic=true)
+    // so AT users hear the failure immediately rather than discovering
+    // it on next focus move.
+    <div
+      className="max-w-2xl mx-auto mb-8 px-5 py-4 rounded-xl bg-grade-f/10 border border-grade-f/25"
+      role="alert"
+    >
       <div className="flex items-start gap-3">
         <svg
           className="h-5 w-5 text-grade-f shrink-0 mt-0.5"
