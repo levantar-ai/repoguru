@@ -91,64 +91,78 @@ function GitHubTokenField() {
             </button>
           </div>
 
-          {/* Installations / org access */}
-          <div className="mt-3 pt-3 border-t border-grade-a/10">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-medium text-text-muted uppercase tracking-wide">
-                Organization Access
-              </span>
-              {manageUrl && (
-                <a
-                  href={manageUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-xs text-neon hover:underline"
-                  onClick={() => trackEvent('manage_installations_click')}
-                >
-                  Manage Access
-                </a>
-              )}
-            </div>
-            {installsLoading ? (
-              <p className="text-xs text-text-muted">Loading...</p>
-            ) : installations.length === 0 ? (
-              <div className="text-xs text-text-muted">
-                <p className="mb-1.5">No organizations connected yet.</p>
-                {manageUrl && (
+          {/* GitHub App installations — distinct from PAT scopes. The
+              previous copy ("No organizations connected yet") read as a
+              missing-step problem to PAT users who already had access
+              to their orgs via the token's scopes. Now framed as an
+              optional capability — only shown when actually loading or
+              when at least one App installation exists. PAT-only users
+              don't see a no-op empty state. */}
+          {(installsLoading || installations.length > 0) && (
+            <div className="mt-3 pt-3 border-t border-grade-a/10">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-medium text-text-muted uppercase tracking-wide">
+                  GitHub App installations
+                </span>
+                {manageUrl && installations.length > 0 && (
                   <a
                     href={manageUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-neon/30 hover:bg-neon/10 text-neon transition-all"
-                    onClick={() => trackEvent('install_app_click')}
+                    className="text-xs text-neon hover:underline"
+                    onClick={() => trackEvent('manage_installations_click')}
                   >
-                    <svg
-                      className="h-3.5 w-3.5"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                      strokeWidth={2}
-                    >
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-                    </svg>
-                    Add organizations
+                    Manage
                   </a>
                 )}
               </div>
-            ) : (
-              <ul className="space-y-1.5">
-                {installations.map((inst) => (
-                  <li key={inst.id} className="flex items-center gap-2 text-sm text-text-secondary">
-                    <img src={inst.account.avatar_url} alt="" className="h-5 w-5 rounded-full" />
-                    <span className="truncate">{inst.account.login}</span>
-                    <span className="text-xs text-text-muted ml-auto">
-                      {inst.repository_selection === 'all' ? 'All repos' : 'Selected repos'}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
+              {installsLoading ? (
+                <p className="text-xs text-text-muted">Checking…</p>
+              ) : (
+                <ul className="space-y-1.5">
+                  {installations.map((inst) => (
+                    <li key={inst.id} className="flex items-center gap-2 text-sm text-text-secondary">
+                      <img src={inst.account.avatar_url} alt="" className="h-5 w-5 rounded-full" />
+                      <span className="truncate">{inst.account.login}</span>
+                      <span className="text-xs text-text-muted ml-auto">
+                        {inst.repository_selection === 'all' ? 'All repos' : 'Selected repos'}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
+          {/* When no App installations and PAT-only auth, surface the
+              install affordance softly as an *optional* upgrade rather
+              than a missing prerequisite. */}
+          {!installsLoading && installations.length === 0 && manageUrl && (
+            <div className="mt-3 pt-3 border-t border-grade-a/10 text-xs text-text-muted">
+              <p className="mb-1.5">
+                Optional: install the RepoGuru GitHub App for org-wide scans and higher rate limits.
+                Your token already covers personal-repo access.
+              </p>
+              <a
+                href={manageUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border hover:border-neon/30 hover:text-neon transition-all"
+                onClick={() => trackEvent('install_app_click')}
+              >
+                <svg
+                  className="h-3.5 w-3.5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                  aria-hidden="true"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                </svg>
+                Install GitHub App
+              </a>
+            </div>
+          )}
         </div>
       </div>
     );
