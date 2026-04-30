@@ -134,6 +134,24 @@ describe('oauth', () => {
       expect(result).toBeNull();
     });
 
+    it('silently drops a stale ?code= when no in-flight state exists', async () => {
+      vi.stubEnv('VITE_GITHUB_CLIENT_ID', 'test-client-id');
+      vi.resetModules();
+
+      Object.defineProperty(window, 'location', {
+        value: new URL('http://localhost:3000/?code=abc&state=anything'),
+        writable: true,
+        configurable: true,
+      });
+
+      // No sessionStorage entry → user reloaded the callback URL or
+      // landed here without starting an OAuth flow on this origin.
+      // Should clean the URL and return null, NOT throw "CSRF attack".
+      const { handleOAuthCallback } = await import('../oauth');
+      await expect(handleOAuthCallback()).resolves.toBeNull();
+      expect(window.history.replaceState).toHaveBeenCalled();
+    });
+
     it('throws on state mismatch (CSRF protection) and cleans URL', async () => {
       vi.stubEnv('VITE_GITHUB_CLIENT_ID', 'test-client-id');
       vi.resetModules();

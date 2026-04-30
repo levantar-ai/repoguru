@@ -17,6 +17,11 @@ export function startOAuthFlow(): void {
     client_id: GITHUB_CLIENT_ID,
     scope: 'repo read:org',
     state,
+    // Pin the callback to the exact origin we're running on so GitHub
+    // routes back to *this* page regardless of the registered callback
+    // list order on the App. Without this, GitHub uses the first URL in
+    // the list — fine for prod, breaks local dev where prod is first.
+    redirect_uri: `${window.location.origin}/`,
   });
 
   window.location.href = `https://github.com/login/oauth/authorize?${params}`;
@@ -76,12 +81,21 @@ export async function handleOAuthCallback(): Promise<string | null> {
 
   if (!code) return null;
 
-  // Validate CSRF state
+  // CSRF check. Two distinct cases:
+  //  1. savedState is null → no in-flight OAuth on this origin. The URL is
+  //     stale (reload, bookmark, switched browser tabs, sessionStorage
+  //     wiped). Silently drop the params and bail — no error toast, no
+  //     scary CSRF message; the user just sees their normal page.
+  //  2. savedState is set and the URL state doesn't match → that's a real
+  //     mismatch worth shouting about.
   const savedState = sessionStorage.getItem(STATE_KEY);
   sessionStorage.removeItem(STATE_KEY);
 
+  if (!savedState) {
+    cleanUrl();
+    return null;
+  }
   if (!state || state !== savedState) {
-    // Clean URL even on error
     cleanUrl();
     throw new Error('OAuth state mismatch — possible CSRF attack. Please try signing in again.');
   }
