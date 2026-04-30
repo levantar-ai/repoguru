@@ -17,6 +17,7 @@
     "build": "tsc"
   },
   "dependencies": {
+    "@headlessui/react": "^2.2.10",
     "@radix-ui/react-tooltip": "^1.2.8",
     "@repoguru/core": "workspace:*",
     "cmdk": "^1.1.1"

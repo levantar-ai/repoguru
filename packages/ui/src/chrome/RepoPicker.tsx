@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Combobox, ComboboxInput, ComboboxOption, ComboboxOptions } from '@headlessui/react';
 import { useRepoGuru } from '../services/Provider.js';
 import { Tooltip } from './Tooltip.js';
 import type { GitHubRepoSummary, RepoPickerProps } from '../services/types.js';
@@ -291,122 +292,130 @@ export function RepoPicker({
       )}
 
       {!hideAuthChrome && supportsGitHub && hasToken && ghRepos.length > 0 && (
-        <div className="mt-4 rounded-xl border border-border bg-surface-alt overflow-hidden">
-          <div className="p-2.5 border-b border-border flex gap-2">
-            <input
-              type="text"
-              value={filter}
-              onChange={(e) => setFilter(e.target.value)}
-              placeholder="Search your repos…"
-              disabled={disabled}
-              className="flex-1 px-3 py-2 text-sm rounded-lg border border-border bg-surface text-text placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-neon/50 disabled:opacity-50"
-            />
-            {repoBrowse.refreshGitHubRepos && (
-              <button
-                type="button"
-                onClick={handleRefresh}
-                disabled={ghLoading || disabled}
-                title="Refresh repos"
-                className="px-2.5 py-2 rounded-lg border border-border text-text-muted hover:text-neon hover:border-neon/40 transition-all disabled:opacity-40"
-              >
-                <svg
-                  className={`h-4 w-4 ${ghLoading ? 'animate-spin' : ''}`}
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth={2}
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-                  />
-                </svg>
-              </button>
-            )}
-          </div>
-
-          <div className="flex" style={{ height: '20rem' }}>
-            {orgList.length > 1 && (
-              <div className="w-44 shrink-0 border-r border-border overflow-y-auto bg-surface/50">
+        // Combobox combines the filter input + repo list under one
+        // ARIA-correct keyboard model. Arrow keys move the highlight
+        // in the right pane; Enter selects; aria-activedescendant
+        // wired automatically. Replaces ~80 lines of hand-rolled focus
+        // and selection state.
+        <Combobox<GitHubRepoSummary | null>
+          immediate
+          value={null}
+          onChange={(repo) => {
+            if (repo) onChange(`${repo.owner}/${repo.repo}`);
+          }}
+        >
+          <div className="mt-4 rounded-xl border border-border bg-surface-alt overflow-hidden">
+            <div className="p-2.5 border-b border-border flex gap-2">
+              <ComboboxInput
+                value={filter}
+                onChange={(e) => setFilter(e.target.value)}
+                displayValue={() => filter}
+                placeholder="Search your repos…"
+                disabled={disabled}
+                className="flex-1 px-3 py-2 text-sm rounded-lg border border-border bg-surface text-text placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-neon/50 disabled:opacity-50"
+              />
+              {repoBrowse.refreshGitHubRepos && (
                 <button
                   type="button"
-                  onClick={() => setSelectedOrg(null)}
-                  className={`w-full flex items-center justify-between gap-2 px-3 py-2.5 text-left text-xs font-medium transition-all ${
-                    selectedOrg === null
-                      ? 'bg-neon/10 text-neon border-r-2 border-neon'
-                      : 'text-text-secondary hover:text-text hover:bg-surface-hover'
-                  }`}
+                  onClick={handleRefresh}
+                  disabled={ghLoading || disabled}
+                  title="Refresh repos"
+                  className="px-2.5 py-2 rounded-lg border border-border text-text-muted hover:text-neon hover:border-neon/40 transition-all disabled:opacity-40"
                 >
-                  <span className="truncate">All repos</span>
-                  <span
-                    className={`shrink-0 tabular-nums ${selectedOrg === null ? 'text-neon' : 'text-text-muted'}`}
+                  <svg
+                    className={`h-4 w-4 ${ghLoading ? 'animate-spin' : ''}`}
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2}
                   >
-                    {ghRepos.length}
-                  </span>
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                    />
+                  </svg>
                 </button>
-                {orgList.map((org) => (
+              )}
+            </div>
+
+            <div className="flex" style={{ height: '20rem' }}>
+              {orgList.length > 1 && (
+                <div className="w-44 shrink-0 border-r border-border overflow-y-auto bg-surface/50">
                   <button
                     type="button"
-                    key={org.name}
-                    onClick={() => setSelectedOrg(selectedOrg === org.name ? null : org.name)}
+                    onClick={() => setSelectedOrg(null)}
                     className={`w-full flex items-center justify-between gap-2 px-3 py-2.5 text-left text-xs font-medium transition-all ${
-                      selectedOrg === org.name
-                        ? 'bg-neon/10 text-neon border-r-2 border-neon'
+                      selectedOrg === null
+                        ? 'bg-surface-hover text-text'
                         : 'text-text-secondary hover:text-text hover:bg-surface-hover'
                     }`}
                   >
-                    <span className="truncate">{org.name}</span>
-                    <span
-                      className={`shrink-0 tabular-nums ${selectedOrg === org.name ? 'text-neon' : 'text-text-muted'}`}
-                    >
-                      {org.count}
+                    <span className="truncate">All repos</span>
+                    <span className="shrink-0 tabular-nums text-text-muted">
+                      {ghRepos.length}
                     </span>
                   </button>
-                ))}
-              </div>
-            )}
-
-            <div className="flex-1 overflow-y-auto">
-              {filteredRepos.length === 0 ? (
-                <div className="px-4 py-6 text-sm text-text-muted text-center">No matching repos</div>
-              ) : (
-                filteredRepos.map((repo) => (
-                  <button
-                    type="button"
-                    key={`${repo.owner}/${repo.repo}`}
-                    onClick={() => onChange(`${repo.owner}/${repo.repo}`)}
-                    disabled={disabled}
-                    className="w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-surface-hover transition-colors disabled:opacity-50 border-b border-border/50 last:border-b-0"
-                  >
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm font-medium text-text truncate">
-                        {!selectedOrg && (
-                          <span className="text-text-muted font-normal">{repo.owner}/</span>
-                        )}
-                        {repo.repo}
-                      </div>
-                      {repo.description && (
-                        <div className="text-xs text-text-muted truncate mt-0.5">{repo.description}</div>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      {repo.language && <span className="text-xs text-text-muted">{repo.language}</span>}
-                      {typeof repo.stars === 'number' && repo.stars > 0 && (
-                        <span className="text-xs text-text-muted flex items-center gap-0.5">
-                          <svg className="h-3 w-3" fill="currentColor" viewBox="0 0 24 24">
-                            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
-                          </svg>
-                          {repo.stars}
-                        </span>
-                      )}
-                    </div>
-                  </button>
-                ))
+                  {orgList.map((org) => (
+                    <button
+                      type="button"
+                      key={org.name}
+                      onClick={() => setSelectedOrg(selectedOrg === org.name ? null : org.name)}
+                      className={`w-full flex items-center justify-between gap-2 px-3 py-2.5 text-left text-xs font-medium transition-all ${
+                        selectedOrg === org.name
+                          ? 'bg-surface-hover text-text'
+                          : 'text-text-secondary hover:text-text hover:bg-surface-hover'
+                      }`}
+                    >
+                      <span className="truncate">{org.name}</span>
+                      <span className="shrink-0 tabular-nums text-text-muted">
+                        {org.count}
+                      </span>
+                    </button>
+                  ))}
+                </div>
               )}
+
+              <ComboboxOptions static className="flex-1 overflow-y-auto focus:outline-none">
+                {filteredRepos.length === 0 ? (
+                  <div className="px-4 py-6 text-sm text-text-muted text-center">No matching repos</div>
+                ) : (
+                  filteredRepos.map((repo) => (
+                    <ComboboxOption
+                      key={`${repo.owner}/${repo.repo}`}
+                      value={repo}
+                      disabled={disabled}
+                      className="w-full flex items-center gap-3 px-4 py-2.5 text-left cursor-pointer transition-colors disabled:opacity-50 border-b border-border/50 last:border-b-0 data-[focus]:bg-surface-hover"
+                    >
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-medium text-text truncate">
+                          {!selectedOrg && (
+                            <span className="text-text-muted font-normal">{repo.owner}/</span>
+                          )}
+                          {repo.repo}
+                        </div>
+                        {repo.description && (
+                          <div className="text-xs text-text-muted truncate mt-0.5">{repo.description}</div>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        {repo.language && <span className="text-xs text-text-muted">{repo.language}</span>}
+                        {typeof repo.stars === 'number' && repo.stars > 0 && (
+                          <span className="text-xs text-text-muted flex items-center gap-0.5">
+                            <svg className="h-3 w-3" fill="currentColor" viewBox="0 0 24 24">
+                              <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                            </svg>
+                            {repo.stars}
+                          </span>
+                        )}
+                      </div>
+                    </ComboboxOption>
+                  ))
+                )}
+              </ComboboxOptions>
             </div>
           </div>
-        </div>
+        </Combobox>
       )}
     </div>
   );
