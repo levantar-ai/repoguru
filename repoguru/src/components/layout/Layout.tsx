@@ -101,9 +101,11 @@ export function Layout({ children, onNavigate, currentPage }: Props) {
                   surrounding <nav aria-label="Main navigation"> already
                   carries the landmark name. The visible text "RepoGuru"
                   is also the button's accessible name (no aria-label
-                  override → "Label in Name" 2.5.3 holds for voice). */}
-              <div className="text-lg font-bold tracking-tight text-text leading-none">
-                Repo<span className="text-neon">Guru</span>
+                  override → "Label in Name" 2.5.3 holds for voice).
+                  Wordmark is monochrome — Linear's pattern; the brand
+                  colour is reserved for primary actions. */}
+              <div className="text-base font-semibold tracking-tight text-text leading-none">
+                RepoGuru
               </div>
               <p className="text-[10px] text-text-muted mt-0.5">In-Browser DevSecOps</p>
             </div>
@@ -122,9 +124,13 @@ export function Layout({ children, onNavigate, currentPage }: Props) {
                   onNavigate(item.id);
                 }}
                 aria-current={active ? 'page' : undefined}
+                // Active state: a single tint signal (Linear / Raycast /
+                // Stripe pattern). The previous combination of right-
+                // border + bg + bold + neon over-saturated the chrome
+                // and competed with the page's primary CTA for accent.
                 className={`w-full flex items-center gap-2.5 px-4 py-2 text-sm transition-colors text-left ${
                   active
-                    ? 'bg-surface-hover text-text font-medium border-r-2 border-neon'
+                    ? 'bg-surface-hover text-text font-medium'
                     : 'text-text-secondary hover:text-text hover:bg-surface-hover/50'
                 }`}
               >

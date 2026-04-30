@@ -94,11 +94,14 @@ function ReportCardHeader({
   return (
     <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
       <div>
-        <h1 className="text-3xl lg:text-4xl font-bold text-text">
-          {report.repo.owner}/<span className="text-neon">{report.repo.repo}</span>
+        {/* Owner/repo path is rendered uniformly — accenting just the
+         *  leaf is a Linear/GitHub anti-pattern; owner is the namespace
+         *  and the path is hierarchically equal at both halves. */}
+        <h1 className="text-2xl lg:text-3xl font-semibold text-text">
+          {report.repo.owner}/{report.repo.repo}
         </h1>
         {report.repoInfo?.description && (
-          <p className="text-lg text-text-secondary mt-2 max-w-2xl">
+          <p className="text-base text-text-secondary mt-2 max-w-2xl">
             {report.repoInfo.description}
           </p>
         )}
