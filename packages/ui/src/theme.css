@@ -183,61 +183,49 @@ body {
 
 /* ── Glow Utilities ──────────────────────────────────────── */
 
+/* These were applied liberally across primary buttons, hero text, and
+ * card surfaces — a 2018-era dashboard signature. Now they're no-ops:
+ * keeping the class names so existing call-sites compile, but the
+ * box-shadow / text-shadow are removed. The brand colour now reads
+ * crisp on solid fills (PrimaryButton) instead of bleeding into the
+ * surrounding chrome. */
 .neon-glow {
-  box-shadow:
-    0 0 10px rgba(56, 189, 248, 0.08),
-    0 0 30px rgba(56, 189, 248, 0.04);
+  /* intentionally empty — was a chromium ambient glow */
 }
 
 .neon-glow-strong {
-  box-shadow:
-    0 0 15px rgba(56, 189, 248, 0.15),
-    0 0 45px rgba(56, 189, 248, 0.06);
+  /* intentionally empty */
 }
 
 .neon-text {
-  text-shadow:
-    0 0 8px rgba(56, 189, 248, 0.3),
-    0 0 20px rgba(56, 189, 248, 0.1);
+  /* intentionally empty */
 }
 
 /* ── Card hover ──────────────────────────────────────────── */
 
+/* card-glow's lift-on-hover (translateY + drop-shadow) reads as
+ * marketing-page polish, not in-app density. Linear / Stripe / Vercel
+ * have zero hover-translate on their dashboard cards. Now: just a
+ * border-colour change on hover, no transform, no glow. */
 .card-glow {
-  transition:
-    transform 0.2s ease,
-    box-shadow 0.2s ease,
-    border-color 0.2s ease;
+  transition: border-color 0.15s ease;
 }
 .card-glow:hover {
-  transform: translateY(-2px);
-  box-shadow:
-    0 4px 20px rgba(0, 0, 0, 0.25),
-    0 0 15px rgba(56, 189, 248, 0.06);
   border-color: var(--color-border-bright);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .card-glow:hover {
-    transform: none;
-  }
 }
 
 /* ── Background gradient ─────────────────────────────────── */
 
+/* Was three radial cyan gradients + a vertical dark gradient. Now
+ * flat. If we want depth back later it should come from per-surface
+ * inset highlights (box-shadow inset 0 1px 0 rgba(255,255,255,0.04))
+ * not page-wide ambient halos that fight the chart colour palette. */
 .bg-gradient-dark {
-  background:
-    radial-gradient(ellipse 80% 50% at 50% -10%, rgba(56, 189, 248, 0.08) 0%, transparent 60%),
-    radial-gradient(ellipse 60% 40% at 80% 60%, rgba(14, 165, 233, 0.04) 0%, transparent 50%),
-    radial-gradient(ellipse 50% 35% at 20% 80%, rgba(2, 132, 199, 0.04) 0%, transparent 50%),
-    linear-gradient(180deg, #0e1525 0%, #0f172a 30%, #0c1222 60%, #0b1120 100%);
+  background: var(--color-surface);
 }
 
 .light .bg-gradient-dark {
-  background:
-    radial-gradient(ellipse 80% 50% at 50% -10%, rgba(56, 189, 248, 0.06) 0%, transparent 60%),
-    radial-gradient(ellipse 60% 40% at 80% 60%, rgba(14, 165, 233, 0.03) 0%, transparent 50%),
-    linear-gradient(180deg, #f8fafc 0%, #f1f5f9 50%, #f8fafc 100%);
+  background: var(--color-surface);
 }
 
 /* ── Scrollbar ───────────────────────────────────────────── */
