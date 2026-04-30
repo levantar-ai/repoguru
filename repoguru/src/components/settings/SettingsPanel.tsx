@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, Fragment } from 'react';
+import { Dialog, Transition } from '@headlessui/react';
 import { useApp } from '../../context/AppContext';
 import type { AppSettings } from '../../types';
 import { saveGithubToken, clearGithubToken } from '../../services/persistence/credentials';
@@ -267,41 +268,11 @@ function ManualTokenInput({
 
 export function SettingsPanel() {
   const { state, dispatch } = useApp();
-  const panelRef = useRef<HTMLDialogElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
 
   const handleClose = useCallback(() => {
     dispatch({ type: 'TOGGLE_SETTINGS' });
   }, [dispatch]);
-
-  // Native <dialog>.showModal() gives us proper modality for free:
-  //  - focus trap (Tab can't escape the dialog into the document)
-  //  - ESC dismissal (fires the 'cancel' event)
-  //  - the rest of the document is automatically `inert` while open
-  //  - ::backdrop pseudo-element renders the scrim
-  // The previous manual implementation was 30+ lines of bespoke
-  // focus-trap + keyboard handling that audited as leaky (B5).
-  useEffect(() => {
-    const dlg = panelRef.current;
-    if (!dlg) return;
-    if (state.settingsOpen) {
-      if (!dlg.open) dlg.showModal();
-      // APG dialog pattern recommends focusing the first interactive
-      // control rather than Close — but our existing tests + muscle
-      // memory expect Close. Keep current behaviour.
-      closeButtonRef.current?.focus();
-      const onCancel = (e: Event) => {
-        e.preventDefault();
-        handleClose();
-      };
-      dlg.addEventListener('cancel', onCancel);
-      return () => dlg.removeEventListener('cancel', onCancel);
-    } else if (dlg.open) {
-      dlg.close();
-    }
-  }, [state.settingsOpen, handleClose]);
-
-  if (!state.settingsOpen) return null;
 
   const pillClass = (active: boolean) =>
     `px-4 py-2 text-sm font-medium rounded-lg border transition-all duration-200 ${
@@ -311,18 +282,46 @@ export function SettingsPanel() {
     }`;
 
   return (
-    <>
-      {/* Panel — showModal() provides the ::backdrop scrim, focus
-          trap, ESC dismissal, and inerts the rest of the document.
-          aria-modal=true is the explicit signal modern AT uses to
-          treat this as a dialog landmark (UA defaults vary). */}
-      <dialog
-        ref={panelRef}
-        className="fixed top-0 right-0 bottom-0 left-auto h-full w-full max-w-md bg-surface border-l border-border shadow-2xl overflow-y-auto m-0 p-0 backdrop:bg-black/50 backdrop:backdrop-blur-sm"
-        aria-label="Settings"
-        aria-modal="true"
+    // Headless UI Dialog: focus trap, scroll lock, ESC dismissal, focus
+    // restoration, ARIA wiring all handled. The previous native <dialog>
+    // implementation worked but lost focus on re-renders, had Safari
+    // ::backdrop quirks, and required extra keyframes to animate.
+    // Transition gives us a consistent slide-in from the right that
+    // composes with our Tailwind classes.
+    <Transition show={state.settingsOpen} as={Fragment}>
+      <Dialog
+        as="div"
+        className="relative z-50"
+        onClose={handleClose}
+        initialFocus={closeButtonRef}
       >
-        <div className="p-8">
+        <Transition.Child
+          as={Fragment}
+          enter="ease-out duration-200"
+          enterFrom="opacity-0"
+          enterTo="opacity-100"
+          leave="ease-in duration-150"
+          leaveFrom="opacity-100"
+          leaveTo="opacity-0"
+        >
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm" aria-hidden="true" />
+        </Transition.Child>
+
+        <div className="fixed inset-0 flex justify-end pointer-events-none">
+          <Transition.Child
+            as={Fragment}
+            enter="transform transition ease-out duration-200"
+            enterFrom="translate-x-full"
+            enterTo="translate-x-0"
+            leave="transform transition ease-in duration-150"
+            leaveFrom="translate-x-0"
+            leaveTo="translate-x-full"
+          >
+            <Dialog.Panel
+              className="pointer-events-auto h-full w-full max-w-md bg-surface border-l border-border shadow-2xl overflow-y-auto"
+              aria-label="Settings"
+            >
+              <div className="p-8">
           <div className="flex items-center justify-between mb-8">
             <h2 className="text-xl font-bold text-text" id="settings-title">
               Settings
@@ -472,8 +471,11 @@ export function SettingsPanel() {
               )}
             </output>
           )}
+              </div>
+            </Dialog.Panel>
+          </Transition.Child>
         </div>
-      </dialog>
-    </>
+      </Dialog>
+    </Transition>
   );
 }

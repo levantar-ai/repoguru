@@ -30,6 +30,7 @@
     ]
   },
   "dependencies": {
+    "@headlessui/react": "^2.2.10",
     "@isomorphic-git/lightning-fs": "^4.6.2",
     "@repoguru/browser-adapter": "workspace:*",
     "@repoguru/core": "workspace:*",
