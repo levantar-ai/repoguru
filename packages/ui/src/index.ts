@@ -60,6 +60,8 @@ export { PrimaryButton, SecondaryButton } from './chrome/Buttons.js';
 export { LoadingPanel, ErrorPanel } from './chrome/StatusPanels.js';
 export type { LoadingPanelProps, ErrorPanelProps } from './chrome/StatusPanels.js';
 export { PrivacyStrip } from './chrome/PrivacyStrip.js';
+export { DemoChips, DEMO_REPOS } from './chrome/DemoChips.js';
+export type { DemoChip, DemoChipsProps } from './chrome/DemoChips.js';
 export { CommandPalette } from './chrome/CommandPalette.js';
 export type { CommandPaletteProps, PaletteCommand } from './chrome/CommandPalette.js';
 export { SectionLayout } from './chrome/SectionLayout.js';

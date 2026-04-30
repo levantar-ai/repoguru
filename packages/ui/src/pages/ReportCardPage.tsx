@@ -6,6 +6,7 @@ import { PageHero } from '../chrome/PageHero.js';
 import { PrimaryButton, SecondaryButton } from '../chrome/Buttons.js';
 import { LoadingPanel, ErrorPanel } from '../chrome/StatusPanels.js';
 import { PrivacyStrip } from '../chrome/PrivacyStrip.js';
+import { DemoChips } from '../chrome/DemoChips.js';
 import { RepoPicker } from '../chrome/RepoPicker.js';
 import type { ScoreResult } from '../services/types.js';
 
@@ -124,14 +125,21 @@ export function ReportCardPage({ initialRepo, actions }: ReportCardPageProps) {
           onSubmit={() => handleScore()}
           disabled={state.step === 'loading'}
         />
-        <div className="flex justify-center gap-3 mt-4">
+        <div className="flex justify-center gap-3 mt-4 mb-6">
           <PrimaryButton
             onClick={() => handleScore()}
             disabled={state.step === 'loading' || !input.trim()}
           >
-            {state.step === 'loading' ? 'Analyzing...' : 'Score'}
+            {state.step === 'loading' ? 'Analyzing…' : 'Score'}
           </PrimaryButton>
         </div>
+        <DemoChips
+          disabled={state.step === 'loading'}
+          onPick={(slug) => {
+            setInput(slug);
+            handleScore(slug);
+          }}
+        />
       </div>
 
       {state.step === 'loading' && <LoadingPanel message={state.progress} />}
