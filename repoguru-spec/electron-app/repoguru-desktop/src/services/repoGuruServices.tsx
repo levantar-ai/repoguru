@@ -98,7 +98,31 @@ const DESKTOP_PRESETS: PolicyPreset[] = [
 // from GitHub itself for single-repo flows, so we materialise the slug
 // to a local path before the gRPC call.
 const GITHUB_SLUG_RE = /^[A-Za-z0-9][\w.-]*\/[\w.-]+$/;
-async function resolveRepoPath(repo: string): Promise<string> {
+
+/** Map a clone-progress event into the unified AnalysisProgress
+ *  payload, scaling git's per-line percent into a chosen overall
+ *  budget (e.g. 0–40 if the caller's pipeline does scan + sections
+ *  afterwards; 0–95 for single-shot RPCs that have no further
+ *  meaningful progress). */
+function cloneToAnalysisProgress(
+  p: { phase: string; percent?: number; current?: number; total?: number; rate?: string; message: string },
+  cloneEnd: number,
+): { message: string; overall: number; sub: number; phase: string } {
+  const sub = typeof p.percent === 'number' ? p.percent : 0;
+  const overall = (sub / 100) * cloneEnd;
+  // Surface object counts + transfer rate when git provided them.
+  const detail = [
+    p.current && p.total ? `${p.current.toLocaleString()} / ${p.total.toLocaleString()}` : '',
+    p.rate ? `· ${p.rate}` : '',
+  ].filter(Boolean).join(' ');
+  const msg = detail ? `${p.phase}: ${detail}` : p.message;
+  return { message: msg, overall, sub, phase: p.phase.toLowerCase() };
+}
+
+async function resolveRepoPath(
+  repo: string,
+  opts: { onProgress?: (p: { phase: string; percent?: number; current?: number; total?: number; rate?: string; message: string }) => void } = {},
+): Promise<string> {
   if (!repo) return repo;
   if (!GITHUB_SLUG_RE.test(repo)) return repo;
   // It's a slug — clone (or fetch into existing clone) and return the
@@ -107,7 +131,7 @@ async function resolveRepoPath(repo: string): Promise<string> {
   try {
     token = (await loadToken()) || undefined;
   } catch { /* no-op */ }
-  const { path } = await window.repoGuru.githubCloneRepo({ slug: repo, token });
+  const { path } = await window.repoGuru.githubCloneRepo({ slug: repo, token }, opts.onProgress);
   return path;
 }
 
@@ -181,10 +205,29 @@ export const desktopServices: RepoGuruServices = {
     // not a per-render reminder.
   },
   compare: {
-    async run(repoA, repoB) {
-      // Resolve both inputs in parallel — clones happen concurrently if
-      // both are GitHub slugs.
-      const [pathA, pathB] = await Promise.all([resolveRepoPath(repoA), resolveRepoPath(repoB)]);
+    async run(repoA, repoB, opts) {
+      // For Compare we serialise the clones so the progress bar is
+      // legible (concurrent clones would interleave their messages
+      // confusingly). Each clone covers ~45% of the bar; the gRPC
+      // compareRepos call sits at 90→100%.
+      const pathA = await resolveRepoPath(repoA, {
+        onProgress: (p) => {
+          const a = cloneToAnalysisProgress(p, 45);
+          opts?.onProgress?.({ ...a, message: `Repo A · ${a.message}` });
+        },
+      });
+      const pathB = await resolveRepoPath(repoB, {
+        onProgress: (p) => {
+          const a = cloneToAnalysisProgress(p, 45);
+          // Repo B's 0–100 maps onto 45–90 of the overall bar.
+          opts?.onProgress?.({
+            ...a,
+            overall: 45 + a.overall,
+            message: `Repo B · ${a.message}`,
+          });
+        },
+      });
+      opts?.onProgress?.({ message: 'Comparing…', overall: 92, sub: 80, phase: 'comparing' });
       const res = (await grpcClient.compareRepos(pathA, pathB)) as CompareResponseWire;
       const cardA = scoreToReportCardData(res.report_card_a, repoA);
       const cardB = scoreToReportCardData(res.report_card_b, repoB);
@@ -204,15 +247,23 @@ export const desktopServices: RepoGuruServices = {
     },
   },
   score: {
-    async run(repo) {
-      const path = await resolveRepoPath(repo);
+    async run(repo, opts) {
+      // Single-shot RPC has no streaming progress, so clone covers the
+      // bulk of the bar (0–95%) and the gRPC call fills in the last 5%.
+      const path = await resolveRepoPath(repo, {
+        onProgress: (p) => opts?.onProgress?.(cloneToAnalysisProgress(p, 95)),
+      });
+      opts?.onProgress?.({ message: 'Scoring…', overall: 96, sub: 80, phase: 'scoring' });
       const score = (await grpcClient.scoreReportCard(path)) as ScoreResponse;
       return { report: scoreToReportCardData(score, repo) };
     },
   },
   techDetect: {
-    async run(repo) {
-      const path = await resolveRepoPath(repo);
+    async run(repo, opts) {
+      const path = await resolveRepoPath(repo, {
+        onProgress: (p) => opts?.onProgress?.(cloneToAnalysisProgress(p, 90)),
+      });
+      opts?.onProgress?.({ message: 'Detecting tech…', overall: 92, sub: 80, phase: 'detecting' });
       const res = (await grpcClient.detectTech(path)) as { json?: string };
       const raw = res?.json ? JSON.parse(res.json) as Record<string, unknown> : {};
       const arr = (k: string) => (Array.isArray(raw[k]) ? raw[k] : []);
@@ -239,9 +290,13 @@ export const desktopServices: RepoGuruServices = {
   },
   policy: {
     listPresets: (): PolicyPreset[] => DESKTOP_PRESETS,
-    async evaluate(req): Promise<PolicyEvalResult> {
-      const path = await resolveRepoPath(req.repo);
+    async evaluate(req, opts): Promise<PolicyEvalResult> {
+      const path = await resolveRepoPath(req.repo, {
+        onProgress: (p) => opts?.onProgress?.(cloneToAnalysisProgress(p, 80)),
+      });
+      opts?.onProgress?.({ message: 'Scoring…', overall: 85, sub: 50, phase: 'scoring' });
       const score = (await grpcClient.scoreReportCard(path)) as ScoreResponse;
+      opts?.onProgress?.({ message: 'Evaluating policy…', overall: 95, sub: 90, phase: 'policy' });
       const wire = (await grpcClient.evaluatePolicy(req.presetId, score)) as {
         passed: boolean;
         pass_count: number;
@@ -282,23 +337,19 @@ export const desktopServices: RepoGuruServices = {
   },
   gitStats: {
     async run(repo, opts): Promise<GitStatsResult> {
-      // Surface the clone (if any) as part of the progress UI so the
-      // user knows what's happening while a 30k-commit repo downloads.
-      if (GITHUB_SLUG_RE.test(repo)) {
-        opts?.onProgress?.({
-          message: `Cloning ${repo}…`,
-          overall: 1,
-          sub: 0,
-          phase: 'cloning',
-        });
-      }
-      const path = await resolveRepoPath(repo);
+      // Three phases share the bar:
+      //   Cloning      0  → 30  (live git per-line progress)
+      //   Scanning    30  → 75  (CLI commits_processed)
+      //   Sections    75 → 100  (gRPC section streaming)
+      // The bar is monotonic across the whole pipeline — clone events
+      // ramp 0→30, scan resumes at 30 and goes to 75, sections finish.
+      // Previously clone was silent (stuck at 1%) and scan reset to 0%.
+      const CLONE_END = 30;
+      const SCAN_END = 75;
+      const path = await resolveRepoPath(repo, {
+        onProgress: (p) => opts?.onProgress?.(cloneToAnalysisProgress(p, CLONE_END)),
+      });
       const outPath = `/tmp/repoguru-${Date.now()}.bin`;
-      // Phase 1: scan the repo, producing a binary report file. Heuristic
-      // mapping for the overall progress: the scan phase covers 0–60%; the
-      // section-streaming phase covers 60–100%. Inside the scan phase we
-      // smooth-ramp the sub-progress from commits_processed.
-      const PHASE1_END = 60;
       let scanTotal = 0;
       await new Promise<void>((resolve, reject) => {
         const req: ScanRequest = { repo_path: path, out_path: outPath };
@@ -312,9 +363,10 @@ export const desktopServices: RepoGuruServices = {
             const sub = scanTotal > 0
               ? Math.min(99, (p.commits_processed / Math.max(1, scanTotal)) * 100)
               : 30;
-            const overall = scanTotal > 0
-              ? (p.commits_processed / Math.max(1, scanTotal)) * PHASE1_END
-              : Math.min(15, p.elapsed_seconds * 5);
+            const scanFraction = scanTotal > 0
+              ? p.commits_processed / Math.max(1, scanTotal)
+              : Math.min(0.3, p.elapsed_seconds / 10);
+            const overall = CLONE_END + scanFraction * (SCAN_END - CLONE_END);
             opts?.onProgress?.({
               message: p.message || `Scanned ${p.commits_processed.toLocaleString()} commits…`,
               overall,
@@ -324,7 +376,7 @@ export const desktopServices: RepoGuruServices = {
             if (p.done) {
               opts?.onProgress?.({
                 message: `Scan complete · ${p.commits_processed.toLocaleString()} commits in ${p.elapsed_seconds.toFixed(1)}s`,
-                overall: PHASE1_END,
+                overall: SCAN_END,
                 sub: 100,
                 phase: 'scanning',
               });
@@ -333,7 +385,7 @@ export const desktopServices: RepoGuruServices = {
           })
           .catch(reject);
       });
-      // Phase 2: stream sections via the canonical GrpcAnalyzer.
+      // Phase 3: stream sections via the canonical GrpcAnalyzer.
       const captured: Record<string, Record<string, unknown>> = {};
       const wrapped: GrpcSectionClient = {
         async getReport(p) {
@@ -350,9 +402,9 @@ export const desktopServices: RepoGuruServices = {
       const analyzer = new GrpcAnalyzer(wrapped);
       const wireData: Record<string, unknown> = {};
       const canonical: CanonicalGitStatsData = {};
-      // GrpcAnalyzer emits ~7 sections; advance overall progress 60→100%
+      // GrpcAnalyzer emits ~7 sections; advance overall progress 75→100%
       // and reset sub-bar to a per-section ramp.
-      const SCAN_DONE_AT = 60;
+      const SCAN_DONE_AT = 75;
       const TOTAL_DONE = 100;
       let sectionsLoaded = 0;
       const TOTAL_SECTIONS = 7;

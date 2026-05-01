@@ -89,7 +89,22 @@ export interface RepoGuruAPI {
     stars?: number;
     ownerLabel?: string;
   }>>;
-  githubCloneRepo(args: { slug: string; token?: string }): Promise<{ path: string }>;
+  githubCloneRepo(
+    args: { slug: string; token?: string },
+    onProgress?: (p: CloneProgress) => void,
+  ): Promise<{ path: string }>;
+}
+
+/** Per-line clone progress emitted by main while git is running.
+ *  See main.ts's parseGitProgress for the schema. */
+export interface CloneProgress {
+  slug: string;
+  phase: string;
+  percent?: number;
+  current?: number;
+  total?: number;
+  rate?: string;
+  message: string;
 }
 
 const api: RepoGuruAPI = {
@@ -201,8 +216,19 @@ const api: RepoGuruAPI = {
   githubListRepos(token) {
     return ipcRenderer.invoke('githubListRepos', token);
   },
-  githubCloneRepo(args) {
-    return ipcRenderer.invoke('githubCloneRepo', args);
+  githubCloneRepo(args, onProgress) {
+    if (!onProgress) {
+      return ipcRenderer.invoke('githubCloneRepo', args);
+    }
+    const listener = (_event: Electron.IpcRendererEvent, p: CloneProgress) => {
+      // Filter by slug so concurrent clones (compare flow) don't
+      // cross-pollute each other's progress.
+      if (p.slug === args.slug) onProgress(p);
+    };
+    ipcRenderer.on('clone:progress', listener);
+    return ipcRenderer
+      .invoke('githubCloneRepo', args)
+      .finally(() => ipcRenderer.removeListener('clone:progress', listener));
   },
 };
 

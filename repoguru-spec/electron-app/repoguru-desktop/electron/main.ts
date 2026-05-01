@@ -40,11 +40,64 @@ function nodeHttpsRequest(url: string, opts: { method?: string; headers?: Outgoi
   });
 }
 
-function runGit(args: string[]): Promise<void> {
+/** Single git stderr line emitted during a clone or fetch. We surface
+ *  it to the renderer so the progress bar reflects real network /
+ *  delta-resolution state instead of pretending nothing is happening. */
+export interface GitProgress {
+  phase: string;          // "Receiving objects" / "Resolving deltas" / "Counting objects" / …
+  percent?: number;       // 0–100, when git includes a percentage
+  current?: number;       // current object count, when present
+  total?: number;         // total object count, when present
+  rate?: string;          // transfer rate, when present (e.g. "5.20 MiB/s")
+  message: string;        // raw line, trimmed
+}
+
+/** Parse a single line of git's --progress stderr output.
+ *  Examples:
+ *    "Receiving objects:  73% (12345/16789), 4.50 MiB | 2.10 MiB/s"
+ *    "Resolving deltas: 100% (7234/7234), done."
+ *    "remote: Counting objects: 100% (1234/1234), done."
+ *    "Cloning into '/tmp/x'..."
+ *  Returns null when the line carries no actionable progress. */
+function parseGitProgress(line: string): GitProgress | null {
+  const cleaned = line.replace(/^remote:\s*/, '').trim();
+  if (!cleaned) return null;
+  const m = cleaned.match(/^([A-Za-z][A-Za-z ]+?):\s+(\d+)%(?:\s+\((\d+)\/(\d+)\))?(?:.*?\|\s*([\d.]+\s*[KMGT]?i?B\/s))?/);
+  if (!m) {
+    // Lines like "Cloning into '...'" — surface as a phase tag without %
+    if (/^Cloning into/.test(cleaned)) return { phase: 'Connecting', message: cleaned };
+    return null;
+  }
+  return {
+    phase: m[1],
+    percent: parseInt(m[2], 10),
+    current: m[3] ? parseInt(m[3], 10) : undefined,
+    total: m[4] ? parseInt(m[4], 10) : undefined,
+    rate: m[5],
+    message: cleaned,
+  };
+}
+
+function runGit(args: string[], onProgress?: (p: GitProgress) => void): Promise<void> {
   return new Promise((resolve, reject) => {
     const proc = spawn('git', args, { stdio: ['ignore', 'ignore', 'pipe'] });
     let stderr = '';
-    proc.stderr.on('data', (d) => { stderr += d.toString(); });
+    let buf = '';
+    proc.stderr.on('data', (d) => {
+      const chunk = d.toString();
+      stderr += chunk;
+      if (!onProgress) return;
+      // git emits progress lines terminated by \r (carriage return) so
+      // a single line gets overwritten in-place on a tty. Split on
+      // either \r or \n to capture every update, not just the final one.
+      buf += chunk;
+      const parts = buf.split(/[\r\n]/);
+      buf = parts.pop() ?? '';
+      for (const line of parts) {
+        const p = parseGitProgress(line);
+        if (p) onProgress(p);
+      }
+    });
     proc.on('error', (err) => reject(new Error(`git failed: ${err.message}`)));
     proc.on('close', (code) => {
       if (code === 0) resolve();
@@ -495,12 +548,12 @@ app.whenReady().then(async () => {
     mkdirSync(cacheRoot, { recursive: true });
     const dest = join(cacheRoot, `${slug.replace('/', '__')}-${safe}`);
 
-    // If the clone already exists and looks like a git repo, fast-path
-    // to a `git fetch` so we get any new commits without re-cloning.
-    if (existsSync(join(dest, '.git'))) {
-      await runGit(['-C', dest, 'fetch', '--all', '--quiet']);
-      return { path: dest };
-    }
+    // Forward git's per-line stderr progress to the renderer via a
+    // dedicated channel. Replaces --quiet, which silenced everything
+    // and left the UI bar stuck at 1% until the clone finished.
+    const sendProgress = (p: GitProgress) => {
+      mainWindow?.webContents.send('clone:progress', { slug, ...p });
+    };
 
     // Build the clone URL. For private repos the user-token gets
     // embedded as the basic-auth username (GitHub recipe). Public repos
@@ -509,7 +562,34 @@ app.whenReady().then(async () => {
     const repoUrl = token
       ? `https://x-access-token:${token}@github.com/${slug}.git`
       : `https://github.com/${slug}.git`;
-    await runGit(['clone', '--quiet', repoUrl, dest]);
+
+    // If the clone already exists and looks like a git repo, fast-path
+    // to a `git fetch` so we get any new commits without re-cloning.
+    // Refresh origin to the CURRENT token URL first — the cached
+    // clone's stored remote may carry an expired token from a previous
+    // session ("Authentication failed for ..."). If the refresh fetch
+    // still fails (network, revoked token, etc.) fall through and use
+    // the existing snapshot rather than failing the whole analysis.
+    if (existsSync(join(dest, '.git'))) {
+      sendProgress({ phase: 'Updating', message: 'Updating cached clone…' });
+      try {
+        await runGit(['-C', dest, 'remote', 'set-url', 'origin', repoUrl]);
+        await runGit(['-C', dest, 'fetch', '--progress', 'origin'], sendProgress);
+        sendProgress({ phase: 'Updating', percent: 100, message: 'Updated cached clone.' });
+      } catch (err) {
+        console.warn(`[clone] fetch failed for ${slug}, using cached snapshot:`, err);
+        sendProgress({
+          phase: 'Updating',
+          percent: 100,
+          message: 'Using cached snapshot (fetch failed).',
+        });
+      }
+      return { path: dest };
+    }
+
+    sendProgress({ phase: 'Connecting', message: `Cloning ${slug}…` });
+    await runGit(['clone', '--progress', repoUrl, dest], sendProgress);
+    sendProgress({ phase: 'Receiving objects', percent: 100, message: 'Clone complete.' });
     return { path: dest };
   });
 
