@@ -142,7 +142,27 @@ export function wireToLegacy(data: GitStatsData, report: ReportLike): Analysis {
   );
 
   // ── Code frequency / activity ──
-  const commitActivity: legacy.GitHubCommitActivity[] | null = null;
+  // Project the CLI's weekly_activity (which gives [weekStart, total]
+  // per ISO week — no per-day breakdown) into GitHub's
+  // GitHubCommitActivity shape ({week: unix-seconds, total, days:[7]}).
+  // The Sun..Sat day breakdown isn't tracked by the CLI (would explode
+  // the output for marginal value), so we spread the weekly total
+  // evenly across 7 days. The calendar heatmap's main story is weekly
+  // intensity over the year — that's preserved exactly. Within-week
+  // day-of-week variation is approximated.
+  const commitActivity: legacy.GitHubCommitActivity[] = (data.weekly_activity ?? []).map(
+    ([weekStart, total]) => {
+      const t = sanitize(total);
+      const base = Math.floor(t / 7);
+      const remainder = t - base * 7;
+      const days = Array.from({ length: 7 }, (_, i) => (i < remainder ? base + 1 : base));
+      return {
+        total: t,
+        week: Math.floor(new Date(weekStart).getTime() / 1000),
+        days,
+      };
+    },
+  );
   const codeFrequency: legacy.GitHubCodeFrequency[] = (data.timeseries ?? []).map(
     (t) =>
       [
@@ -151,6 +171,35 @@ export function wireToLegacy(data: GitStatsData, report: ReportLike): Analysis {
         -sanitize(t.deletions),
       ] as legacy.GitHubCodeFrequency,
   );
+
+  // ── Repository growth ──
+  // Walk the timeseries cumulating insertions / deletions so the
+  // RepoGrowthTimeline can render a running total. The CLI emits
+  // per-period insertions / deletions only — the cumulative version
+  // is a one-pass derivation.
+  let cumulativeAdditions = 0;
+  let cumulativeDeletions = 0;
+  const repoGrowth: legacy.RepoGrowthPoint[] = (data.timeseries ?? []).map((t) => {
+    cumulativeAdditions += sanitize(t.insertions);
+    cumulativeDeletions += sanitize(t.deletions);
+    return {
+      date: t.period_start,
+      cumulativeAdditions,
+      cumulativeDeletions,
+      netGrowth: cumulativeAdditions - cumulativeDeletions,
+    };
+  });
+
+  // ── Top active periods ──
+  // The CLI's timeseries entries map 1:1 to ActivePeriod — the chart
+  // sorts/picks its own top-N from the full series, so we just
+  // forward everything.
+  const topActivePeriods: legacy.ActivePeriod[] = (data.timeseries ?? []).map((t) => ({
+    period: t.period_start,
+    commits: sanitize(t.commits),
+    insertions: sanitize(t.insertions),
+    deletions: sanitize(t.deletions),
+  }));
 
   // ── Codebase: coupling, hotspots, ownership ──
   const fileCoupling = (data.file_coupling ?? []).map((c) => ({
@@ -291,7 +340,7 @@ export function wireToLegacy(data: GitStatsData, report: ReportLike): Analysis {
     fileChurn,
     commitMessages,
     commitSizeDistribution,
-    repoGrowth: [],
+    repoGrowth,
     punchCard,
     weeklyActivity,
     languages,
@@ -323,6 +372,6 @@ export function wireToLegacy(data: GitStatsData, report: ReportLike): Analysis {
     locOverTime: [],
     radarMetrics,
     hotspots,
-    topActivePeriods: [],
+    topActivePeriods,
   };
 }
