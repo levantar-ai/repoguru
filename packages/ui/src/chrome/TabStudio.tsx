@@ -303,28 +303,56 @@ export interface TabBarProps {
   /** Resolve a glyph SVG path for a given tab kind. The launcher
    *  always uses a "+" icon regardless. */
   iconForKind: (kind: string) => string;
+  /** Wordmark / logo rendered on the left edge of the tab bar. The
+   *  shared chrome doesn't ship branding assets — each host supplies
+   *  its own (web uses /logo.png, desktop uses an inline SVG since
+   *  Electron's file:// protocol won't resolve absolute paths). */
+  wordmark?: ReactNode;
   /** Optional content rendered on the right edge of the tab bar
    *  (e.g. @user identity, settings button, theme toggle). */
   rightRail?: ReactNode;
 }
 
-export function TabBar({ iconForKind, rightRail }: TabBarProps) {
+const DEFAULT_WORDMARK: ReactNode = (
+  <span className="inline-flex items-center gap-2">
+    <svg
+      viewBox="0 0 24 24"
+      className="h-5 w-5 shrink-0 text-neon"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.8}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M5 4h11l3 3v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z" />
+      <path d="M9 10l3 3 3-3" />
+    </svg>
+    <span className="hidden sm:inline">RepoGuru</span>
+  </span>
+);
+
+export function TabBar({ iconForKind, wordmark = DEFAULT_WORDMARK, rightRail }: TabBarProps) {
   const { state, openTab, setActive, close } = useTabs();
   const launcherIcon = 'M12 4v16m8-8H4';
 
   return (
-    <div className="flex items-center gap-1 px-2 h-11 border-b border-border bg-surface-alt">
+    // Tab strip mounts as a single bar with a bottom border. The
+    // active tab covers a 1px slice of that border (via `top-px` on
+    // the tab body + matching surface colour) so it visually merges
+    // with the content area below — the conventional Chrome /
+    // VS Code shape.
+    <div className="relative flex items-end gap-1 px-2 pt-1.5 h-10 bg-surface-alt border-b border-border">
       <button
         type="button"
         onClick={() => openTab('launcher')}
-        className="flex items-center gap-2 pl-2 pr-3 py-1 text-sm font-semibold text-text hover:text-neon transition-colors"
+        className="flex items-center pl-1 pr-3 pb-1 text-sm font-semibold text-text hover:text-neon transition-colors"
         aria-label="RepoGuru — open new tab"
       >
-        <img src="/logo.png" alt="" className="h-5 w-5 shrink-0" aria-hidden="true" />
-        <span className="hidden sm:inline">RepoGuru</span>
+        {wordmark}
       </button>
 
-      <div role="tablist" aria-label="Open sessions" className="flex-1 flex items-center gap-0.5 overflow-x-auto">
+      <div role="tablist" aria-label="Open sessions" className="flex-1 flex items-end gap-0.5 overflow-x-auto">
         {state.tabs.map((tab) => {
           const isActive = tab.id === state.activeId;
           const d = tab.kind === 'launcher' ? launcherIcon : iconForKind(tab.kind);
@@ -333,13 +361,24 @@ export function TabBar({ iconForKind, rightRail }: TabBarProps) {
               key={tab.id}
               role="tab"
               aria-selected={isActive}
-              className={`group flex items-center gap-1.5 max-w-[220px] pl-2.5 pr-1 py-1 rounded-md text-sm transition-colors ${
+              className={`group relative flex items-center gap-1.5 max-w-[220px] h-8 pl-3 pr-1.5 text-sm transition-colors ${
                 isActive
-                  ? 'bg-surface text-text border border-border'
-                  : 'text-text-secondary hover:bg-surface-hover/50 hover:text-text border border-transparent'
+                  ? // Active: same bg as the content area, top-rounded,
+                    // 1px border on top/left/right that visually steps
+                    // up out of the bar; -mb-px slides it down to cover
+                    // the bar's bottom border. No bottom border on the
+                    // tab itself — that's how it "merges" with content.
+                    'bg-surface text-text rounded-t-md border-t border-l border-r border-border -mb-px'
+                  : // Inactive: subtle hover lift, no chrome — looks
+                    // recessed compared to the active tab.
+                    'text-text-secondary hover:bg-surface-hover/40 hover:text-text rounded-t-md'
               }`}
             >
-              <button type="button" onClick={() => setActive(tab.id)} className="flex items-center gap-1.5 min-w-0 flex-1 text-left">
+              <button
+                type="button"
+                onClick={() => setActive(tab.id)}
+                className="flex items-center gap-1.5 min-w-0 flex-1 text-left h-full"
+              >
                 <svg className="h-3.5 w-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
                   <path strokeLinecap="round" strokeLinejoin="round" d={d} />
                 </svg>
@@ -367,7 +406,7 @@ export function TabBar({ iconForKind, rightRail }: TabBarProps) {
           type="button"
           onClick={() => openTab('launcher')}
           aria-label="New tab"
-          className="ml-1 p-1.5 rounded-md text-text-muted hover:text-neon hover:bg-surface-hover/50 transition-colors"
+          className="ml-1 mb-1 p-1 rounded-md text-text-muted hover:text-neon hover:bg-surface-hover/50 transition-colors"
           title="New tab (⌘T)"
         >
           <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
@@ -377,7 +416,7 @@ export function TabBar({ iconForKind, rightRail }: TabBarProps) {
       </div>
 
       {rightRail && (
-        <div className="flex items-center gap-1 pl-2 border-l border-border">{rightRail}</div>
+        <div className="flex items-center gap-1 pl-2 pb-1 ml-2 border-l border-border">{rightRail}</div>
       )}
     </div>
   );
