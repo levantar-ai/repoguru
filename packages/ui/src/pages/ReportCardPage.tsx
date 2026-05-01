@@ -71,6 +71,21 @@ export function ReportCardPage({ initialRepo, actions }: ReportCardPageProps) {
               prev.step === 'loading' ? { ...prev, message: p.message, progress: p } : prev,
             ),
         });
+        // Settle the progress bars to 100% with a short hold so the
+        // user sees the analysis "complete" rather than the panel
+        // vanishing mid-animation. Especially noticeable on small
+        // repos where the whole pipeline finishes in <1s.
+        setState((prev) =>
+          prev.step === 'loading'
+            ? {
+                ...prev,
+                message: 'Complete',
+                progress: { message: 'Complete', overall: 100, sub: 100, phase: 'done' },
+              }
+            : prev,
+        );
+        await new Promise((r) => setTimeout(r, 400));
+        if (controller.signal.aborted) return;
         setState({ step: 'done', message: '', progress: null, result, error: null });
       } catch (err) {
         if ((err as { name?: string })?.name === 'AbortError') return;

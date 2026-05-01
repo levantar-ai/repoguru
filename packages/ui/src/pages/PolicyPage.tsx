@@ -66,6 +66,17 @@ export function PolicyPage({ editorSection }: PolicyPageProps) {
             ),
         },
       );
+      setState((prev) =>
+        prev.step === 'loading'
+          ? {
+              ...prev,
+              message: 'Complete',
+              progress: { message: 'Complete', overall: 100, sub: 100, phase: 'done' },
+            }
+          : prev,
+      );
+      await new Promise((r) => setTimeout(r, 400));
+      if (controller.signal.aborted) return;
       setState({ step: 'done', message: '', progress: null, result, error: null });
     } catch (err) {
       if ((err as { name?: string })?.name === 'AbortError') return;
