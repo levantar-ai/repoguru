@@ -27,12 +27,32 @@ import type { OrgScanItem, OrgScanSummary } from '../views/orgScanTypes.js';
  *  else — the shared pages just pass it through to services. */
 export type RepoRef = string;
 
+// ─────────────────────────── Analysis Progress ───────────────────────
+
+/** Structured progress payload emitted by the long-running analyses
+ *  (Score / Compare / Git Stats). The LoadingPanel renders the
+ *  determinate double-bar from `overall` + `sub`, with `message` /
+ *  `phase` driving the text label. Same shape across services so the
+ *  loading UX is consistent across pages. Was originally
+ *  `GitStatsProgress`; kept as an alias below for backwards compat. */
+export interface AnalysisProgress {
+  /** Free-form line for the secondary status display. */
+  message: string;
+  /** 0–100, drives the overall progress bar. */
+  overall: number;
+  /** 0–100, drives the per-phase sub-progress bar. */
+  sub: number;
+  /** Optional explicit phase name (cloning / scanning / scoring / …). */
+  phase?: string;
+}
+
 // ─────────────────────────── Compare ─────────────────────────────────
 
 export interface CompareRunOptions {
   signal?: AbortSignal;
-  /** Called with a free-form progress message during long-running compares. */
-  onProgress?: (message: string) => void;
+  /** Streaming progress for the LoadingPanel double-bar UI — same
+   *  shape Git Stats uses, so Compare's loading state matches. */
+  onProgress?: (p: AnalysisProgress) => void;
 }
 
 export interface CompareResult {
@@ -55,7 +75,9 @@ export interface CompareService {
 
 export interface ScoreRunOptions {
   signal?: AbortSignal;
-  onProgress?: (message: string) => void;
+  /** Streaming progress for the LoadingPanel double-bar UI — same
+   *  shape Git Stats uses, so Score's loading state matches. */
+  onProgress?: (p: AnalysisProgress) => void;
 }
 
 export interface ScoreResult {
@@ -75,7 +97,10 @@ export interface ScoreService {
 import type { TechDetectResult } from '@repoguru/core';
 
 export interface TechDetectService {
-  run(repo: RepoRef, opts?: { signal?: AbortSignal; onProgress?: (m: string) => void }): Promise<TechDetectResult>;
+  run(
+    repo: RepoRef,
+    opts?: { signal?: AbortSignal; onProgress?: (p: AnalysisProgress) => void },
+  ): Promise<TechDetectResult>;
 }
 
 // ─────────────────────────── Policy ──────────────────────────────────
@@ -95,7 +120,10 @@ export interface PolicyService {
   /** Built-in preset choices the host exposes (e.g. 'open-source-ready',
    *  'production-ready'). Pages render these as picker options. */
   listPresets(): PolicyPreset[];
-  evaluate(req: PolicyEvaluateRequest, opts?: { signal?: AbortSignal; onProgress?: (m: string) => void }): Promise<PolicyEvalResult>;
+  evaluate(
+    req: PolicyEvaluateRequest,
+    opts?: { signal?: AbortSignal; onProgress?: (p: AnalysisProgress) => void },
+  ): Promise<PolicyEvalResult>;
 }
 
 // ─────────────────────────── Org Scan ────────────────────────────────
@@ -135,16 +163,10 @@ export interface OrgScanService {
 
 // ─────────────────────────── Git Stats ───────────────────────────────
 
-export interface GitStatsProgress {
-  /** Free-form line for the secondary status display. */
-  message: string;
-  /** 0–100, drives the overall progress bar. */
-  overall: number;
-  /** 0–100, drives the per-phase sub-progress bar. */
-  sub: number;
-  /** Optional explicit phase name (cloning / scanning / diffing / sizing / sectioning). */
-  phase?: string;
-}
+/** Alias of AnalysisProgress kept for backwards compatibility — the
+ *  shape was originally introduced for Git Stats and has since been
+ *  unified across Score / Compare / Git Stats. */
+export type GitStatsProgress = AnalysisProgress;
 
 export interface GitStatsRunOptions {
   signal?: AbortSignal;

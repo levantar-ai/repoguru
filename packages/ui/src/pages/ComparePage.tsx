@@ -7,13 +7,14 @@ import { PrivacyStrip } from '../chrome/PrivacyStrip.js';
 import { PrimaryButton, SecondaryButton } from '../chrome/Buttons.js';
 import { LoadingPanel, ErrorPanel } from '../chrome/StatusPanels.js';
 import { RepoPicker } from '../chrome/RepoPicker.js';
-import type { CompareResult } from '../services/types.js';
+import type { CompareResult, AnalysisProgress } from '../services/types.js';
 
 type Step = 'idle' | 'loading' | 'done' | 'error';
 
 interface State {
   step: Step;
-  progress: string;
+  message: string;
+  progress: AnalysisProgress | null;
   result: CompareResult | null;
   error: string | null;
 }
@@ -35,7 +36,8 @@ export function ComparePage() {
   const [inputB, setInputB] = useState('');
   const [state, setState] = useState<State>({
     step: 'idle',
-    progress: '',
+    message: '',
+    progress: null,
     result: null,
     error: null,
   });
@@ -47,19 +49,28 @@ export function ComparePage() {
     const controller = new AbortController();
     abortRef.current = controller;
 
-    setState({ step: 'loading', progress: 'Starting comparison...', result: null, error: null });
+    setState({
+      step: 'loading',
+      message: 'Starting comparison…',
+      progress: { message: 'Starting comparison…', overall: 1, sub: 0, phase: 'starting' },
+      result: null,
+      error: null,
+    });
     try {
       const result = await compare.run(inputA.trim(), inputB.trim(), {
         signal: controller.signal,
-        onProgress: (msg) =>
-          setState((prev) => (prev.step === 'loading' ? { ...prev, progress: msg } : prev)),
+        onProgress: (p) =>
+          setState((prev) =>
+            prev.step === 'loading' ? { ...prev, message: p.message, progress: p } : prev,
+          ),
       });
-      setState({ step: 'done', progress: '', result, error: null });
+      setState({ step: 'done', message: '', progress: null, result, error: null });
     } catch (err) {
       if ((err as { name?: string })?.name === 'AbortError') return;
       setState({
         step: 'error',
-        progress: '',
+        message: '',
+        progress: null,
         result: null,
         error: err instanceof Error ? err.message : 'An unexpected error occurred.',
       });
@@ -68,7 +79,7 @@ export function ComparePage() {
 
   const handleReset = useCallback(() => {
     abortRef.current?.abort();
-    setState({ step: 'idle', progress: '', result: null, error: null });
+    setState({ step: 'idle', message: '', progress: null, result: null, error: null });
   }, []);
 
   return (
@@ -110,7 +121,14 @@ export function ComparePage() {
         </div>
       )}
 
-      {state.step === 'loading' && <LoadingPanel message={state.progress} />}
+      {state.step === 'loading' && (
+        <LoadingPanel
+          message={state.message}
+          subMessage={state.progress?.phase}
+          progress={state.progress?.overall}
+          subProgress={state.progress?.sub}
+        />
+      )}
 
       {state.step === 'error' && state.error && (
         <ErrorPanel title="Comparison failed" message={state.error} />

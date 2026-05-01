@@ -12,6 +12,7 @@ export { RepoGuruProvider, useRepoGuru } from './services/Provider.js';
 export type {
   RepoGuruServices,
   RepoRef,
+  AnalysisProgress,
   CompareService,
   CompareRunOptions,
   CompareResult,
@@ -34,6 +35,11 @@ export type {
   GitStatsResult,
   GitStatsRunOptions,
 } from './services/types.js';
+// Note: GitStatsProgress (the type alias for AnalysisProgress) is
+// intentionally not re-exported here — it would collide with the
+// `GitStatsProgress` chart component (a value) exported below at
+// line ~113. Consumers should use `AnalysisProgress` for the
+// progress payload type.
 
 // Lifted pages — both hosts mount the SAME component. VS Code-style
 // shared codebase: the page never imports anything host-specific.

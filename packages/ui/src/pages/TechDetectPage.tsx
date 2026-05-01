@@ -8,12 +8,14 @@ import { PrimaryButton, SecondaryButton } from '../chrome/Buttons.js';
 import { LoadingPanel, ErrorPanel } from '../chrome/StatusPanels.js';
 import { RepoPicker } from '../chrome/RepoPicker.js';
 import type { TechDetectResult } from '@repoguru/core';
+import type { AnalysisProgress } from '../services/types.js';
 
 type Step = 'idle' | 'loading' | 'done' | 'error';
 
 interface State {
   step: Step;
-  progress: string;
+  message: string;
+  progress: AnalysisProgress | null;
   result: TechDetectResult | null;
   error: string | null;
 }
@@ -26,7 +28,8 @@ export function TechDetectPage() {
   const [input, setInput] = useState('');
   const [state, setState] = useState<State>({
     step: 'idle',
-    progress: '',
+    message: '',
+    progress: null,
     result: null,
     error: null,
   });
@@ -37,19 +40,28 @@ export function TechDetectPage() {
     abortRef.current?.abort();
     const controller = new AbortController();
     abortRef.current = controller;
-    setState({ step: 'loading', progress: 'Scanning repository...', result: null, error: null });
+    setState({
+      step: 'loading',
+      message: 'Scanning repository…',
+      progress: { message: 'Scanning repository…', overall: 1, sub: 0, phase: 'starting' },
+      result: null,
+      error: null,
+    });
     try {
       const result = await techDetect.run(input.trim(), {
         signal: controller.signal,
-        onProgress: (msg) =>
-          setState((prev) => (prev.step === 'loading' ? { ...prev, progress: msg } : prev)),
+        onProgress: (p) =>
+          setState((prev) =>
+            prev.step === 'loading' ? { ...prev, message: p.message, progress: p } : prev,
+          ),
       });
-      setState({ step: 'done', progress: '', result, error: null });
+      setState({ step: 'done', message: '', progress: null, result, error: null });
     } catch (err) {
       if ((err as { name?: string })?.name === 'AbortError') return;
       setState({
         step: 'error',
-        progress: '',
+        message: '',
+        progress: null,
         result: null,
         error: err instanceof Error ? err.message : 'An unexpected error occurred.',
       });
@@ -58,7 +70,7 @@ export function TechDetectPage() {
 
   const handleReset = useCallback(() => {
     abortRef.current?.abort();
-    setState({ step: 'idle', progress: '', result: null, error: null });
+    setState({ step: 'idle', message: '', progress: null, result: null, error: null });
   }, []);
 
   // Done state: render the View flush against the page area's left
@@ -99,7 +111,14 @@ export function TechDetectPage() {
         </div>
       )}
 
-      {state.step === 'loading' && <LoadingPanel message={state.progress} />}
+      {state.step === 'loading' && (
+        <LoadingPanel
+          message={state.message}
+          subMessage={state.progress?.phase}
+          progress={state.progress?.overall}
+          subProgress={state.progress?.sub}
+        />
+      )}
 
       {state.step === 'error' && state.error && (
         <ErrorPanel

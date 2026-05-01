@@ -8,13 +8,14 @@ import { LoadingPanel, ErrorPanel } from '../chrome/StatusPanels.js';
 import { PrivacyStrip } from '../chrome/PrivacyStrip.js';
 import { DemoChips } from '../chrome/DemoChips.js';
 import { RepoPicker } from '../chrome/RepoPicker.js';
-import type { ScoreResult } from '../services/types.js';
+import type { ScoreResult, AnalysisProgress } from '../services/types.js';
 
 type Step = 'idle' | 'loading' | 'done' | 'error';
 
 interface State {
   step: Step;
-  progress: string;
+  message: string;
+  progress: AnalysisProgress | null;
   result: ScoreResult | null;
   error: string | null;
 }
@@ -40,7 +41,8 @@ export function ReportCardPage({ initialRepo, actions }: ReportCardPageProps) {
   const [input, setInput] = useState(initialRepo ?? '');
   const [state, setState] = useState<State>({
     step: 'idle',
-    progress: '',
+    message: '',
+    progress: null,
     result: null,
     error: null,
   });
@@ -54,19 +56,28 @@ export function ReportCardPage({ initialRepo, actions }: ReportCardPageProps) {
       abortRef.current?.abort();
       const controller = new AbortController();
       abortRef.current = controller;
-      setState({ step: 'loading', progress: 'Starting analysis...', result: null, error: null });
+      setState({
+        step: 'loading',
+        message: 'Starting analysis…',
+        progress: { message: 'Starting analysis…', overall: 1, sub: 0, phase: 'starting' },
+        result: null,
+        error: null,
+      });
       try {
         const result = await score.run(repo, {
           signal: controller.signal,
-          onProgress: (msg) =>
-            setState((prev) => (prev.step === 'loading' ? { ...prev, progress: msg } : prev)),
+          onProgress: (p) =>
+            setState((prev) =>
+              prev.step === 'loading' ? { ...prev, message: p.message, progress: p } : prev,
+            ),
         });
-        setState({ step: 'done', progress: '', result, error: null });
+        setState({ step: 'done', message: '', progress: null, result, error: null });
       } catch (err) {
         if ((err as { name?: string })?.name === 'AbortError') return;
         setState({
           step: 'error',
-          progress: '',
+          message: '',
+          progress: null,
           result: null,
           error: err instanceof Error ? err.message : 'An unexpected error occurred.',
         });
@@ -77,7 +88,7 @@ export function ReportCardPage({ initialRepo, actions }: ReportCardPageProps) {
 
   const handleReset = useCallback(() => {
     abortRef.current?.abort();
-    setState({ step: 'idle', progress: '', result: null, error: null });
+    setState({ step: 'idle', message: '', progress: null, result: null, error: null });
   }, []);
 
   // Auto-start on initialRepo, once.
@@ -146,7 +157,14 @@ export function ReportCardPage({ initialRepo, actions }: ReportCardPageProps) {
         </div>
       )}
 
-      {state.step === 'loading' && <LoadingPanel message={state.progress} />}
+      {state.step === 'loading' && (
+        <LoadingPanel
+          message={state.message}
+          subMessage={state.progress?.phase}
+          progress={state.progress?.overall}
+          subProgress={state.progress?.sub}
+        />
+      )}
 
       {state.step === 'error' && state.error && (
         <ErrorPanel

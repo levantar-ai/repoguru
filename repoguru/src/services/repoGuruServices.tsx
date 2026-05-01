@@ -24,7 +24,7 @@ import { evaluatePolicy as runEvalPolicy, DEFAULT_POLICIES } from './analysis/po
 import { browserAnalysisRunner } from './analysis/browserAnalysisRunner';
 import { fetchMyRepos } from '../services/github/org';
 import { startOAuthFlow, isOAuthAvailable } from '../utils/oauth';
-import type { GitHubRepoSummary as SharedGitHubRepoSummary } from '@repoguru/ui';
+import type { GitHubRepoSummary as SharedGitHubRepoSummary, AnalysisProgress } from '@repoguru/ui';
 import { parseRepoUrl } from '../services/github/parser';
 import { githubFetch } from '../services/github/client';
 import { runLightAnalysis } from '../services/analysis/lightEngine';
@@ -107,11 +107,19 @@ async function analyzeOneForCompare(
   input: string,
   label: string,
   token: string,
-  onProgress?: (m: string) => void,
+  onProgress?: (p: AnalysisProgress) => void,
 ): Promise<LightAnalysisReport> {
+  // Coarse phase budget for the overall progress bar:
+  //   metadata fetch    0 → 5
+  //   clone             5 → 80   (bulk of the time)
+  //   tree fallback    80 → 90   (if clone failed and we have a token)
+  //   light analysis   90 → 100
+  // The clone phase forwards the underlying isomorphic-git stream's
+  // own (step, percent, subPercent, message) — same source Git Stats
+  // uses, so the loading visual matches.
   const parsed = parseRepoUrl(input);
   if (!parsed) throw new Error(`Invalid repo format for ${label}: "${input}"`);
-  onProgress?.(`Fetching ${label} info...`);
+  onProgress?.({ message: `Fetching ${label} info…`, overall: 2, sub: 20, phase: 'metadata' });
   const rawRepo = await githubFetch<GitHubRepoResponse>(
     `/repos/${parsed.owner}/${parsed.repo}`,
     token || undefined,
@@ -119,15 +127,22 @@ async function analyzeOneForCompare(
   const repoInfo = mapGitHubRepo(rawRepo);
   let tree: TreeEntry[];
   try {
-    onProgress?.(`Cloning ${label}...`);
-    const cached = await ensureCloned(parsed.owner, parsed.repo, (_s, _p, m) =>
-      onProgress?.(`${label}: ${m}`),
-    );
+    onProgress?.({ message: `Cloning ${label}…`, overall: 5, sub: 0, phase: 'cloning' });
+    const cached = await ensureCloned(parsed.owner, parsed.repo, (step, percent, subPercent, m) => {
+      // Map clone progress (0–100 of clone) to overall 5–80.
+      const overall = 5 + Math.max(0, Math.min(100, percent)) * 0.75;
+      onProgress?.({
+        message: `${label}: ${m}`,
+        overall,
+        sub: Math.max(0, Math.min(100, subPercent)),
+        phase: step || 'cloning',
+      });
+    });
     tree = cached.tree;
   } catch (cloneErr) {
     if (token) {
       const branch = parsed.branch || repoInfo.defaultBranch;
-      onProgress?.(`Fetching ${label} file tree...`);
+      onProgress?.({ message: `Fetching ${label} file tree…`, overall: 82, sub: 30, phase: 'tree' });
       const td = await githubFetch<GitHubTreeResponse>(
         `/repos/${parsed.owner}/${parsed.repo}/git/trees/${branch}?recursive=1`,
         token,
@@ -137,7 +152,7 @@ async function analyzeOneForCompare(
       throw cloneErr;
     }
   }
-  onProgress?.(`Analyzing ${label}...`);
+  onProgress?.({ message: `Analysing ${label}…`, overall: 92, sub: 80, phase: 'analysing' });
   return runLightAnalysis(parsed, repoInfo, tree);
 }
 
@@ -344,9 +359,25 @@ export function makeBrowserServices(
         const parsed = parseRepoUrl(repoInput);
         if (!parsed) throw new Error(`Invalid repo: "${repoInput}"`);
         const token = getToken();
-        opts?.onProgress?.('Cloning repository...');
-        const cached = await ensureCloned(parsed.owner, parsed.repo, (_s, _p, _sp, m) => opts?.onProgress?.(m), token || undefined);
-        opts?.onProgress?.('Analyzing technologies...');
+        opts?.onProgress?.({ message: 'Cloning repository…', overall: 5, sub: 0, phase: 'cloning' });
+        const cached = await ensureCloned(
+          parsed.owner,
+          parsed.repo,
+          (step, percent, subPercent, m) =>
+            opts?.onProgress?.({
+              message: m,
+              overall: 5 + Math.max(0, Math.min(100, percent)) * 0.85,
+              sub: Math.max(0, Math.min(100, subPercent)),
+              phase: step || 'cloning',
+            }),
+          token || undefined,
+        );
+        opts?.onProgress?.({
+          message: 'Detecting technologies…',
+          overall: 92,
+          sub: 50,
+          phase: 'detecting',
+        });
         const fileInputs = cached.files.map((f) => ({ path: f.path, content: f.content }));
         const allBlobPaths = cached.tree.filter((e) => e.type === 'blob').map((e) => e.path);
         return {
@@ -379,7 +410,12 @@ export function makeBrowserServices(
         if (!policySet) throw new Error(`Unknown preset: ${req.presetId}`);
         const token = getToken();
         const lightReport = await analyzeOneForCompare(req.repo, 'repository', token, opts?.onProgress);
-        opts?.onProgress?.('Evaluating policy rules...');
+        opts?.onProgress?.({
+          message: 'Evaluating policy rules…',
+          overall: 95,
+          sub: 90,
+          phase: 'policy',
+        });
         // The policy engine only reads overallScore, categories, signals, and
         // repo identity — LightAnalysisReport is a faithful subset for those
         // fields. Cast through unknown so TS sees the structural compatibility.
