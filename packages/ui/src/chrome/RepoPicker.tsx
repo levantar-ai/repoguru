@@ -88,7 +88,13 @@ export function RepoPicker({
     return () => {
       cancelled = true;
     };
-  }, [hasToken, repoBrowse]);
+    // tokenTick is intentionally in deps: after a successful OAuth
+    // connect, hasToken stays `true` (stale → fresh, both truthy) so
+    // React wouldn't re-fire the effect on hasToken change alone.
+    // Bumping tokenTick after connect forces a re-fetch with the new
+    // token. Without it, the previous "token expired" error would
+    // stay on screen even after a successful reconnect.
+  }, [hasToken, repoBrowse, tokenTick]);
 
   const orgList = useMemo(() => {
     const counts = new Map<string, number>();
@@ -218,6 +224,12 @@ export function RepoPicker({
                   if (connecting) return;
                   setConnecting(true);
                   setConnectError(null);
+                  // Clear any stale "token expired" error from a
+                  // pre-Connect listRepos failure — the user is
+                  // explicitly reconnecting now, the old error is
+                  // no longer relevant.
+                  setGhError(null);
+                  setGhRepos([]);
                   try {
                     await repoBrowse.connectGitHub?.();
                     // hasGitHubToken() polls synchronously; force a

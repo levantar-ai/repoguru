@@ -167,8 +167,9 @@ export const desktopServices: RepoGuruServices = {
     async refreshGitHubRepos() {
       desktopTokenCache = undefined; // re-read from secureStore on next listGitHubRepos
     },
-    tokenSetupHelp:
-      'Click "Connect to GitHub" — your default browser opens GitHub\'s authorize page (passkeys, password manager, 2FA all work as normal). First-run only: the GitHub App needs http://127.0.0.1:47821/oauth/callback in its callback URL list (Settings → Developer settings → GitHub Apps → gitrepoguru → Callback URL).',
+    // No tokenSetupHelp — the "Connect to GitHub" button is the
+    // affordance. First-run callback URL config is one-time setup,
+    // not a per-render reminder.
   },
   compare: {
     async run(repoA, repoB) {

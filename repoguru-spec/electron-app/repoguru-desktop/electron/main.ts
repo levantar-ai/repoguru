@@ -451,7 +451,7 @@ app.whenReady().then(async () => {
         delete store['repoguru:github-token'];
         saveSecureStore(store);
       } catch { /* ignore */ }
-      throw new Error('GitHub token expired or revoked. Please reconnect.');
+      throw new Error('Reconnect to GitHub — your saved session is no longer valid.');
     }
     if (res.status < 200 || res.status >= 300) {
       throw new Error(`GitHub API ${res.status}: ${res.body.slice(0, 300)}`);
