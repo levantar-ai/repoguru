@@ -1,13 +1,20 @@
-import { useState, useCallback, useEffect, lazy, Suspense, type ReactNode } from 'react';
+import { useEffect, lazy, Suspense, type ReactNode } from 'react';
 import { Toaster, toast } from 'sonner';
 import { AppProvider, useApp } from './context/AppContext';
 import { AnalysisProvider } from './context/AnalysisContext';
 import { BrowserServicesProvider } from './services/BrowserServicesProvider';
-import { Layout } from './components/layout/Layout';
+import {
+  TabsProvider,
+  useTabs,
+  CurrentTabProvider,
+  type Tab,
+} from './context/TabsContext';
+import { TabBar } from './components/tabs/TabBar';
+import { TileLauncher } from './components/tabs/TileLauncher';
 import { SettingsPanel } from './components/settings/SettingsPanel';
 import { LoadingScreen } from './components/common/LoadingScreen';
 import { ReportCardPage, CommandPalette, TooltipProvider, type PaletteCommand } from '@repoguru/ui';
-import { trackPageView, trackEvent } from './utils/analytics';
+import { trackEvent } from './utils/analytics';
 import {
   handleOAuthCallback,
   handleInstallationCallback,
@@ -16,7 +23,6 @@ import {
 } from './utils/oauth';
 import { saveGithubToken } from './services/persistence/credentials';
 import { fetchInstallations } from './services/github/org';
-import type { PageId } from './types';
 
 // Lazy-load heavier pages for code splitting
 const HowItWorksPage = lazy(() =>
@@ -25,10 +31,6 @@ const HowItWorksPage = lazy(() =>
 const OrgScanPage = lazy(() =>
   import('@repoguru/ui').then((m) => ({ default: m.OrgScanPage })),
 );
-// ComparePage now lives in @repoguru/ui — both the browser and the
-// desktop mount the same React component. The browser wires a
-// BrowserServices implementation via <RepoGuruProvider>; the desktop
-// wires a gRPC-backed DesktopServices.
 const ComparePage = lazy(() =>
   import('@repoguru/ui').then((m) => ({ default: m.ComparePage })),
 );
@@ -48,35 +50,12 @@ const TechDetectPage = lazy(() =>
   import('@repoguru/ui').then((m) => ({ default: m.TechDetectPage })),
 );
 
-
 function AppContent() {
-  const [page, setPage] = useState<PageId>('home');
-  const [visitedPages, setVisitedPages] = useState<Set<PageId>>(() => new Set(['home']));
-  const [pendingRepo, setPendingRepo] = useState<string | null>(null);
-  const [oauthLoading, setOauthLoading] = useState(() => {
-    const params = new URLSearchParams(window.location.search);
-    return params.has('code') || params.has('setup_action');
-  });
+  const { state: tabsState, openTab, replaceActive } = useTabs();
   const { state: appState, dispatch } = useApp();
   const token = appState.githubToken || '';
 
-  const handleNavigate = useCallback((targetPage: PageId) => {
-    setPendingRepo(null);
-    setVisitedPages((prev) => (prev.has(targetPage) ? prev : new Set(prev).add(targetPage)));
-    setPage(targetPage);
-  }, []);
-
-  const handleNavigateWithRepo = useCallback((targetPage: PageId, repo: string) => {
-    setPendingRepo(repo);
-    setVisitedPages((prev) => (prev.has(targetPage) ? prev : new Set(prev).add(targetPage)));
-    setPage(targetPage);
-  }, []);
-
-  useEffect(() => {
-    trackPageView(page);
-  }, [page]);
-
-  // Handle OAuth or installation callback on mount
+  // OAuth callback handling — fires once on mount when ?code= is in URL.
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (!params.has('code') && !params.has('setup_action')) return;
@@ -94,11 +73,9 @@ function AppContent() {
             method: isInstallationCallback() ? 'installation' : 'oauth',
           });
         }
-
         if (isInstallationCallback()) {
           toast.success('Organization access updated');
         } else if (accessToken) {
-          // After OAuth, check for installations — if none, open the org picker
           const manageUrl = getInstallationManageUrl();
           if (manageUrl) {
             try {
@@ -109,7 +86,7 @@ function AppContent() {
                 return;
               }
             } catch {
-              // Ignore — still connected, just skip the auto-redirect
+              /* still connected, skip auto-redirect */
             }
           }
           toast.success('Connected to GitHub');
@@ -118,51 +95,25 @@ function AppContent() {
       .catch((err) => {
         console.error('OAuth callback failed:', err);
         toast.error(err instanceof Error ? err.message : 'OAuth sign-in failed.');
-      })
-      .finally(() => setOauthLoading(false));
+      });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  if (oauthLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="flex items-center gap-3 text-text-secondary">
-          <svg className="h-5 w-5 text-neon animate-spin" viewBox="0 0 24 24" fill="none">
-            <circle
-              className="opacity-25"
-              cx="12"
-              cy="12"
-              r="10"
-              stroke="currentColor"
-              strokeWidth="4"
-            />
-            <path
-              className="opacity-75"
-              fill="currentColor"
-              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-            />
-          </svg>
-          Connecting to GitHub...
-        </div>
-      </div>
-    );
-  }
-
-  // ⌘K command palette: jump to nav destinations + recents + settings
-  // actions. Tools mirror the sidebar one-for-one. Actions surface
-  // settings + theme toggle so power users never have to mouse.
+  // ⌘K palette tools — pick a tool spawns a fresh tab so the user
+  // never loses an in-flight session by switching tools.
   const paletteTools: Omit<PaletteCommand, 'group'>[] = [
-    { id: 't:home',        label: 'Report Card',  shortcut: 'g r', onSelect: () => handleNavigate('home') },
-    { id: 't:git-stats',   label: 'Git Stats',    shortcut: 'g s', onSelect: () => handleNavigate('git-stats') },
-    { id: 't:tech-detect', label: 'Tech Stack',   shortcut: 'g t', onSelect: () => handleNavigate('tech-detect') },
-    { id: 't:compare',     label: 'Compare',      shortcut: 'g c', onSelect: () => handleNavigate('compare') },
-    { id: 't:org-scan',    label: 'Org Scan',     shortcut: 'g o', onSelect: () => handleNavigate('org-scan') },
-    { id: 't:policy',      label: 'Policy',                       onSelect: () => handleNavigate('policy') },
-    { id: 't:portfolio',   label: 'Portfolio',    shortcut: 'g p', onSelect: () => handleNavigate('portfolio') },
-    { id: 't:discover',    label: 'Search',                       onSelect: () => handleNavigate('discover') },
-    { id: 't:docs',        label: 'Help',                         onSelect: () => handleNavigate('docs') },
+    { id: 't:home',        label: 'Report Card',  shortcut: 'g r', onSelect: () => openTab('home') },
+    { id: 't:git-stats',   label: 'Git Stats',    shortcut: 'g s', onSelect: () => openTab('git-stats') },
+    { id: 't:tech-detect', label: 'Tech Stack',   shortcut: 'g t', onSelect: () => openTab('tech-detect') },
+    { id: 't:compare',     label: 'Compare',      shortcut: 'g c', onSelect: () => openTab('compare') },
+    { id: 't:org-scan',    label: 'Org Scan',     shortcut: 'g o', onSelect: () => openTab('org-scan') },
+    { id: 't:policy',      label: 'Policy',                       onSelect: () => openTab('policy') },
+    { id: 't:portfolio',   label: 'Portfolio',    shortcut: 'g p', onSelect: () => openTab('portfolio') },
+    { id: 't:discover',    label: 'Search',                       onSelect: () => openTab('discover') },
+    { id: 't:docs',        label: 'Help',                         onSelect: () => openTab('docs') },
   ];
   const paletteActions: Omit<PaletteCommand, 'group'>[] = [
-    { id: 'a:settings', label: 'Open Settings', onSelect: () => dispatch({ type: 'TOGGLE_SETTINGS' }) },
+    { id: 'a:new-tab',  label: 'New Tab',          shortcut: '⌘T', onSelect: () => openTab('launcher') },
+    { id: 'a:settings', label: 'Open Settings',                    onSelect: () => dispatch({ type: 'TOGGLE_SETTINGS' }) },
     {
       id: 'a:theme',
       label: appState.settings.theme === 'light' ? 'Switch to dark theme' : 'Switch to light theme',
@@ -174,106 +125,144 @@ function AppContent() {
     },
   ];
 
-  // The palette dispatches a custom event when a recents row is picked
-  // — bring the user back to Report Card with the slug pre-filled.
+  // Recents palette pick → open the slug in a fresh Report Card tab.
+  // Replaces the old "navigate active page" behaviour — under tabs the
+  // user expects each pick to be a separate session.
   useEffect(() => {
     const onPick = (e: Event) => {
       const detail = (e as CustomEvent<{ value: string }>).detail;
-      if (detail?.value) {
-        handleNavigateWithRepo('home', detail.value);
-      }
+      if (detail?.value) openTab('home', { repo: detail.value });
     };
     window.addEventListener('repoguru:palette-pick-repo', onPick);
     return () => window.removeEventListener('repoguru:palette-pick-repo', onPick);
-  }, [handleNavigateWithRepo]);
+  }, [openTab]);
 
   return (
-    <Layout onNavigate={handleNavigate} currentPage={page}>
+    <div className="flex flex-col h-screen bg-surface text-text bg-gradient-dark">
+      <a href="#main-content" className="skip-link">
+        Skip to main content
+      </a>
       <CommandPalette tools={paletteTools} actions={paletteActions} />
-      <PageMount active={page === 'home'}>
-        <ReportCardPage initialRepo={pendingRepo ?? undefined} />
-      </PageMount>
-      <PageMount active={page === 'docs'}>
-        {visitedPages.has('docs') && (
-          <Suspense fallback={<LoadingScreen />}>
-            <HowItWorksPage />
-          </Suspense>
-        )}
-      </PageMount>
-      <PageMount active={page === 'org-scan'}>
-        {visitedPages.has('org-scan') && (
-          <Suspense fallback={<LoadingScreen />}>
-            <OrgScanPage />
-          </Suspense>
-        )}
-      </PageMount>
-      <PageMount active={page === 'compare'}>
-        {visitedPages.has('compare') && (
-          <Suspense fallback={<LoadingScreen />}>
-            <ComparePage />
-          </Suspense>
-        )}
-      </PageMount>
-      <PageMount active={page === 'portfolio'}>
-        {visitedPages.has('portfolio') && (
-          <Suspense fallback={<LoadingScreen />}>
-            <PortfolioPage
-              onAnalyze={() => handleNavigate('home')}
-              githubToken={token}
-              defaultUsername={appState.githubUser?.login}
-            />
-          </Suspense>
-        )}
-      </PageMount>
-      <PageMount active={page === 'discover'}>
-        {visitedPages.has('discover') && (
-          <Suspense fallback={<LoadingScreen />}>
-            <DiscoverPage
-              onNavigate={handleNavigate as (page: string) => void}
-              onSendToTool={handleNavigateWithRepo}
-            />
-          </Suspense>
-        )}
-      </PageMount>
-      <PageMount active={page === 'policy'}>
-        {visitedPages.has('policy') && (
-          <Suspense fallback={<LoadingScreen />}>
-            <PolicyPage />
-          </Suspense>
-        )}
-      </PageMount>
-      <PageMount active={page === 'git-stats'}>
-        {visitedPages.has('git-stats') && (
-          <Suspense fallback={<LoadingScreen />}>
-            <GitStatsPage />
-          </Suspense>
-        )}
-      </PageMount>
-      <PageMount active={page === 'tech-detect'}>
-        {visitedPages.has('tech-detect') && (
-          <Suspense fallback={<LoadingScreen />}>
-            <TechDetectPage />
-          </Suspense>
-        )}
-      </PageMount>
-    </Layout>
+      <TabBar />
+      <main
+        id="main-content"
+        className="flex-1 overflow-y-auto"
+        tabIndex={-1}
+      >
+        {tabsState.tabs.map((tab) => (
+          <TabContent
+            key={tab.id}
+            tab={tab}
+            active={tab.id === tabsState.activeId}
+            token={token}
+            defaultUsername={appState.githubUser?.login}
+            onSendRepoToReportCard={(repo) => replaceActive('home', repo)}
+          />
+        ))}
+      </main>
+    </div>
   );
 }
 
-/** Wraps a page so the inactive ones are hidden visually AND removed
- *  from the accessibility tree + focus order. The previous pattern
- *  (display: none) hid them from sighted users but DOM-walking ATs
- *  (JAWS browse mode, VoiceOver) still read every cached page's H1
- *  and landmarks — fails WCAG 1.3.1 / 2.4.6 / 4.1.2. `inert` (baseline
- *  in all evergreen browsers) makes the subtree unreachable for AT,
- *  focus, and pointer events; we keep `display:none` so it doesn't
- *  contribute layout. */
-function PageMount({ active, children }: { active: boolean; children: ReactNode }) {
+interface TabContentProps {
+  tab: Tab;
+  active: boolean;
+  token: string;
+  defaultUsername?: string;
+  onSendRepoToReportCard: (repo: string) => void;
+}
+
+/** Renders one tab's page in a hidden+inert wrapper so inactive tabs
+ *  preserve their state (in-flight scans, partial input) without
+ *  showing in the AT tree. Each tab is a fresh React subtree (keyed on
+ *  tab.id at the parent) — that's how multiple instances of the same
+ *  page kind keep their state independent. */
+function TabContent({
+  tab,
+  active,
+  token,
+  defaultUsername,
+  onSendRepoToReportCard,
+}: TabContentProps) {
   return (
-    <div style={{ display: active ? undefined : 'none' }} inert={!active || undefined}>
-      {children}
+    <div
+      style={{ display: active ? undefined : 'none' }}
+      inert={!active || undefined}
+      role="tabpanel"
+      aria-label={tab.title}
+    >
+      <CurrentTabProvider tab={tab}>
+        {renderTab(tab, { token, defaultUsername, onSendRepoToReportCard })}
+      </CurrentTabProvider>
     </div>
   );
+}
+
+function renderTab(
+  tab: Tab,
+  ctx: { token: string; defaultUsername?: string; onSendRepoToReportCard: (repo: string) => void },
+): ReactNode {
+  switch (tab.kind) {
+    case 'launcher':
+      return <TileLauncher />;
+    case 'home':
+      return <ReportCardPage initialRepo={tab.repo} />;
+    case 'docs':
+      return (
+        <Suspense fallback={<LoadingScreen />}>
+          <HowItWorksPage />
+        </Suspense>
+      );
+    case 'org-scan':
+      return (
+        <Suspense fallback={<LoadingScreen />}>
+          <OrgScanPage />
+        </Suspense>
+      );
+    case 'compare':
+      return (
+        <Suspense fallback={<LoadingScreen />}>
+          <ComparePage />
+        </Suspense>
+      );
+    case 'portfolio':
+      return (
+        <Suspense fallback={<LoadingScreen />}>
+          <PortfolioPage
+            onAnalyze={() => {/* no-op under tabs — user closes manually */}}
+            githubToken={ctx.token}
+            defaultUsername={ctx.defaultUsername}
+          />
+        </Suspense>
+      );
+    case 'discover':
+      return (
+        <Suspense fallback={<LoadingScreen />}>
+          <DiscoverPage
+            onNavigate={() => {/* no-op under tabs */}}
+            onSendToTool={(_, repo) => ctx.onSendRepoToReportCard(repo)}
+          />
+        </Suspense>
+      );
+    case 'policy':
+      return (
+        <Suspense fallback={<LoadingScreen />}>
+          <PolicyPage />
+        </Suspense>
+      );
+    case 'git-stats':
+      return (
+        <Suspense fallback={<LoadingScreen />}>
+          <GitStatsPage />
+        </Suspense>
+      );
+    case 'tech-detect':
+      return (
+        <Suspense fallback={<LoadingScreen />}>
+          <TechDetectPage />
+        </Suspense>
+      );
+  }
 }
 
 export default function App() {
@@ -282,19 +271,17 @@ export default function App() {
       <AnalysisProvider>
         <BrowserServicesProvider>
           <TooltipProvider>
-            <AppContent />
-            <SettingsPanel />
-            {/* Sonner: stacked toast surface used by OAuth flows + future
-                async actions. Themed dark by default since RepoGuru's
-                chrome is dark; theme-class auto-detects light mode via
-                the .light class on <html>. */}
-            <Toaster
-              position="top-center"
-              theme="dark"
-              closeButton
-              richColors
-              toastOptions={{ className: 'tabular-nums' }}
-            />
+            <TabsProvider>
+              <AppContent />
+              <SettingsPanel />
+              <Toaster
+                position="top-center"
+                theme="dark"
+                closeButton
+                richColors
+                toastOptions={{ className: 'tabular-nums' }}
+              />
+            </TabsProvider>
           </TooltipProvider>
         </BrowserServicesProvider>
       </AnalysisProvider>
