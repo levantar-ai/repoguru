@@ -1,19 +1,24 @@
-import { useEffect, lazy, Suspense, type ReactNode } from 'react';
+import { useEffect, useMemo, lazy, Suspense, type ReactNode } from 'react';
 import { Toaster, toast } from 'sonner';
 import { AppProvider, useApp } from './context/AppContext';
 import { AnalysisProvider } from './context/AnalysisContext';
 import { BrowserServicesProvider } from './services/BrowserServicesProvider';
+import { SettingsPanel } from './components/settings/SettingsPanel';
+import { LoadingScreen } from './components/common/LoadingScreen';
 import {
+  ReportCardPage,
+  CommandPalette,
+  TooltipProvider,
   TabsProvider,
   useTabs,
   CurrentTabProvider,
+  TabBar,
+  TileLauncher,
+  PrivacyStrip,
   type Tab,
-} from './context/TabsContext';
-import { TabBar } from './components/tabs/TabBar';
-import { TileLauncher } from './components/tabs/TileLauncher';
-import { SettingsPanel } from './components/settings/SettingsPanel';
-import { LoadingScreen } from './components/common/LoadingScreen';
-import { ReportCardPage, CommandPalette, TooltipProvider, type PaletteCommand } from '@repoguru/ui';
+  type TileDef,
+  type PaletteCommand,
+} from '@repoguru/ui';
 import { trackEvent } from './utils/analytics';
 import {
   handleOAuthCallback,
@@ -24,31 +29,56 @@ import {
 import { saveGithubToken } from './services/persistence/credentials';
 import { fetchInstallations } from './services/github/org';
 
-// Lazy-load heavier pages for code splitting
 const HowItWorksPage = lazy(() =>
   import('./pages/HowItWorksPage').then((m) => ({ default: m.HowItWorksPage })),
 );
-const OrgScanPage = lazy(() =>
-  import('@repoguru/ui').then((m) => ({ default: m.OrgScanPage })),
+const OrgScanPage = lazy(() => import('@repoguru/ui').then((m) => ({ default: m.OrgScanPage })));
+const ComparePage = lazy(() => import('@repoguru/ui').then((m) => ({ default: m.ComparePage })));
+const PortfolioPage = lazy(() => import('./pages/PortfolioPage').then((m) => ({ default: m.PortfolioPage })));
+const DiscoverPage = lazy(() => import('./pages/DiscoverPage').then((m) => ({ default: m.DiscoverPage })));
+const PolicyPage = lazy(() => import('@repoguru/ui').then((m) => ({ default: m.PolicyPage })));
+const GitStatsPage = lazy(() => import('@repoguru/ui').then((m) => ({ default: m.GitStatsPage })));
+const TechDetectPage = lazy(() => import('@repoguru/ui').then((m) => ({ default: m.TechDetectPage })));
+
+// ───────────────────────── Web tab vocabulary ────────────────────────
+
+const WEB_TILES: TileDef[] = [
+  { kind: 'home',         title: 'Report Card', description: 'A–F grade across security, docs, CI/CD, and code health.', d: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z' },
+  { kind: 'git-stats',    title: 'Git Stats',   description: 'Commits, contributors, ownership, hotspots, heatmaps.',     d: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z' },
+  { kind: 'tech-detect',  title: 'Tech Stack',  description: 'Frameworks, databases, cloud, CI/CD, and testing tools.',   d: 'M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4' },
+  { kind: 'compare',      title: 'Compare',     description: 'Score two repositories side-by-side across categories.',    d: 'M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4' },
+  { kind: 'org-scan',     title: 'Org Scan',    description: 'Score every repository in a GitHub organisation.',          d: 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4' },
+  { kind: 'policy',       title: 'Policy',      description: 'PASS / FAIL a repo against a compliance ruleset.',          d: 'M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z' },
+  { kind: 'portfolio',    title: 'Portfolio',   description: 'Profile a developer’s public repos at a glance.',           d: 'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z' },
+  { kind: 'discover',     title: 'Search',      description: 'Find repositories by topic, language, or stars.',           d: 'M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z' },
+  { kind: 'docs',         title: 'Help',        description: 'How RepoGuru works, what each metric means.',               d: 'M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253' },
+];
+
+const WEB_TITLE_FOR_KIND: Record<string, string> = {
+  launcher: 'New Tab',
+  home: 'Report Card',
+  'git-stats': 'Git Stats',
+  'tech-detect': 'Tech Stack',
+  compare: 'Compare',
+  'org-scan': 'Org Scan',
+  policy: 'Policy',
+  portfolio: 'Portfolio',
+  discover: 'Search',
+  docs: 'Help',
+};
+
+const ICON_BY_KIND: Record<string, string> = Object.fromEntries(
+  WEB_TILES.map((t) => [t.kind, t.d]),
 );
-const ComparePage = lazy(() =>
-  import('@repoguru/ui').then((m) => ({ default: m.ComparePage })),
-);
-const PortfolioPage = lazy(() =>
-  import('./pages/PortfolioPage').then((m) => ({ default: m.PortfolioPage })),
-);
-const DiscoverPage = lazy(() =>
-  import('./pages/DiscoverPage').then((m) => ({ default: m.DiscoverPage })),
-);
-const PolicyPage = lazy(() =>
-  import('@repoguru/ui').then((m) => ({ default: m.PolicyPage })),
-);
-const GitStatsPage = lazy(() =>
-  import('@repoguru/ui').then((m) => ({ default: m.GitStatsPage })),
-);
-const TechDetectPage = lazy(() =>
-  import('@repoguru/ui').then((m) => ({ default: m.TechDetectPage })),
-);
+
+function webTitleFor(kind: string, repo?: string): string {
+  const base = WEB_TITLE_FOR_KIND[kind] ?? 'New Tab';
+  return repo ? `${base} · ${repo}` : base;
+}
+
+function iconForKind(kind: string): string {
+  return ICON_BY_KIND[kind] ?? 'M12 4v16m8-8H4';
+}
 
 function AppContent() {
   const { state: tabsState, openTab, replaceActive } = useTabs();
@@ -59,19 +89,13 @@ function AppContent() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (!params.has('code') && !params.has('setup_action')) return;
-
-    const handleCallback = isInstallationCallback()
-      ? handleInstallationCallback()
-      : handleOAuthCallback();
-
+    const handleCallback = isInstallationCallback() ? handleInstallationCallback() : handleOAuthCallback();
     handleCallback
       .then(async (accessToken) => {
         if (accessToken) {
           dispatch({ type: 'SET_GITHUB_TOKEN', token: accessToken });
           await saveGithubToken(accessToken);
-          trackEvent('token_added', {
-            method: isInstallationCallback() ? 'installation' : 'oauth',
-          });
+          trackEvent('token_added', { method: isInstallationCallback() ? 'installation' : 'oauth' });
         }
         if (isInstallationCallback()) {
           toast.success('Organization access updated');
@@ -85,9 +109,7 @@ function AppContent() {
                 toast.info('Connected — select which organisations to grant access to.');
                 return;
               }
-            } catch {
-              /* still connected, skip auto-redirect */
-            }
+            } catch { /* keep going */ }
           }
           toast.success('Connected to GitHub');
         }
@@ -98,19 +120,15 @@ function AppContent() {
       });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ⌘K palette tools — pick a tool spawns a fresh tab so the user
-  // never loses an in-flight session by switching tools.
-  const paletteTools: Omit<PaletteCommand, 'group'>[] = [
-    { id: 't:home',        label: 'Report Card',  shortcut: 'g r', onSelect: () => openTab('home') },
-    { id: 't:git-stats',   label: 'Git Stats',    shortcut: 'g s', onSelect: () => openTab('git-stats') },
-    { id: 't:tech-detect', label: 'Tech Stack',   shortcut: 'g t', onSelect: () => openTab('tech-detect') },
-    { id: 't:compare',     label: 'Compare',      shortcut: 'g c', onSelect: () => openTab('compare') },
-    { id: 't:org-scan',    label: 'Org Scan',     shortcut: 'g o', onSelect: () => openTab('org-scan') },
-    { id: 't:policy',      label: 'Policy',                       onSelect: () => openTab('policy') },
-    { id: 't:portfolio',   label: 'Portfolio',    shortcut: 'g p', onSelect: () => openTab('portfolio') },
-    { id: 't:discover',    label: 'Search',                       onSelect: () => openTab('discover') },
-    { id: 't:docs',        label: 'Help',                         onSelect: () => openTab('docs') },
-  ];
+  const paletteTools: Omit<PaletteCommand, 'group'>[] = useMemo(
+    () =>
+      WEB_TILES.map((t) => ({
+        id: `t:${t.kind}`,
+        label: t.title,
+        onSelect: () => openTab(t.kind),
+      })),
+    [openTab],
+  );
   const paletteActions: Omit<PaletteCommand, 'group'>[] = [
     { id: 'a:new-tab',  label: 'New Tab',          shortcut: '⌘T', onSelect: () => openTab('launcher') },
     { id: 'a:settings', label: 'Open Settings',                    onSelect: () => dispatch({ type: 'TOGGLE_SETTINGS' }) },
@@ -118,16 +136,12 @@ function AppContent() {
       id: 'a:theme',
       label: appState.settings.theme === 'light' ? 'Switch to dark theme' : 'Switch to light theme',
       onSelect: () =>
-        dispatch({
-          type: 'SET_THEME',
-          theme: appState.settings.theme === 'light' ? 'dark' : 'light',
-        }),
+        dispatch({ type: 'SET_THEME', theme: appState.settings.theme === 'light' ? 'dark' : 'light' }),
     },
   ];
 
-  // Recents palette pick → open the slug in a fresh Report Card tab.
-  // Replaces the old "navigate active page" behaviour — under tabs the
-  // user expects each pick to be a separate session.
+  // Recents-pick custom event opens a fresh Report Card tab pre-filled
+  // with the slug.
   useEffect(() => {
     const onPick = (e: Event) => {
       const detail = (e as CustomEvent<{ value: string }>).detail;
@@ -137,18 +151,56 @@ function AppContent() {
     return () => window.removeEventListener('repoguru:palette-pick-repo', onPick);
   }, [openTab]);
 
+  const rightRail = appState.githubUser ? (
+    <button
+      type="button"
+      onClick={() => dispatch({ type: 'TOGGLE_SETTINGS' })}
+      className="flex items-center gap-2 px-2 py-1 rounded-md text-text-secondary hover:text-text hover:bg-surface-hover/50 transition-colors"
+      aria-label={`Connected as @${appState.githubUser.login} — open settings`}
+    >
+      {appState.githubUser.avatarUrl ? (
+        <img src={appState.githubUser.avatarUrl} alt="" className="h-5 w-5 rounded-full" aria-hidden="true" />
+      ) : (
+        <div className="h-5 w-5 rounded-full bg-surface-hover" aria-hidden="true" />
+      )}
+      <span className="hidden sm:inline text-xs font-medium">@{appState.githubUser.login}</span>
+      {appState.rateLimit && (
+        <span
+          className="hidden md:inline px-1.5 py-0.5 rounded text-[10px] tabular-nums shrink-0"
+          style={{
+            background: 'var(--color-surface)',
+            border: '1px solid var(--color-border)',
+            color:
+              appState.rateLimit.remaining < 10
+                ? 'var(--color-grade-f)'
+                : 'var(--color-text-muted)',
+          }}
+        >
+          {appState.rateLimit.remaining}
+        </span>
+      )}
+    </button>
+  ) : (
+    <button
+      type="button"
+      onClick={() => dispatch({ type: 'TOGGLE_SETTINGS' })}
+      className="flex items-center gap-1.5 px-2 py-1 rounded-md text-xs text-text-secondary hover:text-neon transition-colors"
+      aria-label="Open settings"
+    >
+      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+      </svg>
+      <span className="hidden sm:inline">Settings</span>
+    </button>
+  );
+
   return (
     <div className="flex flex-col h-screen bg-surface text-text bg-gradient-dark">
-      <a href="#main-content" className="skip-link">
-        Skip to main content
-      </a>
+      <a href="#main-content" className="skip-link">Skip to main content</a>
       <CommandPalette tools={paletteTools} actions={paletteActions} />
-      <TabBar />
-      <main
-        id="main-content"
-        className="flex-1 overflow-y-auto"
-        tabIndex={-1}
-      >
+      <TabBar iconForKind={iconForKind} rightRail={rightRail} />
+      <main id="main-content" className="flex-1 overflow-y-auto" tabIndex={-1}>
         {tabsState.tabs.map((tab) => (
           <TabContent
             key={tab.id}
@@ -172,18 +224,7 @@ interface TabContentProps {
   onSendRepoToReportCard: (repo: string) => void;
 }
 
-/** Renders one tab's page in a hidden+inert wrapper so inactive tabs
- *  preserve their state (in-flight scans, partial input) without
- *  showing in the AT tree. Each tab is a fresh React subtree (keyed on
- *  tab.id at the parent) — that's how multiple instances of the same
- *  page kind keep their state independent. */
-function TabContent({
-  tab,
-  active,
-  token,
-  defaultUsername,
-  onSendRepoToReportCard,
-}: TabContentProps) {
+function TabContent({ tab, active, token, defaultUsername, onSendRepoToReportCard }: TabContentProps) {
   return (
     <div
       style={{ display: active ? undefined : 'none' }}
@@ -204,32 +245,26 @@ function renderTab(
 ): ReactNode {
   switch (tab.kind) {
     case 'launcher':
-      return <TileLauncher />;
+      return (
+        <TileLauncher
+          tiles={WEB_TILES}
+          subtitle="A workspace for digging into git repositories. Pick a tool to start a session — open as many in parallel as you like."
+          banner={<PrivacyStrip />}
+        />
+      );
     case 'home':
       return <ReportCardPage initialRepo={tab.repo} />;
     case 'docs':
-      return (
-        <Suspense fallback={<LoadingScreen />}>
-          <HowItWorksPage />
-        </Suspense>
-      );
+      return <Suspense fallback={<LoadingScreen />}><HowItWorksPage /></Suspense>;
     case 'org-scan':
-      return (
-        <Suspense fallback={<LoadingScreen />}>
-          <OrgScanPage />
-        </Suspense>
-      );
+      return <Suspense fallback={<LoadingScreen />}><OrgScanPage /></Suspense>;
     case 'compare':
-      return (
-        <Suspense fallback={<LoadingScreen />}>
-          <ComparePage />
-        </Suspense>
-      );
+      return <Suspense fallback={<LoadingScreen />}><ComparePage /></Suspense>;
     case 'portfolio':
       return (
         <Suspense fallback={<LoadingScreen />}>
           <PortfolioPage
-            onAnalyze={() => {/* no-op under tabs — user closes manually */}}
+            onAnalyze={() => {}}
             githubToken={ctx.token}
             defaultUsername={ctx.defaultUsername}
           />
@@ -239,29 +274,19 @@ function renderTab(
       return (
         <Suspense fallback={<LoadingScreen />}>
           <DiscoverPage
-            onNavigate={() => {/* no-op under tabs */}}
+            onNavigate={() => {}}
             onSendToTool={(_, repo) => ctx.onSendRepoToReportCard(repo)}
           />
         </Suspense>
       );
     case 'policy':
-      return (
-        <Suspense fallback={<LoadingScreen />}>
-          <PolicyPage />
-        </Suspense>
-      );
+      return <Suspense fallback={<LoadingScreen />}><PolicyPage /></Suspense>;
     case 'git-stats':
-      return (
-        <Suspense fallback={<LoadingScreen />}>
-          <GitStatsPage />
-        </Suspense>
-      );
+      return <Suspense fallback={<LoadingScreen />}><GitStatsPage /></Suspense>;
     case 'tech-detect':
-      return (
-        <Suspense fallback={<LoadingScreen />}>
-          <TechDetectPage />
-        </Suspense>
-      );
+      return <Suspense fallback={<LoadingScreen />}><TechDetectPage /></Suspense>;
+    default:
+      return null;
   }
 }
 
@@ -271,7 +296,7 @@ export default function App() {
       <AnalysisProvider>
         <BrowserServicesProvider>
           <TooltipProvider>
-            <TabsProvider>
+            <TabsProvider titleFor={webTitleFor} storageKey="repoguru:tabs">
               <AppContent />
               <SettingsPanel />
               <Toaster

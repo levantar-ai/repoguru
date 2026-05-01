@@ -73,6 +73,21 @@ export { Tooltip, TooltipProvider } from './chrome/Tooltip.js';
 export type { TooltipProps } from './chrome/Tooltip.js';
 export { CommandPalette } from './chrome/CommandPalette.js';
 export type { CommandPaletteProps, PaletteCommand } from './chrome/CommandPalette.js';
+export {
+  TabsProvider,
+  useTabs,
+  CurrentTabProvider,
+  useCurrentTab,
+  TabBar,
+  TileLauncher,
+} from './chrome/TabStudio.js';
+export type {
+  Tab,
+  TabsProviderProps,
+  TabBarProps,
+  TileLauncherProps,
+  TileDef,
+} from './chrome/TabStudio.js';
 export { SectionLayout } from './chrome/SectionLayout.js';
 export type { SectionDef, SectionLayoutProps } from './chrome/SectionLayout.js';
 
