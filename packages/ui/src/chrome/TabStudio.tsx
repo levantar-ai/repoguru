@@ -239,6 +239,11 @@ export interface TileDef {
   description: string;
   /** Heroicons-style stroke path. */
   d: string;
+  /** Tailwind text-color class for the icon (both on the tile and on
+   *  the tab strip when the tab is open). Lets the user scan tabs by
+   *  hue — Git Stats blue, Report Card green, Tech Stack purple, etc.
+   *  Defaults to text-text-secondary if omitted. */
+  color?: string;
 }
 
 export interface TileLauncherProps {
@@ -275,7 +280,11 @@ export function TileLauncher({ tiles, subtitle, banner }: TileLauncherProps) {
             className="group text-left p-5 rounded-xl border border-border bg-surface-alt hover:border-neon/40 hover:bg-surface-hover/40 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-neon focus-visible:outline-offset-2"
           >
             <div className="flex items-start gap-3 mb-3">
-              <div className="rounded-lg bg-surface border border-border p-2 text-text-secondary group-hover:text-neon transition-colors shrink-0">
+              <div
+                className={`rounded-lg bg-surface border border-border p-2 transition-colors shrink-0 ${
+                  tile.color ?? 'text-text-secondary'
+                }`}
+              >
                 <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
                   <path strokeLinecap="round" strokeLinejoin="round" d={tile.d} />
                 </svg>
@@ -303,6 +312,12 @@ export interface TabBarProps {
   /** Resolve a glyph SVG path for a given tab kind. The launcher
    *  always uses a "+" icon regardless. */
   iconForKind: (kind: string) => string;
+  /** Resolve the Tailwind text-color class used for a tab's icon.
+   *  Mirrors `TileDef.color` so the hue a user picked in the
+   *  launcher persists onto the tab strip — green for Report Card,
+   *  cyan for Git Stats, etc. Returns undefined for "no opinion"
+   *  (defaults to text-text-secondary). */
+  colorForKind?: (kind: string) => string | undefined;
   /** Wordmark / logo rendered on the left edge of the tab bar. The
    *  shared chrome doesn't ship branding assets — each host supplies
    *  its own (web uses /logo.png, desktop uses an inline SVG since
@@ -332,7 +347,7 @@ const DEFAULT_WORDMARK: ReactNode = (
   </span>
 );
 
-export function TabBar({ iconForKind, wordmark = DEFAULT_WORDMARK, rightRail }: TabBarProps) {
+export function TabBar({ iconForKind, colorForKind, wordmark = DEFAULT_WORDMARK, rightRail }: TabBarProps) {
   const { state, openTab, setActive, close } = useTabs();
   const launcherIcon = 'M12 4v16m8-8H4';
 
@@ -355,31 +370,49 @@ export function TabBar({ iconForKind, wordmark = DEFAULT_WORDMARK, rightRail }: 
       <div role="tablist" aria-label="Open sessions" className="flex-1 flex items-end gap-0.5 overflow-x-auto">
         {state.tabs.map((tab) => {
           const isActive = tab.id === state.activeId;
-          const d = tab.kind === 'launcher' ? launcherIcon : iconForKind(tab.kind);
+          const isLauncher = tab.kind === 'launcher';
+          const d = isLauncher ? launcherIcon : iconForKind(tab.kind);
+          const iconColor = isLauncher
+            ? 'text-text-muted'
+            : colorForKind?.(tab.kind) ?? 'text-text-secondary';
+
+          // Three-way styling:
+          //  - launcher: dashed top border + italic title, looks like a
+          //    placeholder slot ("pick something here"), distinct from
+          //    a real working session
+          //  - active working tab: solid border, merges with content
+          //  - inactive working tab: bare text, hover-lifts only
+          let tabChrome: string;
+          if (isLauncher) {
+            tabChrome = isActive
+              ? 'bg-surface text-text-secondary italic rounded-t-md border-t border-l border-r border-dashed border-border -mb-px'
+              : 'text-text-muted italic hover:bg-surface-hover/40 hover:text-text-secondary rounded-t-md border-t border-l border-r border-dashed border-transparent hover:border-border';
+          } else if (isActive) {
+            tabChrome = 'bg-surface text-text rounded-t-md border-t border-l border-r border-border -mb-px';
+          } else {
+            tabChrome = 'text-text-secondary hover:bg-surface-hover/40 hover:text-text rounded-t-md';
+          }
+
           return (
             <div
               key={tab.id}
               role="tab"
               aria-selected={isActive}
-              className={`group relative flex items-center gap-1.5 max-w-[220px] h-8 pl-3 pr-1.5 text-sm transition-colors ${
-                isActive
-                  ? // Active: same bg as the content area, top-rounded,
-                    // 1px border on top/left/right that visually steps
-                    // up out of the bar; -mb-px slides it down to cover
-                    // the bar's bottom border. No bottom border on the
-                    // tab itself — that's how it "merges" with content.
-                    'bg-surface text-text rounded-t-md border-t border-l border-r border-border -mb-px'
-                  : // Inactive: subtle hover lift, no chrome — looks
-                    // recessed compared to the active tab.
-                    'text-text-secondary hover:bg-surface-hover/40 hover:text-text rounded-t-md'
-              }`}
+              className={`group relative flex items-center gap-1.5 max-w-[220px] h-8 pl-3 pr-1.5 text-sm transition-colors ${tabChrome}`}
             >
               <button
                 type="button"
                 onClick={() => setActive(tab.id)}
                 className="flex items-center gap-1.5 min-w-0 flex-1 text-left h-full"
               >
-                <svg className="h-3.5 w-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
+                <svg
+                  className={`h-3.5 w-3.5 shrink-0 ${iconColor}`}
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={1.5}
+                  aria-hidden="true"
+                >
                   <path strokeLinecap="round" strokeLinejoin="round" d={d} />
                 </svg>
                 <span className="truncate">{tab.title}</span>
