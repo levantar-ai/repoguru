@@ -412,8 +412,13 @@ app.whenReady().then(async () => {
         oauthInFlight = {
           server,
           cleanup: () => {
+            // Triggered by githubOAuthCancel — close the server AND
+            // reject the awaiting Promise so the renderer can move
+            // out of its "Waiting for GitHub…" state. Without the
+            // settle() call, closing the browser would leave the
+            // Promise pending until the 5-minute timeout fires.
             clearTimeout(timeout);
-            try { server.close(); } catch { /* ignore */ }
+            settle(new Error('Cancelled by user'));
           },
         };
         // Open in the user's default browser — passkeys, password

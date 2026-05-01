@@ -250,6 +250,20 @@ export function RepoPicker({
                 </svg>
                 {connecting ? 'Waiting for GitHub…' : 'Connect to GitHub'}
               </button>
+              {connecting && repoBrowse.cancelConnectGitHub && (
+                <button
+                  type="button"
+                  onClick={async () => {
+                    await repoBrowse.cancelConnectGitHub?.();
+                    // The in-flight connectGitHub Promise rejects with
+                    // "Cancelled by user", caught above; setConnecting
+                    // flips false in the finally block.
+                  }}
+                  className="block w-full mt-2 text-xs text-text-muted hover:text-text underline-offset-4 hover:underline transition-colors"
+                >
+                  Cancel
+                </button>
+              )}
               {connectError && (
                 <div className="mt-2 px-3 py-2 rounded-md bg-red-500/10 border border-red-500/30 text-xs text-red-400">
                   {connectError}

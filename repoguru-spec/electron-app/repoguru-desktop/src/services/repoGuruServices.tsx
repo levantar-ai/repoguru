@@ -132,6 +132,15 @@ export const desktopServices: RepoGuruServices = {
     hasGitHubToken() {
       return !!loadCachedDesktopToken();
     },
+    async cancelConnectGitHub() {
+      // Tell main to close the loopback server + reject the awaiting
+      // Promise. Used when the user closes the browser without
+      // completing OAuth — without this, the picker would hang on
+      // "Waiting for GitHub…" until the 5-minute server timeout.
+      try {
+        await window.repoGuru.githubOAuthCancel();
+      } catch { /* ignore — best-effort */ }
+    },
     async connectGitHub() {
       // Pop up GitHub's normal login/authorize page in a small Electron
       // BrowserWindow, watch for the OAuth callback, exchange the code

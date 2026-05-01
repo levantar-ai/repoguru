@@ -220,6 +220,13 @@ export interface RepoBrowseService {
    *  picker re-renders when hasGitHubToken() flips. */
   connectGitHub?(): Promise<void> | void;
 
+  /** Cancel a Connect flow that's currently in flight. The desktop's
+   *  loopback OAuth server has no way to know when the user closes
+   *  the browser, so without an explicit cancel, the picker would
+   *  stay "Waiting for GitHub…" until the 5-minute timeout. The web
+   *  flow navigates the page so cancellation isn't applicable. */
+  cancelConnectGitHub?(): Promise<void> | void;
+
   /** Fetch the user's GitHub repos for the picker's filtered list. Returns
    *  empty array when no token. Hosts may cache; the picker calls
    *  refreshGitHubRepos() to force a refresh. */
