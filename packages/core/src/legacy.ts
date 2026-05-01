@@ -181,6 +181,55 @@ export interface ActivePeriod {
   deletions: number;
 }
 
+/** git-sizer-style repository health stats. Emitted by the desktop
+ *  CLI (`metrics::sizer`) which walks every object once across the
+ *  full history. The web flow (isomorphic-git, capped at 1,000
+ *  commits) doesn't compute these — `sizer` is null on web. */
+export interface RepoSizerStats {
+  /** Object counts by type (blob / tree / commit / tag). */
+  objectCounts: { blob: number; tree: number; commit: number; tag: number };
+  /** On-disk bytes by object type. */
+  totalBytes: { blob: number; tree: number; commit: number; tag: number };
+  /** Sum of `entries` across all tree objects — a duplication signal. */
+  totalTreeEntries: number;
+  /** Top blobs by size. Each `[oid, sizeBytes]`. */
+  largestBlobs: Array<{ oid: string; size: number }>;
+  /** Top trees by entry count. Each `[oid, entries]`. */
+  largestTrees: Array<{ oid: string; entries: number }>;
+  /** The single largest commit object. */
+  largestCommit: { oid: string; bytes: number };
+  /** Path with the deepest tree depth and the depth count. */
+  deepestPath: { path: string; depth: number };
+  /** Path component with the longest single name and that name's length. */
+  longestName: { name: string; length: number };
+  /** Full repo-relative path with the longest byte length. */
+  longestPath: { path: string; length: number };
+  /** Directory with the most direct entries. */
+  largestDirectory: { path: string; entries: number };
+  /** Maximum number of parents on any commit (octopus-merge signal). */
+  maxParents: number;
+  /** Maximum tag-of-tag chain depth. */
+  maxTagDepth: number;
+  /** Total merge commits in history. */
+  mergeCount: number;
+  /** Longest single-parent ancestor chain. */
+  maxHistoryDepth: number;
+  /** Earliest commit time (unix seconds). */
+  oldestCommit: number;
+  /** Latest commit time (unix seconds). */
+  newestCommit: number;
+  /** Files / dirs / total bytes / symlinks / submodules at the tip checkout. */
+  checkout: {
+    files: number;
+    dirs: number;
+    totalSize: number;
+    symlinks: number;
+    submodules: number;
+  };
+  /** All refs / branches / tag refs in the repo. */
+  refs: { total: number; branches: number; tagRefs: number };
+}
+
 export interface GitStatsAnalysis {
   owner: string;
   repo: string;
@@ -225,4 +274,6 @@ export interface GitStatsAnalysis {
   radarMetrics: RadarMetric[];
   hotspots: HotspotEntry[];
   topActivePeriods: ActivePeriod[];
+  /** git-sizer-style repo health stats (desktop-only — null on web). */
+  sizer: RepoSizerStats | null;
 }

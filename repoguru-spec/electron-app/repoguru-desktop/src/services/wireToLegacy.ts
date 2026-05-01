@@ -8,11 +8,39 @@ import type { GitStatsData } from '../hooks/useGitStats';
 
 type Analysis = legacy.GitStatsAnalysis;
 
+/** Mirrors the CLI's `metrics::sizer::RepoMetrics` (Rust). The wire
+ *  emits all of these — previously most were silently dropped. */
 interface RepoMetrics {
+  // Object counts / sizes
+  object_counts?: { Blob?: number; Tree?: number; Commit?: number; Tag?: number };
+  total_bytes?: { Blob?: number; Tree?: number; Commit?: number; Tag?: number };
+  total_tree_entries?: number;
+  // Largest objects (top-N curated by CLI's max_top, default 50)
+  largest_blobs?: Array<[string, number]>; // [oid, size]
+  largest_trees?: Array<[string, number]>; // [oid, entries]
+  largest_commit?: [string, number];       // [oid, bytes]
+  // Path / name extremes
+  deepest_path?: [string, number];         // [path, depth]
+  longest_name?: [string, number];         // [name, length]
+  longest_path?: [string, number];         // [path, length]
+  largest_directory?: [string, number];    // [path, entries]
+  // History shape
+  max_parents?: number;
+  max_tag_depth?: number;
+  merge_count?: number;
+  max_history_depth?: number;
   oldest_commit?: number;
   newest_commit?: number;
-  checkout_total_size?: number;
+  // Checkout (tip tree walk)
   checkout_num_files?: number;
+  checkout_num_dirs?: number;
+  checkout_total_size?: number;
+  checkout_num_symlinks?: number;
+  checkout_num_submodules?: number;
+  // Refs
+  ref_count?: number;
+  branch_count?: number;
+  tag_ref_count?: number;
 }
 
 export interface ReportLike {
@@ -373,5 +401,67 @@ export function wireToLegacy(data: GitStatsData, report: ReportLike): Analysis {
     radarMetrics,
     hotspots,
     topActivePeriods,
+    sizer: buildSizerStats(repoMetrics),
+  };
+}
+
+/** Project the wire's 25-field RepoMetrics into the camelCase shape
+ *  the UI consumes. Every field defaults to a sensible 0 / empty so
+ *  the panel always renders even if the CLI omits something. */
+function buildSizerStats(m: RepoMetrics): legacy.RepoSizerStats {
+  const counts = m.object_counts ?? {};
+  const bytes = m.total_bytes ?? {};
+  return {
+    objectCounts: {
+      blob: sanitize(counts.Blob),
+      tree: sanitize(counts.Tree),
+      commit: sanitize(counts.Commit),
+      tag: sanitize(counts.Tag),
+    },
+    totalBytes: {
+      blob: sanitize(bytes.Blob),
+      tree: sanitize(bytes.Tree),
+      commit: sanitize(bytes.Commit),
+      tag: sanitize(bytes.Tag),
+    },
+    totalTreeEntries: sanitize(m.total_tree_entries),
+    largestBlobs: (m.largest_blobs ?? []).map(([oid, size]) => ({ oid, size: sanitize(size) })),
+    largestTrees: (m.largest_trees ?? []).map(([oid, entries]) => ({
+      oid,
+      entries: sanitize(entries),
+    })),
+    largestCommit: m.largest_commit
+      ? { oid: m.largest_commit[0], bytes: sanitize(m.largest_commit[1]) }
+      : { oid: '', bytes: 0 },
+    deepestPath: m.deepest_path
+      ? { path: m.deepest_path[0], depth: sanitize(m.deepest_path[1]) }
+      : { path: '', depth: 0 },
+    longestName: m.longest_name
+      ? { name: m.longest_name[0], length: sanitize(m.longest_name[1]) }
+      : { name: '', length: 0 },
+    longestPath: m.longest_path
+      ? { path: m.longest_path[0], length: sanitize(m.longest_path[1]) }
+      : { path: '', length: 0 },
+    largestDirectory: m.largest_directory
+      ? { path: m.largest_directory[0], entries: sanitize(m.largest_directory[1]) }
+      : { path: '', entries: 0 },
+    maxParents: sanitize(m.max_parents),
+    maxTagDepth: sanitize(m.max_tag_depth),
+    mergeCount: sanitize(m.merge_count),
+    maxHistoryDepth: sanitize(m.max_history_depth),
+    oldestCommit: sanitize(m.oldest_commit),
+    newestCommit: sanitize(m.newest_commit),
+    checkout: {
+      files: sanitize(m.checkout_num_files),
+      dirs: sanitize(m.checkout_num_dirs),
+      totalSize: sanitize(m.checkout_total_size),
+      symlinks: sanitize(m.checkout_num_symlinks),
+      submodules: sanitize(m.checkout_num_submodules),
+    },
+    refs: {
+      total: sanitize(m.ref_count),
+      branches: sanitize(m.branch_count),
+      tagRefs: sanitize(m.tag_ref_count),
+    },
   };
 }

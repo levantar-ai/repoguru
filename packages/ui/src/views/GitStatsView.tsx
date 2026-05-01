@@ -15,6 +15,7 @@ import {
 } from '../chrome/SectionIcons.js';
 
 import { ExecutiveSummary } from '../charts/ExecutiveSummary.js';
+import { RepoSizerPanel } from '../charts/RepoSizerPanel.js';
 import { StatsOverviewCards } from '../charts/StatsOverviewCards.js';
 import { CommitHeatmap } from '../charts/CommitHeatmap.js';
 import { HealthRadarChart } from '../charts/HealthRadarChart.js';
@@ -127,15 +128,27 @@ export function GitStatsView({ analysis, actions }: GitStatsViewProps) {
       label: 'Health',
       icon: <HealthIcon />,
       content: (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {analysis.radarMetrics.length > 0 && (
-            <ChartSection title="Repository Health">
-              <HealthRadarChart metrics={analysis.radarMetrics} />
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {analysis.radarMetrics.length > 0 && (
+              <ChartSection title="Repository Health">
+                <HealthRadarChart metrics={analysis.radarMetrics} />
+              </ChartSection>
+            )}
+            <ChartSection title="Bus Factor (Lorenz Curve)">
+              <BusFactorChart busFactor={analysis.busFactor} />
+            </ChartSection>
+          </div>
+          {/* Desktop-only git-sizer-style stats. The CLI walks every
+              git object across the full history and emits 25 distinct
+              metrics — all of them surfaced here. The web flow
+              (isomorphic-git, capped at 1,000 commits) doesn't compute
+              these so the panel is hidden when `sizer` is null. */}
+          {analysis.sizer && (
+            <ChartSection title="Repository Stats (git-sizer)">
+              <RepoSizerPanel sizer={analysis.sizer} />
             </ChartSection>
           )}
-          <ChartSection title="Bus Factor (Lorenz Curve)">
-            <BusFactorChart busFactor={analysis.busFactor} />
-          </ChartSection>
         </div>
       ),
     },

@@ -1117,5 +1117,8 @@ export function analyzeGitStats(
     radarMetrics,
     hotspots,
     topActivePeriods,
+    // git-sizer-style stats are desktop-only (require a full
+    // every-object walk via the Rust CLI). Web has no such tooling.
+    sizer: null,
   };
 }

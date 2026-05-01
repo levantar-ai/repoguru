@@ -626,6 +626,7 @@ export function makeGitStatsAnalysis(overrides?: Partial<GitStatsAnalysis>): Git
       { period: '2023-11', commits: 58, insertions: 7200, deletions: 2800 },
       { period: '2024-07', commits: 52, insertions: 6800, deletions: 2500 },
     ],
+    sizer: null,
     ...overrides,
   };
 }

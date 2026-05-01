@@ -27,6 +27,7 @@ export type OwnershipEntry = legacy.OwnershipEntry;
 export type PunchCardData = legacy.PunchCardData;
 export type RadarMetric = legacy.RadarMetric;
 export type RepoGrowthPoint = legacy.RepoGrowthPoint;
+export type RepoSizerStats = legacy.RepoSizerStats;
 export type TagSummary = legacy.TagSummary;
 export type WeeklyActivity = legacy.WeeklyActivity;
 
