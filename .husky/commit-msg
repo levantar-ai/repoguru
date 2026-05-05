@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Conventional Commits gate — runs on every commit. release-please
+# reads commit subjects on main to decide semver bumps, so a malformed
+# subject silently breaks the release pipeline.
+npx --no -- commitlint --edit "$1"

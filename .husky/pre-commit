@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+# Pre-commit gate — keep the feedback loop tight. Anything checked
+# here is something CI would otherwise fail on after a 3+ minute wait.
+#
+# Strategy: lint-staged formats / lints only the staged files. Fast
+# (sub-second on small changes) and fixes most things in place; if a
+# linter rule fires that lint-staged can't auto-fix, the commit is
+# blocked and the message tells you what to fix.
+set -e
+pnpm exec lint-staged

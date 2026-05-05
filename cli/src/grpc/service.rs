@@ -14,20 +14,27 @@ pub struct RepoAnalyzeServiceImpl {
     pub cache_manager: Arc<SectionCacheManager>,
 }
 
-type ProgressStream = Pin<Box<dyn tokio_stream::Stream<Item = Result<ScanProgress, Status>> + Send>>;
+type ProgressStream =
+    Pin<Box<dyn tokio_stream::Stream<Item = Result<ScanProgress, Status>> + Send>>;
 
 #[tonic::async_trait]
 impl RepoAnalyzeService for RepoAnalyzeServiceImpl {
     type ScanStream = ProgressStream;
 
-    async fn scan(&self, request: Request<ScanRequest>) -> Result<Response<Self::ScanStream>, Status> {
+    async fn scan(
+        &self,
+        request: Request<ScanRequest>,
+    ) -> Result<Response<Self::ScanStream>, Status> {
         let req = request.into_inner();
 
         let repo_path = PathBuf::from(&req.repo_path);
         let out_path = PathBuf::from(&req.out_path);
 
         if !repo_path.exists() {
-            return Err(Status::not_found(format!("repo not found: {}", req.repo_path)));
+            return Err(Status::not_found(format!(
+                "repo not found: {}",
+                req.repo_path
+            )));
         }
 
         let (tx, rx) = mpsc::channel(32);
@@ -43,19 +50,51 @@ impl RepoAnalyzeService for RepoAnalyzeServiceImpl {
             out: out_path,
             threads: req.threads.map(|t| t as usize),
             merge_policy,
-            renames: if req.renames { crate::cli::OnOff::On } else { crate::cli::OnOff::Off },
-            copies: if req.copies { crate::cli::OnOff::On } else { crate::cli::OnOff::Off },
+            renames: if req.renames {
+                crate::cli::OnOff::On
+            } else {
+                crate::cli::OnOff::Off
+            },
+            copies: if req.copies {
+                crate::cli::OnOff::On
+            } else {
+                crate::cli::OnOff::Off
+            },
             rename_threshold: req.rename_threshold.min(100) as u8,
-            include_remotes: if req.include_remotes { crate::cli::OnOff::On } else { crate::cli::OnOff::Off },
-            max_top: if req.max_top > 0 { req.max_top as usize } else { 50 },
+            include_remotes: if req.include_remotes {
+                crate::cli::OnOff::On
+            } else {
+                crate::cli::OnOff::Off
+            },
+            max_top: if req.max_top > 0 {
+                req.max_top as usize
+            } else {
+                50
+            },
             format: crate::cli::OutputFormat::Raw,
-            report: if req.report { crate::cli::OnOff::On } else { crate::cli::OnOff::Off },
+            report: if req.report {
+                crate::cli::OnOff::On
+            } else {
+                crate::cli::OnOff::Off
+            },
             telemetry: crate::cli::OnOff::On,
             since: None,
             until: None,
-            max_diff_files: if req.max_diff_files > 0 { req.max_diff_files as usize } else { 1000 },
-            merge_diff_limit: if req.merge_diff_limit > 0 { req.merge_diff_limit as usize } else { 100 },
-            worker_cache_mb: if req.worker_cache_mb > 0 { req.worker_cache_mb as usize } else { 128 },
+            max_diff_files: if req.max_diff_files > 0 {
+                req.max_diff_files as usize
+            } else {
+                1000
+            },
+            merge_diff_limit: if req.merge_diff_limit > 0 {
+                req.merge_diff_limit as usize
+            } else {
+                100
+            },
+            worker_cache_mb: if req.worker_cache_mb > 0 {
+                req.worker_cache_mb as usize
+            } else {
+                128
+            },
             sizer_cache_mb: 64,
             sizer_chunk_size: 10_000,
             channel_capacity: 256,
@@ -115,15 +154,17 @@ impl RepoAnalyzeService for RepoAnalyzeServiceImpl {
         let repo_path = PathBuf::from(&req.repo_path);
 
         if !repo_path.exists() {
-            return Err(Status::not_found(format!("repo not found: {}", req.repo_path)));
+            return Err(Status::not_found(format!(
+                "repo not found: {}",
+                req.repo_path
+            )));
         }
 
-        let result = tokio::task::spawn_blocking(move || {
-            crate::techdetect::run_detect_tech(&repo_path)
-        })
-        .await
-        .map_err(|e| Status::internal(format!("task failed: {e}")))?
-        .map_err(|e| Status::internal(format!("detect-tech failed: {e}")))?;
+        let result =
+            tokio::task::spawn_blocking(move || crate::techdetect::run_detect_tech(&repo_path))
+                .await
+                .map_err(|e| Status::internal(format!("task failed: {e}")))?
+                .map_err(|e| Status::internal(format!("detect-tech failed: {e}")))?;
 
         let json = serde_json::to_string_pretty(&result)
             .map_err(|e| Status::internal(format!("json serialization failed: {e}")))?;
@@ -140,8 +181,7 @@ impl RepoAnalyzeService for RepoAnalyzeServiceImpl {
 
         let read_file = |name: &str| -> Result<String, Status> {
             let path = out_path.join(name);
-            std::fs::read_to_string(&path)
-                .map_err(|e| Status::not_found(format!("{name}: {e}")))
+            std::fs::read_to_string(&path).map_err(|e| Status::not_found(format!("{name}: {e}")))
         };
 
         Ok(Response::new(GetReportResponse {
@@ -188,8 +228,7 @@ impl RepoAnalyzeService for RepoAnalyzeServiceImpl {
                 .map_err(|e| Status::internal(format!("json serialization failed: {e}")))
         })
         .await
-        .map_err(|e| Status::internal(format!("task failed: {e}")))?
-        ?;
+        .map_err(|e| Status::internal(format!("task failed: {e}")))??;
 
         Ok(Response::new(GetSectionResponse {
             section: req.section,
@@ -265,7 +304,9 @@ impl RepoAnalyzeService for RepoAnalyzeServiceImpl {
         &self,
         _request: Request<ScoreRequest>,
     ) -> Result<Response<ScoreResponse>, Status> {
-        Err(Status::unimplemented("score_report_card not yet implemented"))
+        Err(Status::unimplemented(
+            "score_report_card not yet implemented",
+        ))
     }
 
     async fn evaluate_policy(
@@ -289,7 +330,8 @@ impl RepoAnalyzeService for RepoAnalyzeServiceImpl {
         Err(Status::unimplemented("export_report not yet implemented"))
     }
 
-    type ScanOrgStream = Pin<Box<dyn tokio_stream::Stream<Item = Result<OrgScanProgress, Status>> + Send>>;
+    type ScanOrgStream =
+        Pin<Box<dyn tokio_stream::Stream<Item = Result<OrgScanProgress, Status>> + Send>>;
 
     async fn scan_org(
         &self,

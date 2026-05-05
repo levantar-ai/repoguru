@@ -3,3 +3,10 @@ node_modules
 package-lock.json
 cors-proxy
 .wrangler
+
+# Agent / tool scratch — not source code we control formatting on.
+.claude
+**/.claude
+
+# Stray prompt + reconstruction notes — content, not code.
+reconstuct-prompt.md

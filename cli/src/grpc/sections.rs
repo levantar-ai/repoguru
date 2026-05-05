@@ -26,19 +26,29 @@ pub const SECTIONS: &[SectionMeta] = &[
     },
     SectionMeta {
         name: "activity",
-        description: "Code frequency, repo growth, cumulative files, file operations, lines by language",
+        description:
+            "Code frequency, repo growth, cumulative files, file operations, lines by language",
         data_keys: &[
-            "timeseries", "cumulative_files", "file_operations",
-            "lines_by_ext", "lines_stats_summary", "lines_by_ext_time",
+            "timeseries",
+            "cumulative_files",
+            "file_operations",
+            "lines_by_ext",
+            "lines_stats_summary",
+            "lines_by_ext_time",
         ],
         tables_needed: &["commit_stats", "file_stats"],
     },
     SectionMeta {
         name: "contributors",
-        description: "Top contributors, author timelines, contributor network, author of month/year",
+        description:
+            "Top contributors, author timelines, contributor network, author of month/year",
         data_keys: &[
-            "authors", "author_timelines", "contributor_network_nodes",
-            "contributor_network_edges", "author_of_month", "author_of_year",
+            "authors",
+            "author_timelines",
+            "contributor_network_nodes",
+            "contributor_network_edges",
+            "author_of_month",
+            "author_of_year",
             "commits_by_domain",
         ],
         tables_needed: &["commit_stats", "file_stats"],
@@ -47,18 +57,29 @@ pub const SECTIONS: &[SectionMeta] = &[
         name: "codebase",
         description: "Hotspots, file coupling, code ownership, sequential change chains",
         data_keys: &[
-            "hotspots", "file_coupling", "code_ownership", "sequential_coupling",
+            "hotspots",
+            "file_coupling",
+            "code_ownership",
+            "sequential_coupling",
         ],
         tables_needed: &["commit_stats", "file_stats"],
     },
     SectionMeta {
         name: "patterns",
-        description: "Temporal patterns: weekday/month/year/hour, punch card, commit sizes, streaks",
+        description:
+            "Temporal patterns: weekday/month/year/hour, punch card, commit sizes, streaks",
         data_keys: &[
-            "commits_by_weekday", "commits_by_month", "commits_by_year",
-            "commits_by_hour", "punch_card", "commit_size_histogram",
-            "commits_by_extension", "weekly_activity", "conventional_commits",
-            "word_frequencies", "language_breakdown",
+            "commits_by_weekday",
+            "commits_by_month",
+            "commits_by_year",
+            "commits_by_hour",
+            "punch_card",
+            "commit_size_histogram",
+            "commits_by_extension",
+            "weekly_activity",
+            "conventional_commits",
+            "word_frequencies",
+            "language_breakdown",
         ],
         tables_needed: &["commit_stats", "file_stats", "messages"],
     },
@@ -127,8 +148,7 @@ fn compute_activity(cache: &ScanCache) -> Result<Value, Status> {
     let file_stats = cache.file_stats().map_err(map_err)?;
 
     let timeseries = compute_timeseries(&commit_stats, Granularity::Daily);
-    let cumulative_files =
-        report_aggs::cumulative_files_over_time(&commit_stats, &file_stats);
+    let cumulative_files = report_aggs::cumulative_files_over_time(&commit_stats, &file_stats);
     let file_operations = report_aggs::file_operations_breakdown(&file_stats);
     let lines_by_ext = report_aggs::lines_by_extension(&file_stats, &cache.metrics.paths);
     let lines_stats_summary = report_aggs::lines_stats_summary(&commit_stats);
@@ -162,19 +182,13 @@ fn compute_contributors(cache: &ScanCache) -> Result<Value, Status> {
         .map(|id| {
             (
                 *id,
-                cache
-                    .metrics
-                    .authors
-                    .get(id)
-                    .cloned()
-                    .unwrap_or_default(),
+                cache.metrics.authors.get(id).cloned().unwrap_or_default(),
             )
         })
         .collect();
     let author_of_month = report_aggs::author_of_month(&commit_stats);
     let author_of_year = report_aggs::author_of_year(&commit_stats);
-    let commits_by_domain =
-        report_aggs::commits_by_domain(&cache.metrics.authors, &commit_stats);
+    let commits_by_domain = report_aggs::commits_by_domain(&cache.metrics.authors, &commit_stats);
 
     Ok(json!({
         "authors": author_stats,
@@ -200,9 +214,9 @@ fn compute_codebase(cache: &ScanCache) -> Result<Value, Status> {
         &commit_stats,
         &file_stats,
         &cache.metrics.paths,
-        3,  // min_support
-        5,  // max_chain_len
-        3,  // window (commits)
+        3, // min_support
+        5, // max_chain_len
+        3, // window (commits)
     );
 
     Ok(json!({
@@ -223,8 +237,7 @@ fn compute_patterns(cache: &ScanCache, repo_path: Option<&Path>) -> Result<Value
     let commits_by_hour = report_aggs::commits_by_hour(&commit_stats);
     let punch_card = report_aggs::punch_card(&commit_stats);
     let commit_size_histogram = report_aggs::commit_size_histogram(&commit_stats);
-    let commits_by_extension =
-        report_aggs::commits_by_extension(&file_stats, &cache.metrics.paths);
+    let commits_by_extension = report_aggs::commits_by_extension(&file_stats, &cache.metrics.paths);
     let weekly_activity = report_aggs::weekly_activity(&commit_stats);
 
     let messages = cache.messages();
@@ -249,12 +262,11 @@ fn compute_patterns(cache: &ScanCache, repo_path: Option<&Path>) -> Result<Value
         None
     };
 
-    let language_breakdown = repo_path.and_then(|rp| {
-        match crate::techdetect::run_detect_tech(rp) {
+    let language_breakdown =
+        repo_path.and_then(|rp| match crate::techdetect::run_detect_tech(rp) {
             Ok(result) if !result.languages.is_empty() => Some(result.languages),
             _ => None,
-        }
-    });
+        });
 
     Ok(json!({
         "commits_by_weekday": commits_by_weekday,

@@ -1,3 +1,8 @@
+/* eslint-disable react-refresh/only-export-components -- this file
+   intentionally exports both service-builder helpers AND inline
+   comparison sub-components (TechStackComparison, TechCol,
+   StatsComparison). Splitting them would scatter related logic across
+   four files for an HMR-only correctness rule. */
 // BrowserServices — implements the @repoguru/ui RepoGuruServices interface
 // using the in-browser processing engine: isomorphic-git clones + GitHub
 // API calls + the in-page light analyser. This is the file the browser host
@@ -46,13 +51,7 @@ import {
   detectCicd,
   detectTesting,
 } from '../services/analysis/techDetectEngine';
-import type {
-  RepoInfo,
-  TreeEntry,
-  LightAnalysisReport,
-  TechStackItem,
-  RecentRepo,
-} from '../types';
+import type { RepoInfo, TreeEntry, LightAnalysisReport, TechStackItem, RecentRepo } from '../types';
 import type { GitHubRepoResponse, GitHubTreeResponse } from '../services/github/types';
 import { formatNumber } from '../utils/formatters';
 
@@ -142,12 +141,23 @@ async function analyzeOneForCompare(
   } catch (cloneErr) {
     if (token) {
       const branch = parsed.branch || repoInfo.defaultBranch;
-      onProgress?.({ message: `Fetching ${label} file tree…`, overall: 82, sub: 30, phase: 'tree' });
+      onProgress?.({
+        message: `Fetching ${label} file tree…`,
+        overall: 82,
+        sub: 30,
+        phase: 'tree',
+      });
       const td = await githubFetch<GitHubTreeResponse>(
         `/repos/${parsed.owner}/${parsed.repo}/git/trees/${branch}?recursive=1`,
         token,
       );
-      tree = td.tree.map((e) => ({ path: e.path, mode: e.mode, type: e.type, sha: e.sha, size: e.size }));
+      tree = td.tree.map((e) => ({
+        path: e.path,
+        mode: e.mode,
+        type: e.type,
+        sha: e.sha,
+        size: e.size,
+      }));
     } else {
       throw cloneErr;
     }
@@ -156,7 +166,17 @@ async function analyzeOneForCompare(
   return runLightAnalysis(parsed, repoInfo, tree);
 }
 
-function TechStackComparison({ techA, techB, nameA, nameB }: { techA: TechStackItem[]; techB: TechStackItem[]; nameA: string; nameB: string }) {
+function TechStackComparison({
+  techA,
+  techB,
+  nameA,
+  nameB,
+}: {
+  techA: TechStackItem[];
+  techB: TechStackItem[];
+  nameA: string;
+  nameB: string;
+}) {
   return (
     <div className="p-5 sm:p-6 rounded-2xl bg-surface-alt border border-border">
       <h3 className="text-lg font-semibold text-text mb-4">Tech Stack</h3>
@@ -167,7 +187,15 @@ function TechStackComparison({ techA, techB, nameA, nameB }: { techA: TechStackI
     </div>
   );
 }
-function TechCol({ name, items, other }: { name: string; items: TechStackItem[]; other: TechStackItem[] }) {
+function TechCol({
+  name,
+  items,
+  other,
+}: {
+  name: string;
+  items: TechStackItem[];
+  other: TechStackItem[];
+}) {
   return (
     <div className="p-4 rounded-xl bg-surface-hover border border-border">
       <h4 className="text-sm font-medium text-text-secondary mb-3 truncate">{name}</h4>
@@ -193,11 +221,25 @@ function TechCol({ name, items, other }: { name: string; items: TechStackItem[];
     </div>
   );
 }
-function StatsComparison({ a, b, nameA, nameB }: { a: LightAnalysisReport; b: LightAnalysisReport; nameA: string; nameB: string }) {
+function StatsComparison({
+  a,
+  b,
+  nameA,
+  nameB,
+}: {
+  a: LightAnalysisReport;
+  b: LightAnalysisReport;
+  nameA: string;
+  nameB: string;
+}) {
   const rows: { label: string; va: string; vb: string }[] = [
     { label: 'Stars', va: formatNumber(a.repoInfo.stars), vb: formatNumber(b.repoInfo.stars) },
     { label: 'Forks', va: formatNumber(a.repoInfo.forks), vb: formatNumber(b.repoInfo.forks) },
-    { label: 'Open Issues', va: formatNumber(a.repoInfo.openIssues), vb: formatNumber(b.repoInfo.openIssues) },
+    {
+      label: 'Open Issues',
+      va: formatNumber(a.repoInfo.openIssues),
+      vb: formatNumber(b.repoInfo.openIssues),
+    },
     { label: 'Language', va: a.repoInfo.language || 'N/A', vb: b.repoInfo.language || 'N/A' },
     { label: 'License', va: a.repoInfo.license || 'None', vb: b.repoInfo.license || 'None' },
     { label: 'Files', va: formatNumber(a.treeEntryCount), vb: formatNumber(b.treeEntryCount) },
@@ -211,7 +253,10 @@ function StatsComparison({ a, b, nameA, nameB }: { a: LightAnalysisReport; b: Li
         <div className="text-sm font-medium text-text-secondary truncate text-center">{nameB}</div>
       </div>
       {rows.map((r) => (
-        <div key={r.label} className="grid grid-cols-3 gap-2 sm:gap-4 py-2.5 border-b border-border/50 last:border-b-0 items-center">
+        <div
+          key={r.label}
+          className="grid grid-cols-3 gap-2 sm:gap-4 py-2.5 border-b border-border/50 last:border-b-0 items-center"
+        >
           <div className="text-sm font-medium text-text text-center">{r.va}</div>
           <div className="text-xs sm:text-sm text-text-muted text-center">{r.label}</div>
           <div className="text-sm font-medium text-text text-center">{r.vb}</div>
@@ -306,7 +351,12 @@ export function makeBrowserServices(
           scoreDelta,
           extras: (
             <>
-              <TechStackComparison techA={reportA.techStack} techB={reportB.techStack} nameA={nameA} nameB={nameB} />
+              <TechStackComparison
+                techA={reportA.techStack}
+                techB={reportB.techStack}
+                nameA={nameA}
+                nameB={nameB}
+              />
               <StatsComparison a={reportA} b={reportB} nameA={nameA} nameB={nameB} />
             </>
           ),
@@ -331,26 +381,34 @@ export function makeBrowserServices(
               ['License', report.repoInfo.license || 'None'],
               ['Files', formatNumber(report.treeEntryCount)],
             ].map(([label, val]) => (
-              <div key={label} className="rounded-xl bg-surface-alt border border-border px-4 py-3 text-center">
+              <div
+                key={label}
+                className="rounded-xl bg-surface-alt border border-border px-4 py-3 text-center"
+              >
                 <div className="text-sm font-semibold text-text">{val}</div>
-                <div className="text-[10px] text-text-muted uppercase tracking-wider mt-0.5">{label}</div>
+                <div className="text-[10px] text-text-muted uppercase tracking-wider mt-0.5">
+                  {label}
+                </div>
               </div>
             ))}
           </div>
         );
         return {
           report: card,
-          extras: report.techStack.length > 0 ? (
-            <div className="space-y-4">
-              {stats}
-              <TechStackComparison
-                techA={report.techStack}
-                techB={[]}
-                nameA={`${repoName} — detected tech`}
-                nameB="(no comparison)"
-              />
-            </div>
-          ) : stats,
+          extras:
+            report.techStack.length > 0 ? (
+              <div className="space-y-4">
+                {stats}
+                <TechStackComparison
+                  techA={report.techStack}
+                  techB={[]}
+                  nameA={`${repoName} — detected tech`}
+                  nameB="(no comparison)"
+                />
+              </div>
+            ) : (
+              stats
+            ),
         };
       },
     },
@@ -359,7 +417,12 @@ export function makeBrowserServices(
         const parsed = parseRepoUrl(repoInput);
         if (!parsed) throw new Error(`Invalid repo: "${repoInput}"`);
         const token = getToken();
-        opts?.onProgress?.({ message: 'Cloning repository…', overall: 5, sub: 0, phase: 'cloning' });
+        opts?.onProgress?.({
+          message: 'Cloning repository…',
+          overall: 5,
+          sub: 0,
+          phase: 'cloning',
+        });
         const cached = await ensureCloned(
           parsed.owner,
           parsed.repo,
@@ -403,13 +466,22 @@ export function makeBrowserServices(
     },
     policy: {
       listPresets(): PolicyPreset[] {
-        return DEFAULT_POLICIES.map((p) => ({ id: p.id, label: p.name, description: p.description }));
+        return DEFAULT_POLICIES.map((p) => ({
+          id: p.id,
+          label: p.name,
+          description: p.description,
+        }));
       },
       async evaluate(req, opts): Promise<PolicyEvalResult> {
         const policySet = DEFAULT_POLICIES.find((p) => p.id === req.presetId);
         if (!policySet) throw new Error(`Unknown preset: ${req.presetId}`);
         const token = getToken();
-        const lightReport = await analyzeOneForCompare(req.repo, 'repository', token, opts?.onProgress);
+        const lightReport = await analyzeOneForCompare(
+          req.repo,
+          'repository',
+          token,
+          opts?.onProgress,
+        );
         opts?.onProgress?.({
           message: 'Evaluating policy rules…',
           overall: 95,
@@ -481,11 +553,15 @@ export function makeBrowserServices(
           currentRepo: '',
           items: [],
         });
-        const listEndpoint = req.isUser ? `users/${encodeURIComponent(req.target)}/repos` : `orgs/${encodeURIComponent(req.target)}/repos`;
+        const listEndpoint = req.isUser
+          ? `users/${encodeURIComponent(req.target)}/repos`
+          : `orgs/${encodeURIComponent(req.target)}/repos`;
         const allRepos: Array<Record<string, unknown>> = [];
         const maxPages = 10;
         for (let page = 1; page <= maxPages; page++) {
-          const r = await ghFetch(`${GITHUB_API_BASE}/${listEndpoint}?per_page=100&sort=updated&page=${page}`);
+          const r = await ghFetch(
+            `${GITHUB_API_BASE}/${listEndpoint}?per_page=100&sort=updated&page=${page}`,
+          );
           const batch = (await r.json()) as Array<Record<string, unknown>>;
           if (!Array.isArray(batch) || batch.length === 0) break;
           allRepos.push(...batch);
@@ -496,7 +572,10 @@ export function makeBrowserServices(
           if (req.skipArchived && r.archived) return false;
           return true;
         });
-        const cap = req.maxRepos && req.maxRepos > 0 ? Math.min(filtered.length, req.maxRepos) : filtered.length;
+        const cap =
+          req.maxRepos && req.maxRepos > 0
+            ? Math.min(filtered.length, req.maxRepos)
+            : filtered.length;
         const list = filtered.slice(0, cap);
 
         // Analyse each repo.
@@ -506,7 +585,7 @@ export function makeBrowserServices(
           const raw = list[i];
           const repoName = raw.name as string;
           const fullName = raw.full_name as string;
-          const owner = (fullName.split('/')[0] ?? '');
+          const owner = fullName.split('/')[0] ?? '';
           opts?.onProgress?.({
             phase: 'analyzing',
             total: list.length,
@@ -515,13 +594,22 @@ export function makeBrowserServices(
             items: [...items],
           });
           try {
-            const report = await analyzeOneForCompare(`${owner}/${repoName}`, repoName, token, undefined);
+            const report = await analyzeOneForCompare(
+              `${owner}/${repoName}`,
+              repoName,
+              token,
+              undefined,
+            );
             items.push({
               repo: { owner: report.repo.owner, repo: report.repo.repo },
               grade: report.grade,
               overallScore: report.overallScore,
               language: report.repoInfo.language ?? undefined,
-              categories: report.categories.map((c) => ({ key: c.key, label: c.label, score: c.score })),
+              categories: report.categories.map((c) => ({
+                key: c.key,
+                label: c.label,
+                score: c.score,
+              })),
             });
           } catch {
             // Skip repos that fail to clone/analyze; org scan is best-effort.
@@ -530,7 +618,16 @@ export function makeBrowserServices(
 
         const totalScore = items.reduce((s, it) => s + it.overallScore, 0);
         const avg = items.length > 0 ? Math.round(totalScore / items.length) : 0;
-        const avgGrade: Grade = avg >= GRADE_THRESHOLDS.A ? 'A' : avg >= GRADE_THRESHOLDS.B ? 'B' : avg >= GRADE_THRESHOLDS.C ? 'C' : avg >= GRADE_THRESHOLDS.D ? 'D' : 'F';
+        const avgGrade: Grade =
+          avg >= GRADE_THRESHOLDS.A
+            ? 'A'
+            : avg >= GRADE_THRESHOLDS.B
+              ? 'B'
+              : avg >= GRADE_THRESHOLDS.C
+                ? 'C'
+                : avg >= GRADE_THRESHOLDS.D
+                  ? 'D'
+                  : 'F';
         const distribution = items.reduce<Partial<Record<Grade, number>>>(
           (acc, it) => ({ ...acc, [it.grade]: (acc[it.grade] ?? 0) + 1 }),
           {},

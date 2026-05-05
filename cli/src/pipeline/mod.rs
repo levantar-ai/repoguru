@@ -239,14 +239,11 @@ fn generate_report(
     let weekly_activity = report_aggs::weekly_activity(&commit_stats);
 
     // Tag history
-    let tag_infos = crate::repo::refs::collect_tag_info(
-        &crate::repo::open::open_repo(repo_path)?,
-    );
+    let tag_infos = crate::repo::refs::collect_tag_info(&crate::repo::open::open_repo(repo_path)?);
     let tag_history = report_aggs::build_tag_summaries(&tag_infos, &commit_stats);
 
     // Phase 6 aggregations
-    let cumulative_files =
-        report_aggs::cumulative_files_over_time(&commit_stats, &file_stats);
+    let cumulative_files = report_aggs::cumulative_files_over_time(&commit_stats, &file_stats);
     let file_operations = report_aggs::file_operations_breakdown(&file_stats);
     let lines_by_ext = report_aggs::lines_by_extension(&file_stats, &metrics.paths);
     let lines_stats_summary = report_aggs::lines_stats_summary(&commit_stats);
@@ -267,9 +264,9 @@ fn generate_report(
         &commit_stats,
         &file_stats,
         &metrics.paths,
-        3,  // min_support
-        5,  // max_chain_len
-        3,  // window (commits)
+        3, // min_support
+        5, // max_chain_len
+        3, // window (commits)
     );
 
     // Emit JSON data files for programmatic access

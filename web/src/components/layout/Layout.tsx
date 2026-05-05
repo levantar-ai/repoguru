@@ -167,7 +167,10 @@ export function Layout({ children, onNavigate, currentPage }: Props) {
                   aria-hidden="true"
                 />
               ) : (
-                <div className="h-6 w-6 rounded-full bg-surface-hover shrink-0" aria-hidden="true" />
+                <div
+                  className="h-6 w-6 rounded-full bg-surface-hover shrink-0"
+                  aria-hidden="true"
+                />
               )}
               <span className="text-xs font-medium truncate">@{state.githubUser.login}</span>
               {state.rateLimit && (

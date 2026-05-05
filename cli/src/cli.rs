@@ -213,7 +213,9 @@ fn run_report_card(args: ReportCardArgs) -> anyhow::Result<()> {
     // boolean / count answerable from path existence + small reads.
     let repo = &args.repo;
 
-    fn exists(p: &Path) -> bool { p.exists() }
+    fn exists(p: &Path) -> bool {
+        p.exists()
+    }
     fn dir_count(p: &Path) -> usize {
         match fs::read_dir(p) {
             Ok(entries) => entries.filter_map(|e| e.ok()).count(),
@@ -226,8 +228,8 @@ fn run_report_card(args: ReportCardArgs) -> anyhow::Result<()> {
 
     // Tech-detect — either run it or read pre-computed JSON.
     let td_value: serde_json::Value = if let Some(path) = &args.tech_detect_json {
-        let raw = fs::read_to_string(path)
-            .map_err(|e| anyhow::anyhow!("read tech-detect JSON: {e}"))?;
+        let raw =
+            fs::read_to_string(path).map_err(|e| anyhow::anyhow!("read tech-detect JSON: {e}"))?;
         serde_json::from_str(&raw).map_err(|e| anyhow::anyhow!("parse tech-detect JSON: {e}"))?
     } else {
         let result = crate::techdetect::run_detect_tech(repo)?;
@@ -235,7 +237,8 @@ fn run_report_card(args: ReportCardArgs) -> anyhow::Result<()> {
     };
 
     let arr_len = |key: &str| -> usize {
-        td_value.get(key)
+        td_value
+            .get(key)
             .and_then(|v| v.as_array())
             .map(|a| a.iter().filter(|x| !x.is_null()).count())
             .unwrap_or(0)
@@ -256,17 +259,32 @@ fn run_report_card(args: ReportCardArgs) -> anyhow::Result<()> {
     let has_changelog = exists(&repo.join("CHANGELOG.md")) || exists(&repo.join("CHANGELOG"));
     let has_contributing = exists(&repo.join("CONTRIBUTING.md"));
     let has_security = exists(&repo.join("SECURITY.md"));
-    let has_license = exists(&repo.join("LICENSE")) || exists(&repo.join("LICENSE.md")) || exists(&repo.join("LICENCE"));
+    let has_license = exists(&repo.join("LICENSE"))
+        || exists(&repo.join("LICENSE.md"))
+        || exists(&repo.join("LICENCE"));
     let has_docs_dir = exists(&repo.join("docs")) && dir_count(&repo.join("docs")) > 0;
 
     // Supply-chain hygiene.
-    let has_dependabot = exists(&repo.join(".github/dependabot.yml")) || exists(&repo.join(".github/dependabot.yaml"));
-    let has_renovate = exists(&repo.join("renovate.json")) || exists(&repo.join(".renovaterc")) || exists(&repo.join(".renovaterc.json"));
-    let has_codeowners = exists(&repo.join("CODEOWNERS")) || exists(&repo.join(".github/CODEOWNERS"));
-    let has_lockfile = ["package-lock.json", "yarn.lock", "pnpm-lock.yaml",
-                        "Cargo.lock", "Gemfile.lock", "poetry.lock",
-                        "composer.lock", "go.sum", "uv.lock"]
-        .iter().any(|n| exists(&repo.join(n)));
+    let has_dependabot = exists(&repo.join(".github/dependabot.yml"))
+        || exists(&repo.join(".github/dependabot.yaml"));
+    let has_renovate = exists(&repo.join("renovate.json"))
+        || exists(&repo.join(".renovaterc"))
+        || exists(&repo.join(".renovaterc.json"));
+    let has_codeowners =
+        exists(&repo.join("CODEOWNERS")) || exists(&repo.join(".github/CODEOWNERS"));
+    let has_lockfile = [
+        "package-lock.json",
+        "yarn.lock",
+        "pnpm-lock.yaml",
+        "Cargo.lock",
+        "Gemfile.lock",
+        "poetry.lock",
+        "composer.lock",
+        "go.sum",
+        "uv.lock",
+    ]
+    .iter()
+    .any(|n| exists(&repo.join(n)));
 
     // AI tooling configs (the "is this team AI-augmented" signal).
     let claude_md = exists(&repo.join("CLAUDE.md"));
@@ -277,25 +295,49 @@ fn run_report_card(args: ReportCardArgs) -> anyhow::Result<()> {
     let aider_conf = exists(&repo.join(".aider.conf.yml"));
 
     // Categorical scoring — each 0-100, then average.
-    fn pts(v: bool, p: u32) -> u32 { if v { p } else { 0 } }
+    fn pts(v: bool, p: u32) -> u32 {
+        if v {
+            p
+        } else {
+            0
+        }
+    }
 
-    let engineering = pts(has_cicd, 50) + pts(has_tests, 30)
-        + pts(has_dependabot || has_renovate, 10) + pts(has_lockfile, 10);
+    let engineering = pts(has_cicd, 50)
+        + pts(has_tests, 30)
+        + pts(has_dependabot || has_renovate, 10)
+        + pts(has_lockfile, 10);
     let documentation = pts(has_readme, 30)
         + pts(readme_size >= 500, 10)  // bonus for non-trivial README
         + pts(has_docs_dir, 25)
         + pts(has_changelog, 15)
         + pts(has_contributing, 10) + pts(has_security, 10);
-    let supply_chain = pts(has_license, 30) + pts(has_dependabot || has_renovate, 30)
-        + pts(has_codeowners, 20) + pts(has_security, 10) + pts(has_lockfile, 10);
-    let modernity = pts(has_framework, 30) + pts(has_db, 20)
+    let supply_chain = pts(has_license, 30)
+        + pts(has_dependabot || has_renovate, 30)
+        + pts(has_codeowners, 20)
+        + pts(has_security, 10)
+        + pts(has_lockfile, 10);
+    let modernity = pts(has_framework, 30)
+        + pts(has_db, 20)
         + pts(has_any_cloud, 30)
-        + pts(claude_md || agents_md || cursor_dir || copilot_instr || claude_dir || aider_conf, 20);
+        + pts(
+            claude_md || agents_md || cursor_dir || copilot_instr || claude_dir || aider_conf,
+            20,
+        );
     let testing_culture = pts(has_tests, 60) + pts(has_cicd, 40);
 
     fn grade(score: u32) -> &'static str {
-        if score >= 90 { "A" } else if score >= 75 { "B" }
-        else if score >= 60 { "C" } else if score >= 40 { "D" } else { "F" }
+        if score >= 90 {
+            "A"
+        } else if score >= 75 {
+            "B"
+        } else if score >= 60 {
+            "C"
+        } else if score >= 40 {
+            "D"
+        } else {
+            "F"
+        }
     }
     let categories = [
         ("engineering", engineering),

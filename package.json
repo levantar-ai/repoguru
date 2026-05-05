@@ -5,10 +5,36 @@
   "scripts": {
     "build": "pnpm -r build",
     "typecheck": "pnpm -r typecheck",
-    "test": "pnpm -r test"
+    "test": "pnpm -r test",
+    "prepare": "husky"
   },
   "devDependencies": {
+    "@commitlint/cli": "^19.6.0",
+    "@commitlint/config-conventional": "^19.6.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.2.7",
     "typescript": "^5.7.3"
+  },
+  "lint-staged": {
+    "web/**/*.{ts,tsx}": [
+      "bash -c 'cd web && pnpm exec eslint --fix'",
+      "bash -c 'cd web && pnpm exec prettier --write'"
+    ],
+    "web/**/*.{json,md,css,yml,yaml}": [
+      "bash -c 'cd web && pnpm exec prettier --write'"
+    ],
+    "desktop/**/*.{ts,tsx}": [
+      "bash -c 'cd desktop && pnpm exec eslint --fix'"
+    ],
+    "shared/**/*.{ts,tsx}": [
+      "bash -c 'cd web && pnpm exec prettier --write'"
+    ],
+    "cli/**/*.rs": [
+      "bash -c 'cd cli && cargo fmt --'"
+    ],
+    "spec/**/*.rs": [
+      "bash -c 'cd spec && cargo fmt --'"
+    ]
   },
   "packageManager": "pnpm@10.28.2"
 }

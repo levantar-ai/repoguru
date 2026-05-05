@@ -163,7 +163,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
         /* ignore — chrome falls back to the rate-limit-only indicator */
       }
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [state.githubToken]);
 
   // Apply theme — dark is the default base, .light overrides

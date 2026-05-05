@@ -306,10 +306,7 @@ pub fn file_coupling(
     let mut commit_files: HashMap<[u8; 20], Vec<u32>> = HashMap::new();
     for fs in file_stats {
         let oid_bytes: [u8; 20] = fs.commit_oid.as_bytes().try_into().unwrap();
-        commit_files
-            .entry(oid_bytes)
-            .or_default()
-            .push(fs.path_id);
+        commit_files.entry(oid_bytes).or_default().push(fs.path_id);
     }
 
     // Count co-occurrences (only for commits with 2..=50 files)
@@ -379,8 +376,8 @@ pub fn parse_conventional_commits(subjects: &[String]) -> BTreeMap<String, u64> 
             };
             let kind_lower = kind.trim().to_lowercase();
             let valid = [
-                "feat", "fix", "docs", "style", "refactor", "perf", "test", "tests", "build",
-                "ci", "chore", "revert", "release", "deps", "wip",
+                "feat", "fix", "docs", "style", "refactor", "perf", "test", "tests", "build", "ci",
+                "chore", "revert", "release", "deps", "wip",
             ];
             if valid.contains(&kind_lower.as_str()) {
                 *counts.entry(kind_lower).or_insert(0) += 1;
@@ -708,10 +705,7 @@ pub fn cumulative_files_over_time(
     }
 
     // Sort by timestamp, accumulate
-    let mut events: Vec<(i64, u32)> = first_seen
-        .into_iter()
-        .map(|(pid, ts)| (ts, pid))
-        .collect();
+    let mut events: Vec<(i64, u32)> = first_seen.into_iter().map(|(pid, ts)| (ts, pid)).collect();
     events.sort_unstable();
 
     let mut result = Vec::new();
@@ -953,9 +947,7 @@ pub fn contributor_network(
         }
         for i in 0..sorted.len() {
             for j in (i + 1)..sorted.len() {
-                *pair_counts
-                    .entry((sorted[i], sorted[j]))
-                    .or_insert(0) += 1;
+                *pair_counts.entry((sorted[i], sorted[j])).or_insert(0) += 1;
             }
         }
     }
@@ -1201,12 +1193,8 @@ pub fn sequential_coupling(
                     }
                     let mut new_chain = chain.clone();
                     new_chain.push(next);
-                    let (count, avg_span) = count_chain_occurrences(
-                        &new_chain,
-                        &file_positions,
-                        &timestamps,
-                        window,
-                    );
+                    let (count, avg_span) =
+                        count_chain_occurrences(&new_chain, &file_positions, &timestamps, window);
                     if count >= min_support {
                         next_level.push((new_chain, count, avg_span));
                     }
@@ -1251,7 +1239,12 @@ pub fn sequential_coupling(
             let confidence = count as f64 / first_total as f64;
             let files = chain
                 .iter()
-                .map(|fid| paths.get(fid).cloned().unwrap_or_else(|| format!("[{fid}]")))
+                .map(|fid| {
+                    paths
+                        .get(fid)
+                        .cloned()
+                        .unwrap_or_else(|| format!("[{fid}]"))
+                })
                 .collect();
             ChangeChain {
                 files,

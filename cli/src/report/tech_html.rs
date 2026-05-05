@@ -9,10 +9,7 @@ const TECH_STYLE_CSS: &[u8] = include_bytes!("../../assets/tech_report.css");
 const TECH_APP_JS: &[u8] = include_bytes!("../../assets/tech_report.js");
 
 /// Generate a self-contained tech-detect HTML report.
-pub fn generate_tech_report(
-    out_path: &Path,
-    result: &TechDetectResult,
-) -> anyhow::Result<()> {
+pub fn generate_tech_report(out_path: &Path, result: &TechDetectResult) -> anyhow::Result<()> {
     std::fs::create_dir_all(out_path.parent().unwrap_or(Path::new(".")))?;
 
     let style_css = String::from_utf8_lossy(TECH_STYLE_CSS);
@@ -119,7 +116,9 @@ pub fn generate_tech_report(
 <div id="language-bar-chart" class="chart-tall"></div>
 </div>
 </div>"#
-        } else { "" },
+        } else {
+            ""
+        },
         cloud_section = if has_cloud {
             r#"<div id="section-cloud" class="card section-anchor">
 <h2>Cloud Services</h2>
@@ -137,8 +136,11 @@ pub fn generate_tech_report(
 <div id="resource-matrix"></div>
 <div id="matrix-tooltip" class="matrix-tooltip"></div>
 </div>"#
-        } else { "" },
-        stack_section = format!(r#"<div id="section-stack" class="section-anchor"></div>
+        } else {
+            ""
+        },
+        stack_section = format!(
+            r#"<div id="section-stack" class="section-anchor"></div>
 <div class="chart-grid">
 <div class="card">
 <h2>Frameworks</h2>
@@ -148,8 +150,10 @@ pub fn generate_tech_report(
 <h2>Databases</h2>
 <div id="databases-grid"></div>
 </div>
-</div>"#),
-        infra_section = format!(r#"<div id="section-infra" class="section-anchor"></div>
+</div>"#
+        ),
+        infra_section = format!(
+            r#"<div id="section-infra" class="section-anchor"></div>
 <div class="chart-grid">
 <div class="card">
 <h2>Infrastructure &amp; CI/CD</h2>
@@ -159,8 +163,10 @@ pub fn generate_tech_report(
 <h2>Tool Categories</h2>
 <div id="infra-donut-chart" class="chart"></div>
 </div>
-</div>"#),
-        quality_section = format!(r#"<div id="section-quality" class="section-anchor"></div>
+</div>"#
+        ),
+        quality_section = format!(
+            r#"<div id="section-quality" class="section-anchor"></div>
 <div class="chart-grid">
 <div class="card">
 <h2>Testing &amp; Code Quality</h2>
@@ -170,7 +176,8 @@ pub fn generate_tech_report(
 <h2>Quality Tool Coverage</h2>
 <div id="quality-bar-chart" class="chart"></div>
 </div>
-</div>"#),
+</div>"#
+        ),
         deps_section = if has_deps {
             r#"<div id="section-deps" class="section-anchor"></div>
 <div class="chart-grid">
@@ -182,7 +189,8 @@ pub fn generate_tech_report(
 <div class="card">
 <h2>Packages by Ecosystem</h2>
 <div id="deps-donut-chart" class="chart"></div>
-</div>"#.to_string()
+</div>"#
+                .to_string()
         } else {
             r#"<div id="section-deps" class="card section-anchor">
 <h2>Dependencies</h2>
@@ -219,9 +227,15 @@ fn build_metric_cards(result: &TechDetectResult) -> String {
 
     // Count unique cloud services
     let mut unique_services: std::collections::HashSet<&str> = std::collections::HashSet::new();
-    for s in &result.aws { unique_services.insert(&s.service); }
-    for s in &result.azure { unique_services.insert(&s.service); }
-    for s in &result.gcp { unique_services.insert(&s.service); }
+    for s in &result.aws {
+        unique_services.insert(&s.service);
+    }
+    for s in &result.azure {
+        unique_services.insert(&s.service);
+    }
+    for s in &result.gcp {
+        unique_services.insert(&s.service);
+    }
 
     let items: Vec<(&str, u64)> = vec![
         ("Total Files", result.total_files),
@@ -268,11 +282,7 @@ fn build_nav_buttons(result: &TechDetectResult) -> String {
 
     buttons
         .iter()
-        .map(|(id, label)| {
-            format!(
-                "<button data-section=\"{id}\">{label}</button>"
-            )
-        })
+        .map(|(id, label)| format!("<button data-section=\"{id}\">{label}</button>"))
         .collect::<Vec<_>>()
         .join("\n")
 }

@@ -31,7 +31,11 @@ describe('githubFetch — 404 messaging', () => {
   it('unauth 404 → "if it\'s private, connect to GitHub" copy', async () => {
     (fetch as ReturnType<typeof vi.fn>).mockResolvedValue(mockResponse(null, 404, RATE_HEADERS));
     let captured: Error | undefined;
-    try { await githubFetch('/repos/x/y'); } catch (e) { captured = e as Error; }
+    try {
+      await githubFetch('/repos/x/y');
+    } catch (e) {
+      captured = e as Error;
+    }
     expect(captured).toBeInstanceOf(GitHubApiError);
     expect((captured as GitHubApiError).status).toBe(404);
     expect(captured!.message).toMatch(/private.*connect to GitHub/i);
