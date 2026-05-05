@@ -8,6 +8,13 @@
 
 - remove checkpoint/resume system ([37a6823](https://github.com/levantar-ai/repoguru/commit/37a6823d47910e74d3ed6a66917532b065299823))
 
+## [0.11.4](https://github.com/levantar-ai/repoguru-unified/compare/web-v0.11.3...web-v0.11.4) (2026-05-05)
+
+
+### Bug Fixes
+
+* **ci:** pass pre-flight + add pre-commit hooks for fast feedback ([f6b2873](https://github.com/levantar-ai/repoguru-unified/commit/f6b287312b569ff11912f81a1d04d6be657c9b22))
+
 ## [0.11.2](https://github.com/levantar-ai/repoguru/compare/v0.11.1...v0.11.2) (2026-04-07)
 
 ### Bug Fixes
