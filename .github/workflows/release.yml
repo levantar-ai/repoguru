@@ -1,0 +1,123 @@
+name: Release (semantic-release)
+
+# Trunk-based: every push to main runs semantic-release per component.
+# semantic-release scans Conventional Commits since the last tag matching
+# tagFormat (e.g. cli-v*), decides the next version, creates the tag +
+# GitHub Release.
+#
+# Per-component scope filtering — only commits whose scope matches the
+# component count toward its release:
+#   feat(cli):  …  → cli minor bump
+#   fix(web):   …  → web patch bump
+#   feat!(desktop): …  → desktop major bump
+#
+# Tags are pushed with SEMANTIC_RELEASE_TOKEN if configured (so they
+# trigger release-attach.yml downstream); otherwise GITHUB_TOKEN is used
+# and release-attach must be invoked via workflow_dispatch.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  issues: write
+
+env:
+  NODE_VERSION: 22
+
+jobs:
+  release-cli:
+    name: Release · cli
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.SEMANTIC_RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - id: semrel
+        uses: cycjimmy/semantic-release-action@v4
+        with:
+          working_directory: cli
+          extra_plugins: |
+            @semantic-release/changelog
+            conventional-changelog-conventionalcommits
+        env:
+          GITHUB_TOKEN: ${{ secrets.SEMANTIC_RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
+      - if: steps.semrel.outputs.new_release_published == 'true' && env.PAT_MISSING == 'true'
+        env:
+          PAT_MISSING: ${{ secrets.SEMANTIC_RELEASE_TOKEN == '' && 'true' || 'false' }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.semrel.outputs.new_release_git_tag }}
+        run: |
+          echo "::warning::SEMANTIC_RELEASE_TOKEN secret missing — release-attach won't auto-fire on the tag."
+          echo "Manually invoking release-attach.yml for $TAG"
+          gh workflow run release-attach.yml -f tag="$TAG" || true
+
+  release-web:
+    name: Release · web
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.SEMANTIC_RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - id: semrel
+        uses: cycjimmy/semantic-release-action@v4
+        with:
+          working_directory: web
+          extra_plugins: |
+            @semantic-release/changelog
+            conventional-changelog-conventionalcommits
+        env:
+          GITHUB_TOKEN: ${{ secrets.SEMANTIC_RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
+      - if: steps.semrel.outputs.new_release_published == 'true' && env.PAT_MISSING == 'true'
+        env:
+          PAT_MISSING: ${{ secrets.SEMANTIC_RELEASE_TOKEN == '' && 'true' || 'false' }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.semrel.outputs.new_release_git_tag }}
+        run: |
+          echo "::warning::SEMANTIC_RELEASE_TOKEN secret missing — release-attach won't auto-fire on the tag."
+          gh workflow run release-attach.yml -f tag="$TAG" || true
+
+  release-desktop:
+    name: Release · desktop
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.SEMANTIC_RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - id: semrel
+        uses: cycjimmy/semantic-release-action@v4
+        with:
+          working_directory: desktop
+          extra_plugins: |
+            @semantic-release/changelog
+            conventional-changelog-conventionalcommits
+        env:
+          GITHUB_TOKEN: ${{ secrets.SEMANTIC_RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
+      - if: steps.semrel.outputs.new_release_published == 'true' && env.PAT_MISSING == 'true'
+        env:
+          PAT_MISSING: ${{ secrets.SEMANTIC_RELEASE_TOKEN == '' && 'true' || 'false' }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.semrel.outputs.new_release_git_tag }}
+        run: |
+          echo "::warning::SEMANTIC_RELEASE_TOKEN secret missing — release-attach won't auto-fire on the tag."
+          gh workflow run release-attach.yml -f tag="$TAG" || true

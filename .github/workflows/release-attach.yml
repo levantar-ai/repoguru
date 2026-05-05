@@ -1,0 +1,220 @@
+name: Release · attach artifacts
+
+# Tag-triggered: fires when semantic-release pushes a cli-v* / web-v* /
+# desktop-v* tag (assuming SEMANTIC_RELEASE_TOKEN is configured — without
+# a PAT the release.yml workflow falls back to invoking us via dispatch).
+#
+# Job: download the latest matching artifact from the relevant CI · X
+# workflow on main, attach to the GitHub Release, and (web only) deploy
+# to S3.
+on:
+  push:
+    tags:
+      - 'cli-v*'
+      - 'web-v*'
+      - 'desktop-v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to attach artifacts to (e.g. cli-v0.2.0)'
+        required: true
+        type: string
+
+concurrency:
+  group: release-attach-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write   # write to the GitHub Release
+  actions: read     # download workflow artifacts
+
+env:
+  PNPM_VERSION: 10.28.2
+  NODE_VERSION: 22
+
+jobs:
+  classify:
+    name: Classify tag
+    runs-on: ubuntu-latest
+    outputs:
+      component: ${{ steps.cls.outputs.component }}
+      tag: ${{ steps.cls.outputs.tag }}
+    steps:
+      - id: cls
+        env:
+          TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+        run: |
+          case "$TAG" in
+            cli-v*)     echo "component=cli"     >> "$GITHUB_OUTPUT" ;;
+            web-v*)     echo "component=web"     >> "$GITHUB_OUTPUT" ;;
+            desktop-v*) echo "component=desktop" >> "$GITHUB_OUTPUT" ;;
+            *)
+              echo "::error::Tag '$TAG' does not match cli-v*/web-v*/desktop-v*"
+              exit 1 ;;
+          esac
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+  # ─────────────────────────────────────────────────────────────────────
+  # CLI — download cli-* artifacts from the latest successful CI · cli
+  # run on main, attach to the GitHub Release.
+  # ─────────────────────────────────────────────────────────────────────
+  attach-cli:
+    name: Attach cli binaries
+    needs: classify
+    if: needs.classify.outputs.component == 'cli'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download latest cli artifacts
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          RUN_ID=$(gh run list \
+                     --workflow "CI · cli" \
+                     --branch main \
+                     --status success \
+                     --limit 1 \
+                     --json databaseId \
+                     --jq '.[0].databaseId // ""')
+          if [[ -z "$RUN_ID" ]]; then
+            echo "::error::No successful CI · cli run on main found — nothing to attach."
+            exit 1
+          fi
+          echo "Pulling cli artifacts from CI · cli run $RUN_ID"
+          gh run download "$RUN_ID" --pattern 'cli-*' --dir staging/
+          mkdir -p out
+          # Each artifact is a directory; flatten into out/.
+          find staging -type f -exec cp {} out/ \;
+          ls -la out/
+      - name: Attach to Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.classify.outputs.tag }}
+          files: out/*
+          generate_release_notes: true
+          fail_on_unmatched_files: true
+
+  # ─────────────────────────────────────────────────────────────────────
+  # Desktop — same pattern: download installers from latest CI · desktop.
+  # ─────────────────────────────────────────────────────────────────────
+  attach-desktop:
+    name: Attach desktop installers
+    needs: classify
+    if: needs.classify.outputs.component == 'desktop'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download latest desktop artifacts
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          RUN_ID=$(gh run list \
+                     --workflow "CI · desktop" \
+                     --branch main \
+                     --status success \
+                     --limit 1 \
+                     --json databaseId \
+                     --jq '.[0].databaseId // ""')
+          if [[ -z "$RUN_ID" ]]; then
+            echo "::error::No successful CI · desktop run on main found — nothing to attach."
+            exit 1
+          fi
+          echo "Pulling desktop artifacts from CI · desktop run $RUN_ID"
+          gh run download "$RUN_ID" --pattern 'desktop-*' --dir staging/
+          mkdir -p out
+          find staging -type f -exec cp {} out/ \;
+          ls -la out/
+      - name: Attach to Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.classify.outputs.tag }}
+          files: out/*
+          generate_release_notes: true
+          fail_on_unmatched_files: true
+
+  # ─────────────────────────────────────────────────────────────────────
+  # Web — download web-dist artifact + S3 sync. Web has no per-OS binaries
+  # so the GitHub Release is documentation only; the live deploy is S3.
+  #
+  # Required repo secrets:
+  #   AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_REGION, AWS_S3_BUCKET
+  #   CLOUDFRONT_DISTRIBUTION_ID (optional)
+  # ─────────────────────────────────────────────────────────────────────
+  attach-web:
+    name: Deploy web to S3
+    needs: classify
+    if: needs.classify.outputs.component == 'web'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download latest web-dist artifact
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          RUN_ID=$(gh run list \
+                     --workflow "CI · web" \
+                     --branch main \
+                     --status success \
+                     --limit 1 \
+                     --json databaseId \
+                     --jq '.[0].databaseId // ""')
+          if [[ -z "$RUN_ID" ]]; then
+            echo "::error::No successful CI · web run on main found — nothing to deploy."
+            exit 1
+          fi
+          gh run download "$RUN_ID" --name web-dist --dir web/dist/
+          ls -la web/dist/
+
+      - name: Verify AWS secrets
+        id: aws_check
+        run: |
+          if [[ -n "${{ secrets.AWS_S3_BUCKET }}" && -n "${{ secrets.AWS_ACCESS_KEY_ID }}" ]]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::AWS S3 secrets missing — skipping deploy. Configure AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_REGION, AWS_S3_BUCKET in repo settings."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Configure AWS credentials
+        if: steps.aws_check.outputs.ready == 'true'
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Sync to S3
+        if: steps.aws_check.outputs.ready == 'true'
+        run: |
+          aws s3 sync web/dist/ "s3://${{ secrets.AWS_S3_BUCKET }}/" \
+            --delete \
+            --exclude "index.html" \
+            --cache-control "public, max-age=31536000, immutable"
+          aws s3 cp web/dist/index.html "s3://${{ secrets.AWS_S3_BUCKET }}/index.html" \
+            --cache-control "no-cache, no-store, must-revalidate" \
+            --content-type "text/html; charset=utf-8"
+
+      - name: Invalidate CloudFront
+        if: steps.aws_check.outputs.ready == 'true' && env.CLOUDFRONT_ID != ''
+        env:
+          CLOUDFRONT_ID: ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }}
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id "$CLOUDFRONT_ID" \
+            --paths "/*"
+
+      # Web has no binary to attach; create the Release as a doc anchor.
+      - name: Mark GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.classify.outputs.tag }}
+          generate_release_notes: true
+          body: |
+            Web deployed to S3 (`s3://${{ secrets.AWS_S3_BUCKET }}/`) at
+            `${{ github.sha }}`.

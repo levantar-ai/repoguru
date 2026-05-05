@@ -1,14 +1,13 @@
 name: CI · cli
 
 # Triggers:
-#   • push/PR on cli/** or spec/**     → run CI directly
-#   • workflow_run from CI · shared    → cascade after shared lands (the
-#                                        proto symlink lives in spec/, and
-#                                        shared TS packages reference it,
-#                                        so a shared change should re-validate
-#                                        the CLI's gRPC surface)
-#   • tag cli-v* or v*                 → run CI then publish binaries
+#   • push/PR on cli/** or spec/**     → run CI + multi-target build
+#   • workflow_run from CI · shared    → cascade after shared lands
 #   • workflow_dispatch                → on demand
+#
+# Artifact policy: every run on main publishes the 4-target binary set as
+# a workflow artifact (`cli-binaries`). The release-attach workflow pulls
+# that artifact when a cli-v* tag fires.
 on:
   push:
     branches: [main]
@@ -17,9 +16,6 @@ on:
       - 'spec/**'
       - 'Cargo.toml'
       - '.github/workflows/ci-cli.yml'
-    tags:
-      - 'cli-v*'
-      - 'v*'
   pull_request:
     branches: [main]
     paths:
@@ -35,10 +31,10 @@ on:
 
 concurrency:
   group: ci-cli-${{ github.ref }}
-  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
+  cancel-in-progress: true
 
 permissions:
-  contents: write   # publish-job needs this to upload to a Release
+  contents: read
 
 env:
   CARGO_TERM_COLOR: always
@@ -59,7 +55,7 @@ jobs:
       - run: echo "✅ proceed"
 
   # ─────────────────────────────────────────────────────────────────────
-  # CI — runs on every push/PR/tag. Format-check + clippy + tests + build.
+  # CI — clippy + tests on Linux only. Fast feedback path.
   # ─────────────────────────────────────────────────────────────────────
   ci:
     name: cli CI
@@ -79,15 +75,15 @@ jobs:
       - run: make ci-cli
 
   # ─────────────────────────────────────────────────────────────────────
-  # Publish — only on tag pushes (cli-v* or bare v*). Builds release
-  # binaries for Linux / macOS (arm64+x64) / Windows, uploads to GH Release.
+  # Build artifacts — multi-target binaries on every push to main and on
+  # workflow_dispatch. PRs skip this matrix to keep PR CI quick.
+  # The artifact is the source-of-truth for downstream releases; the
+  # release-attach workflow downloads it when a cli-v* tag fires.
   # ─────────────────────────────────────────────────────────────────────
-  publish:
-    name: publish · ${{ matrix.target }}
+  build:
+    name: build · ${{ matrix.target }}
     needs: ci
-    if: |
-      startsWith(github.ref, 'refs/tags/cli-v') ||
-      startsWith(github.ref, 'refs/tags/v')
+    if: github.event_name != 'pull_request'
     strategy:
       fail-fast: false
       matrix:
@@ -97,6 +93,7 @@ jobs:
           - { os: macos-13,       target: x86_64-apple-darwin,       ext: ''     }
           - { os: windows-latest, target: x86_64-pc-windows-msvc,    ext: '.exe' }
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -114,10 +111,9 @@ jobs:
           mkdir -p out
           cp cli/target/${{ matrix.target }}/release/repoanalyze${{ matrix.ext }} \
              out/repoanalyze-${{ matrix.target }}${{ matrix.ext }}
-      - name: Attach to Release
-        uses: softprops/action-gh-release@v2
+      - uses: actions/upload-artifact@v4
         with:
-          files: out/*
-          generate_release_notes: true
-          draft: false
-          prerelease: ${{ contains(github.ref, '-rc.') || contains(github.ref, '-beta.') }}
+          name: cli-${{ matrix.target }}
+          path: out/*
+          retention-days: 30
+          if-no-files-found: error

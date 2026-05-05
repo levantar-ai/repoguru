@@ -1,22 +1,39 @@
 {
   "branches": ["main"],
+  "tagFormat": "web-v${version}",
   "plugins": [
-    "@semantic-release/commit-analyzer",
-    "@semantic-release/release-notes-generator",
-    "@semantic-release/changelog",
     [
-      "@semantic-release/npm",
+      "@semantic-release/commit-analyzer",
       {
-        "npmPublish": false
+        "preset": "conventionalcommits",
+        "releaseRules": [
+          { "type": "feat", "scope": "web", "release": "minor" },
+          { "type": "fix", "scope": "web", "release": "patch" },
+          { "type": "perf", "scope": "web", "release": "patch" },
+          { "type": "refactor", "scope": "web", "release": "patch" },
+          { "type": "feat", "scope": "ui", "release": "minor" },
+          { "type": "fix", "scope": "ui", "release": "patch" },
+          { "breaking": true, "scope": "web", "release": "major" },
+          { "breaking": true, "scope": "ui", "release": "major" },
+          { "scope": "web", "release": false },
+          { "scope": "ui", "release": false },
+          { "scope": "*", "release": false }
+        ]
       }
     ],
     [
-      "@semantic-release/git",
+      "@semantic-release/release-notes-generator",
       {
-        "assets": ["CHANGELOG.md", "package.json", "package-lock.json"],
-        "message": "chore(release): ${nextRelease.version} [skip ci]\n\n${nextRelease.notes}"
+        "preset": "conventionalcommits"
       }
     ],
-    "@semantic-release/github"
+    [
+      "@semantic-release/github",
+      {
+        "successComment": false,
+        "failComment": false,
+        "releasedLabels": false
+      }
+    ]
   ]
 }

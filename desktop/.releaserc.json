@@ -1,0 +1,35 @@
+{
+  "branches": ["main"],
+  "tagFormat": "desktop-v${version}",
+  "plugins": [
+    [
+      "@semantic-release/commit-analyzer",
+      {
+        "preset": "conventionalcommits",
+        "releaseRules": [
+          { "type": "feat", "scope": "desktop", "release": "minor" },
+          { "type": "fix", "scope": "desktop", "release": "patch" },
+          { "type": "perf", "scope": "desktop", "release": "patch" },
+          { "type": "refactor", "scope": "desktop", "release": "patch" },
+          { "breaking": true, "scope": "desktop", "release": "major" },
+          { "scope": "desktop", "release": false },
+          { "scope": "*", "release": false }
+        ]
+      }
+    ],
+    [
+      "@semantic-release/release-notes-generator",
+      {
+        "preset": "conventionalcommits"
+      }
+    ],
+    [
+      "@semantic-release/github",
+      {
+        "successComment": false,
+        "failComment": false,
+        "releasedLabels": false
+      }
+    ]
+  ]
+}

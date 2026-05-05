@@ -1,28 +1,23 @@
 name: CI · desktop
 
 # Triggers:
-#   • push/PR on desktop/**           → run CI directly
-#   • workflow_run from CI · shared   → cascade after shared lands (renderer
-#                                       depends on @repoguru/* TS packages)
-#   • workflow_run from CI · cli      → cascade after cli lands (the desktop
-#                                       installer EMBEDS the repoanalyze binary
-#                                       in resources/bin/, so a CLI change
-#                                       should re-validate the desktop build)
-#   • tag desktop-v* or v*            → CI then package + publish Electron
-#                                       installers (the publish job pulls the
-#                                       latest stable cli-v* release and bakes
-#                                       its binaries into resources/bin/ before
-#                                       electron-builder runs)
-#   • workflow_dispatch               → on demand
+#   • push/PR on desktop/**         → run CI directly
+#   • workflow_run from CI · shared / CI · cli (success) → cascade
+#   • workflow_dispatch             → on demand
+#
+# Artifact policy: every run on main packages Electron installers for all
+# 3 OSes and uploads them as workflow artifacts. The release-attach
+# workflow pulls them when a desktop-v* tag fires.
+#
+# Desktop bundles the CLI binary (extraResources → resources/bin/), so the
+# packaging job always pulls the latest cli artifact (or falls back to
+# building from source if no cli artifact exists yet).
 on:
   push:
     branches: [main]
     paths:
       - 'desktop/**'
       - '.github/workflows/ci-desktop.yml'
-    tags:
-      - 'desktop-v*'
-      - 'v*'
   pull_request:
     branches: [main]
     paths:
@@ -36,11 +31,11 @@ on:
 
 concurrency:
   group: ci-desktop-${{ github.ref }}
-  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
+  cancel-in-progress: true
 
 permissions:
-  contents: write   # publish-job uploads installers to a GitHub Release
-  actions: read     # wait-for-cli reads sibling workflow status via gh CLI
+  contents: read
+  actions: read     # wait-for-cli + cli-artifact download read sibling runs
 
 env:
   PNPM_VERSION: 10.28.2
@@ -62,11 +57,9 @@ jobs:
       - run: echo "✅ proceed"
 
   # ─────────────────────────────────────────────────────────────────────
-  # Wait for CI · cli on this commit. When shared lands, ci-cli, ci-web
-  # AND ci-desktop all fan out from its workflow_run. Desktop additionally
-  # depends on CLI (it bundles the binary) — so we hold here until CLI
-  # finishes for this same SHA. If CLI didn't run for this SHA (cli/** was
-  # untouched and there's no cascaded ci-cli), we proceed immediately.
+  # Wait for CI · cli on this commit. Desktop bundles the CLI binary, so
+  # we hold here until cli's run for this same SHA finishes. No-op when
+  # cli/** wasn't touched (no ci-cli run for this SHA).
   # ─────────────────────────────────────────────────────────────────────
   wait-for-cli:
     name: Wait for CI · cli
@@ -77,8 +70,6 @@ jobs:
       - name: Resolve target SHA
         id: sha
         run: |
-          # workflow_run cascades carry the upstream SHA on github.event.workflow_run.head_sha;
-          # for direct push/PR/tag/dispatch, github.sha is correct.
           if [[ "${{ github.event_name }}" == "workflow_run" ]]; then
             echo "value=${{ github.event.workflow_run.head_sha }}" >> "$GITHUB_OUTPUT"
           else
@@ -90,7 +81,6 @@ jobs:
           GH_REPO: ${{ github.repository }}
           SHA: ${{ steps.sha.outputs.value }}
         run: |
-          # Brief pause so a freshly-triggered ci-cli has time to register.
           sleep 10
           for attempt in $(seq 1 60); do
             STATE=$(gh run list \
@@ -119,6 +109,9 @@ jobs:
           echo "::error::Timed out waiting for CI · cli after 30 minutes"
           exit 1
 
+  # ─────────────────────────────────────────────────────────────────────
+  # CI — typecheck + renderer build on Linux. Fast feedback path for PRs.
+  # ─────────────────────────────────────────────────────────────────────
   ci:
     name: desktop CI
     needs: wait-for-cli
@@ -136,20 +129,14 @@ jobs:
       - run: make ci-desktop
 
   # ─────────────────────────────────────────────────────────────────────
-  # Publish — only on tag pushes (desktop-v* or bare v*). One runner per
-  # OS so electron-builder runs natively (cross-build for codesigning is
-  # fragile). Each job:
-  #   1. Downloads the latest cli-v* release binaries
-  #   2. Renames them into desktop's expected naming (resources/bin/)
-  #   3. Runs electron-builder (the binaries get bundled via extraResources)
-  #   4. Uploads the installer to the GitHub Release
+  # Package — multi-OS Electron installers as workflow artifacts. Skipped
+  # on PRs (matrix is heavy). Each runner pulls cli artifacts from the
+  # most recent successful CI · cli run on main and bundles them in.
   # ─────────────────────────────────────────────────────────────────────
-  publish:
-    name: publish · ${{ matrix.os }}
+  package:
+    name: package · ${{ matrix.os }}
     needs: ci
-    if: |
-      startsWith(github.ref, 'refs/tags/desktop-v') ||
-      startsWith(github.ref, 'refs/tags/v')
+    if: github.event_name != 'pull_request'
     strategy:
       fail-fast: false
       matrix:
@@ -158,6 +145,7 @@ jobs:
           - { os: macos-latest,   task: package-desktop-mac,   glob: 'desktop/release/*.{dmg,zip}'      }
           - { os: windows-latest, task: package-desktop-win,   glob: 'desktop/release/*.{exe,msi}'      }
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -169,52 +157,50 @@ jobs:
       - run: pnpm install --frozen-lockfile
 
       # ────────────────────────────────────────────────────────────────
-      # Stage the latest stable CLI binaries into desktop/resources/bin/
-      # so electron-builder's extraResources bundles them. The desktop
-      # release pins to whatever cli-v* tag is most recent — this gives
-      # deterministic installers (no "built today against tip-of-main").
+      # Stage CLI binaries from the latest successful CI · cli run on
+      # main into desktop/resources/bin/. Falls back to building from
+      # source if no cli run is found (bootstrap).
       # ────────────────────────────────────────────────────────────────
-      - name: Stage CLI binaries from latest cli-v* release
+      - name: Stage CLI binaries
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           mkdir -p desktop/resources/bin
-          LATEST=$(gh release list --limit 50 \
-                     --json tagName \
-                     --jq '[.[] | select(.tagName | startswith("cli-v"))] | first | .tagName // ""')
-          if [[ -z "$LATEST" ]]; then
-            echo "::warning::No cli-v* release found. Building CLI from this checkout as a fallback."
-            # Fallback: build the CLI for the host (this runner's) target only.
-            # Good enough to ship A desktop installer; full multi-arch needs
-            # a published cli-v* release.
+          # Find the most recent successful CI · cli run on main and download every cli-* artifact.
+          RUN_ID=$(gh run list \
+                     --workflow "CI · cli" \
+                     --branch main \
+                     --status success \
+                     --limit 1 \
+                     --json databaseId \
+                     --jq '.[0].databaseId // ""')
+          if [[ -z "$RUN_ID" ]]; then
+            echo "::warning::No successful CI · cli run on main — building CLI from this checkout."
             cd cli && cargo build --release --bin repoanalyze && cd ..
             case "${{ runner.os }}" in
               Linux)   cp cli/target/release/repoanalyze     desktop/resources/bin/repoanalyze-linux-x86_64 ;;
-              macOS)   cp cli/target/release/repoanalyze     desktop/resources/bin/repoanalyze-darwin-$(uname -m | sed 's/arm64/aarch64/' | sed 's/x86_64/x86_64/') ;;
+              macOS)   cp cli/target/release/repoanalyze     desktop/resources/bin/repoanalyze-darwin-$(uname -m | sed 's/arm64/aarch64/') ;;
               Windows) cp cli/target/release/repoanalyze.exe desktop/resources/bin/repoanalyze-win32-x86_64.exe ;;
             esac
           else
-            echo "Pulling CLI binaries from $LATEST"
-            gh release download "$LATEST" --pattern 'repoanalyze-*' --dir desktop/resources/bin/
-            # Rename Rust target-triple naming → desktop's runtime convention.
-            # See desktop/electron/process-manager.ts — these names are checked at runtime.
-            cd desktop/resources/bin
-            for src in repoanalyze-x86_64-unknown-linux-gnu \
-                       repoanalyze-aarch64-apple-darwin \
-                       repoanalyze-x86_64-apple-darwin \
-                       repoanalyze-x86_64-pc-windows-msvc.exe; do
-              [[ -f "$src" ]] || continue
-              case "$src" in
-                *linux-gnu)            mv "$src" repoanalyze-linux-x86_64 ;;
-                *aarch64-apple-darwin) mv "$src" repoanalyze-darwin-aarch64 ;;
-                *x86_64-apple-darwin)  mv "$src" repoanalyze-darwin-x86_64 ;;
-                *windows-msvc.exe)     mv "$src" repoanalyze-win32-x86_64.exe ;;
-              esac
+            echo "Pulling cli artifacts from CI · cli run $RUN_ID"
+            gh run download "$RUN_ID" --pattern 'cli-*' --dir /tmp/cli-artifacts/
+            # Each artifact is a directory named cli-<target>; flatten + rename
+            # to desktop's runtime convention (see desktop/electron/process-manager.ts).
+            for dir in /tmp/cli-artifacts/cli-*; do
+              [[ -d "$dir" ]] || continue
+              for f in "$dir"/*; do
+                base=$(basename "$f")
+                case "$base" in
+                  *linux-gnu)            cp "$f" desktop/resources/bin/repoanalyze-linux-x86_64 ;;
+                  *aarch64-apple-darwin) cp "$f" desktop/resources/bin/repoanalyze-darwin-aarch64 ;;
+                  *x86_64-apple-darwin)  cp "$f" desktop/resources/bin/repoanalyze-darwin-x86_64 ;;
+                  *windows-msvc.exe)     cp "$f" desktop/resources/bin/repoanalyze-win32-x86_64.exe ;;
+                esac
+              done
             done
           fi
-          # macOS / Linux runners need the binaries executable for electron-builder
-          # to preserve the bit through to the installed app.
           if [[ "${{ runner.os }}" != "Windows" ]]; then
             chmod +x desktop/resources/bin/repoanalyze-* 2>/dev/null || true
           fi
@@ -223,10 +209,10 @@ jobs:
       - name: Package
         run: make ${{ matrix.task }}
 
-      - name: Attach to Release
-        uses: softprops/action-gh-release@v2
+      - name: Upload installer artifact
+        uses: actions/upload-artifact@v4
         with:
-          files: ${{ matrix.glob }}
-          generate_release_notes: true
-          draft: false
-          prerelease: ${{ contains(github.ref, '-rc.') || contains(github.ref, '-beta.') }}
+          name: desktop-${{ runner.os }}
+          path: ${{ matrix.glob }}
+          retention-days: 30
+          if-no-files-found: error
