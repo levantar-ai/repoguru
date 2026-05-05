@@ -59,6 +59,7 @@ impl RepoAnalyzeService for RepoAnalyzeServiceImpl {
             sizer_cache_mb: 64,
             sizer_chunk_size: 10_000,
             channel_capacity: 256,
+            max_commits: 0,
         };
 
         // Run pipeline in a blocking task, sending progress via channel
@@ -252,5 +253,55 @@ impl RepoAnalyzeService for RepoAnalyzeServiceImpl {
             status: "serving".into(),
             version: env!("CARGO_PKG_VERSION").into(),
         }))
+    }
+
+    // ── Stubs for proto methods not yet wired up ───────────────────
+    // The .proto file declares these RPCs but the corresponding impls
+    // haven't landed yet. Stubbing with Unimplemented keeps the lib
+    // compiling so the CLI binary can build; the desktop app already
+    // composes these features client-side.
+
+    async fn score_report_card(
+        &self,
+        _request: Request<ScoreRequest>,
+    ) -> Result<Response<ScoreResponse>, Status> {
+        Err(Status::unimplemented("score_report_card not yet implemented"))
+    }
+
+    async fn evaluate_policy(
+        &self,
+        _request: Request<PolicyRequest>,
+    ) -> Result<Response<PolicyResponse>, Status> {
+        Err(Status::unimplemented("evaluate_policy not yet implemented"))
+    }
+
+    async fn generate_sbom(
+        &self,
+        _request: Request<SbomRequest>,
+    ) -> Result<Response<SbomResponse>, Status> {
+        Err(Status::unimplemented("generate_sbom not yet implemented"))
+    }
+
+    async fn export_report(
+        &self,
+        _request: Request<ExportRequest>,
+    ) -> Result<Response<ExportResponse>, Status> {
+        Err(Status::unimplemented("export_report not yet implemented"))
+    }
+
+    type ScanOrgStream = Pin<Box<dyn tokio_stream::Stream<Item = Result<OrgScanProgress, Status>> + Send>>;
+
+    async fn scan_org(
+        &self,
+        _request: Request<OrgScanRequest>,
+    ) -> Result<Response<Self::ScanOrgStream>, Status> {
+        Err(Status::unimplemented("scan_org not yet implemented"))
+    }
+
+    async fn compare_repos(
+        &self,
+        _request: Request<CompareRequest>,
+    ) -> Result<Response<CompareResponse>, Status> {
+        Err(Status::unimplemented("compare_repos not yet implemented"))
     }
 }

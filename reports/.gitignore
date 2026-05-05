@@ -1,0 +1,7 @@
+# Defensive guard — even though the pipeline writes data outside the
+# repo (under $DATA_ROOT, default ~/.repoguru-reports/), keep these
+# names out of source control everywhere under reports/ in case
+# anything writes locally by mistake.
+**/data/
+**/viewmodels/
+**/_work/

@@ -1,0 +1,30 @@
+name: Release Please
+
+# Runs on every push to main. release-please scans Conventional Commits
+# since the last release and either:
+#   • opens / updates a "release PR" with version bumps + CHANGELOG, OR
+#   • if you just merged that PR, tags the repo + creates a GitHub Release.
+#
+# Tag format: <component>-v<version>  e.g. cli-v0.2.0, web-v0.12.0.
+# release.yml watches for v* tags and builds the platform artefacts.
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write       # to create the release PR + tags
+  pull-requests: write  # to open / update the release PR
+
+concurrency:
+  group: release-please-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release-please:
+    name: Open / merge release PR
+    runs-on: ubuntu-latest
+    steps:
+      - uses: googleapis/release-please-action@v4
+        with:
+          config-file: .github/release-please-config.json
+          manifest-file: .github/.release-please-manifest.json

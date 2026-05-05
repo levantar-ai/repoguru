@@ -1,0 +1,23 @@
+{
+  "_comment_schema": "Every field here is required. The pipeline reads this to title the report and template the headline strings.",
+  "_comment_slug": "Must match the directory name. Lowercase, hyphenated.",
+  "slug": "<slug>",
+
+  "_comment_title": "Goes on the cover. Be punchy.",
+  "title": "The State of <Domain> Code",
+
+  "_comment_subtitle": "Subhead under the title.",
+  "subtitle": "A complete picture of <domain> code on GitHub.",
+
+  "_comment_audience_label": "Used in '20,297 public repositories across 105 {audience_label}'. Plural.",
+  "audience_label": "<domain> organisations",
+
+  "_comment_entity_label": "Used in 'the largest single {entity_label} repository is X'. Singular adjective.",
+  "entity_label": "<domain>",
+
+  "_comment_entity_label_plural": "Plural form of entity_label.",
+  "entity_label_plural": "<domain> organisations",
+
+  "_comment_hero_blurb": "Cover-spread paragraph. 1-3 sentences. Sets the report's framing.",
+  "hero_blurb": "We analysed every public repository across <describe the org set>. <Why this dataset matters in one sentence.> This is what we found."
+}

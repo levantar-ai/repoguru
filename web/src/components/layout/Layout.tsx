@@ -67,8 +67,7 @@ const NAV_ITEMS: NavItem[] = [
 
 /**
  * App shell with a fixed-width left sidebar nav. Mirrors the desktop
- * Electron build (.../repoguru-spec/electron-app/repoguru-desktop/src/
- * App.tsx) so both apps present the same chrome.
+ * Electron build (desktop/src/App.tsx) so both apps present the same chrome.
  */
 export function Layout({ children, onNavigate, currentPage }: Props) {
   const { state, dispatch } = useApp();

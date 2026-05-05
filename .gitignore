@@ -45,9 +45,11 @@ resources/bin/repoanalyze-*
 # project sub-agent definitions (UI/UX review team etc.).
 .claude/*
 !.claude/agents/
+**/.claude/*
+!**/.claude/agents/
 
 # Playwright/Probe artefacts
 *.png
-!repoguru/public/*.png
-!repoguru/public/**/*.png
+!web/public/*.png
+!web/public/**/*.png
 probe-*.mjs

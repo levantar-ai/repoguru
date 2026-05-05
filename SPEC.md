@@ -10,11 +10,11 @@ before touching code.
 
 There are two RepoGuru frontends in this monorepo:
 
-- `repoguru/` — **the in-browser web app**. Clones repos via
+- `web/` — **the in-browser web app**. Clones repos via
   `isomorphic-git` in a Web Worker, hits the GitHub API for metadata,
   and produces an `AnalysisReport` / `GitStatsAnalysis` /
   `TechDetectResult` entirely client-side.
-- `repoguru-spec/electron-app/repoguru-desktop/` — **the Electron
+- `desktop/` — **the Electron
   desktop app**. Drives a Rust CLI sidecar (`repoanalyze`) over gRPC
   to produce the same logical reports against a local clone.
 
@@ -46,7 +46,7 @@ components.
 
 ```
 repoguru-unified/                ← single git repo (root)
-├── packages/
+├── shared/
 │   ├── core/                    @repoguru/core
 │   │   ├── src/gitStats.ts      Canonical streaming sections (RepoAnalyzer port)
 │   │   ├── src/legacy.ts        Browser-shape view types (GitStatsAnalysis, etc.)
@@ -61,14 +61,14 @@ repoguru-unified/                ← single git repo (root)
 │       ├── src/tech-detect/     7 lifted tech-detect components
 │       └── src/views/           Page-level views: GitStatsView, ReportCardView, TechDetectView
 │
-├── repoguru/                    Web app — workspace member
-└── repoguru-spec/electron-app/repoguru-desktop/
+├── web/                    Web app — workspace member
+└── desktop/
                                  Electron renderer — workspace member
 ```
 
 The Rust CLI binary lives at:
 ```
-repoguru-spec/electron-app/repoguru-desktop/resources/bin/repoanalyze-linux-x86_64
+desktop/resources/bin/repoanalyze-linux-x86_64
 ```
 
 ---
@@ -107,7 +107,7 @@ compiles unchanged.
 
 ### 3.3 The desktop has a wire-to-view projection
 
-`repoguru-spec/.../src/services/wireToLegacy.ts` is the authoritative
+`spec/.../src/services/wireToLegacy.ts` is the authoritative
 projection from the gRPC sidecar's JSON wire shape into `GitStatsAnalysis`.
 Mirror this pattern for every other CLI RPC:
 
@@ -130,12 +130,12 @@ the Playwright scan — it's load-bearing.
 
 ### 3.5 Workspace is a single git repo
 
-The inner `.git` dirs in `repoguru/` and `repoguru-spec/` were
+The inner `.git` dirs in `web/` and `spec/` were
 deleted; the workspace root is the single source of truth.
-`repoguru-spec/.gitignore` and `repoguru/.gitignore` are no longer
+`spec/.gitignore` and `web/.gitignore` are no longer
 authoritative. Use the workspace root `.gitignore` only. Backup
-copies of the original projects live at `~/Development/repoguru/`
-and `~/Development/repoguru-spec/`.
+copies of the original projects live at `~/Development/web/`
+and `~/Development/spec/`.
 
 ---
 
@@ -171,20 +171,20 @@ For each remaining page, follow these steps in order:
 
 1. **Probe the CLI.** Start `repoanalyze-linux-x86_64 serve --listen
    127.0.0.1:50051`. Write a `probe-<rpc>.mjs` under
-   `repoguru-spec/electron-app/repoguru-desktop/`, call the RPC with
+   `desktop/`, call the RPC with
    `@grpc/grpc-js`, dump every key shape. Record it in this section.
    `probe-*.mjs` files are gitignored — leave them in place to help
    future debugging.
 2. **Read the web page.** Identify the main render component. Any
    browser-only sections (TechStack, MermaidDiagram, LLM insights —
    things the CLI doesn't surface) stay browser-side.
-3. **Lift the shared view.** Bulk-copy the relevant `repoguru/src/
-   components/<area>/*.tsx` into `packages/ui/src/<area>/`. Sed
+3. **Lift the shared view.** Bulk-copy the relevant `web/src/
+   components/<area>/*.tsx` into `shared/ui/src/<area>/`. Sed
    `from '../../types/<x>'` → `from './legacyTypes.js'` (or
    `@repoguru/core` if you've added the types there). Sed
    `from '@repoguru/ui'` → `from '../charts/EChartsWrapper.js'` to
    break self-import cycles.
-4. **Add a `<XView />` wrapper** in `packages/ui/src/views/`,
+4. **Add a `<XView />` wrapper** in `shared/ui/src/views/`,
    exposing exactly the props both apps can supply. Add an
    `actions?: ReactNode` slot for host-specific buttons.
 5. **Project both apps into the view:**
@@ -194,7 +194,7 @@ For each remaining page, follow these steps in order:
      (mirroring `wireToLegacy`/`scoreToReportCardData`/`cliToTechDetect`),
      replace the page body with `<XView projection={...} actions={...} />`.
 6. **Delete the old browser components dir** once nothing else
-   imports from it (`grep -rl "components/<area>" repoguru/src`).
+   imports from it (`grep -rl "components/<area>" web/src`).
 7. **Verify:**
    - `pnpm typecheck` (all 6 in-scope packages)
    - `pnpm --filter repoguru test` (1099 tests should still pass;
@@ -218,7 +218,7 @@ For each remaining page, follow these steps in order:
 ### 5.2 Compare
 
 - **CLI RPC:** `CompareRepos(CompareRequest) returns (CompareResponse)`
-  in `repoguru-spec/proto/repoanalyze.proto`. Returns
+  in `spec/proto/repoanalyze.proto`. Returns
   `{ report_card_a: ScoreResponse, report_card_b: ScoreResponse,
   deltas: [{category, score_a, score_b, delta, winner}], winner,
   score_delta }`.
@@ -252,7 +252,7 @@ For each remaining page, follow these steps in order:
 - **CLI RPC:** `EvaluatePolicy(PolicyRequest) returns (PolicyResponse)`.
   Returns `{ passed: bool, rules: [{key, label, expected, actual,
   passed, severity}], summary }`.
-- **Browser shape:** lives in `repoguru/src/pages/PolicyPage.tsx`
+- **Browser shape:** lives in `web/src/pages/PolicyPage.tsx`
   (~1,471 lines including a full rule editor). The result-rendering
   part is a subset.
 - **Shared view:** `<PolicyView result={PolicyEvalResult} actions? />`.
@@ -332,11 +332,11 @@ CLI probe (when touching a desktop projection):
 
 ```sh
 # In one terminal:
-./repoguru-spec/electron-app/repoguru-desktop/resources/bin/repoanalyze-linux-x86_64 \
+./desktop/resources/bin/repoanalyze-linux-x86_64 \
     serve --listen 127.0.0.1:50051
 
 # In another, use @grpc/grpc-js + the proto file. Template:
-# repoguru-spec/electron-app/repoguru-desktop/probe-<rpc>.mjs
+# desktop/probe-<rpc>.mjs
 ```
 
 ---
@@ -395,9 +395,9 @@ local environment).
    against §4 above for discrepancies.
 3. `git log --oneline | head -20` — the commit chain tells the
    story of every lift in the order it happened.
-4. `packages/ui/src/views/GitStatsView.tsx` — the canonical
+4. `shared/ui/src/views/GitStatsView.tsx` — the canonical
    reference for how a `<*View />` is structured.
-5. `repoguru-spec/electron-app/repoguru-desktop/src/services/wireToLegacy.ts`
+5. `desktop/src/services/wireToLegacy.ts`
    — the canonical reference for a CLI→view projection.
 
 ---

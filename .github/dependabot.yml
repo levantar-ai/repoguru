@@ -1,0 +1,59 @@
+version: 2
+updates:
+  # ── pnpm workspaces (web / desktop / shared) ──────────────────────────
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 8
+    groups:
+      typescript-toolchain:
+        patterns: ["typescript", "@types/*", "tsc-*", "eslint*", "prettier*"]
+      vite-toolchain:
+        patterns: ["vite", "vitest", "@vitejs/*", "@vitest/*", "rollup*"]
+      react:
+        patterns: ["react", "react-dom", "@types/react", "@types/react-dom"]
+      tailwind:
+        patterns: ["tailwindcss", "@tailwindcss/*", "autoprefixer", "postcss*"]
+      electron:
+        patterns: ["electron", "electron-*"]
+      storybook:
+        patterns: ["storybook", "@storybook/*"]
+    ignore:
+      # Pin major bumps for runtime — review them by hand.
+      - dependency-name: "react"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "react-dom"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "electron"
+        update-types: ["version-update:semver-major"]
+
+  # ── Cargo (cli + spec) ───────────────────────────────────────────────
+  - package-ecosystem: cargo
+    directory: /cli
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    groups:
+      gix:
+        patterns: ["gix*"]
+      tonic:
+        patterns: ["tonic*", "prost*", "protobuf-src"]
+      clap:
+        patterns: ["clap*"]
+
+  - package-ecosystem: cargo
+    directory: /spec
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 3
+
+  # ── GitHub Actions itself ─────────────────────────────────────────────
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 3

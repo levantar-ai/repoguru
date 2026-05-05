@@ -32,7 +32,7 @@ desktop builds.
               ┌──────────────────────┴──────────────────────┐
               │                                              │
    ┌──────────▼──────────┐                       ┌──────────▼──────────┐
-   │   repoguru/         │                       │  repoguru-desktop/  │
+   │   web/              │                       │  desktop/           │
    │   (in-browser app)  │                       │  (Electron app)     │
    │                     │                       │                     │
    │   makeBrowserSvcs:  │                       │   desktopServices:  │
@@ -60,7 +60,7 @@ desktop builds.
 
 ## What's shared
 
-Every page lives in `packages/ui/src/pages/` and is the only copy of that
+Every page lives in `shared/ui/src/pages/` and is the only copy of that
 page anywhere in the codebase. Both hosts mount it directly:
 
 ```tsx
@@ -72,7 +72,7 @@ import { ComparePage, ReportCardPage, TechDetectPage,
 The pages call `useRepoGuru()` to get the host's services bag —
 `compare.run`, `score.run`, `techDetect.run`, `policy.evaluate`,
 `orgScan.run`, `gitStats.run`, `repoBrowse.{browse,recents,hint}`. The
-contract lives at `packages/ui/src/services/types.ts`. The pages never
+contract lives at `shared/ui/src/services/types.ts`. The pages never
 import anything host-specific.
 
 The chrome (`<PageHero>`, `<RepoPicker>`, `<PrimaryButton>`,
@@ -118,7 +118,7 @@ six pages — see `SBS-{1..6}-{WEB,DESKTOP}-*.png` in the repo root:
 
 | Page | Web data | Desktop data | Visual parity |
 |---|---|---|---|
-| Compare | octocat/hello-world vs expressjs/express | repoguru vs repoguru-spec | identical chrome ✓ |
+| Compare | octocat/hello-world vs expressjs/express | repoguru vs spec | identical chrome ✓ |
 | Report Card | expressjs/express, C 57/100 | repoguru, A 93/100 | identical chrome ✓ |
 | Tech Detect | expressjs/express, JavaScript 86% | repoguru, TypeScript 88.4% | identical chrome ✓ |
 | Policy | expressjs/express, "Open Source Ready" | repoguru, "Production Ready" | identical chrome ✓ |
@@ -127,7 +127,7 @@ six pages — see `SBS-{1..6}-{WEB,DESKTOP}-*.png` in the repo root:
 
 The web app dev server runs at `pnpm --filter repoguru dev`. The desktop
 renderer was driven via a mock-bridge static server
-(`repoguru-spec/electron-app/repoguru-desktop/serve-mock.mjs`) that
+(`desktop/serve-mock.mjs`) that
 serves the production build with canned CLI fixtures, so the React tree
 runs in a regular browser tab for visual diffing. To run the actual
 Electron app, use `pnpm --filter repoguru-desktop dev`.
@@ -165,7 +165,7 @@ pnpm --filter repoguru dev                # http://localhost:5173
 pnpm --filter repoguru-desktop dev        # launches Electron window
 # (the gRPC sidecar at 127.0.0.1:50051 is started by Electron's main
 # process; the Rust CLI binary lives at
-# repoguru-spec/electron-app/repoguru-desktop/resources/bin/
+# desktop/resources/bin/
 # repoanalyze-linux-x86_64)
 ```
 

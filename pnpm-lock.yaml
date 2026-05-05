@@ -12,7 +12,86 @@ importers:
         specifier: ^5.7.3
         version: 5.9.3
 
-  packages/browser-adapter:
+  desktop:
+    dependencies:
+      '@grpc/grpc-js':
+        specifier: ^1.12.5
+        version: 1.14.3
+      '@grpc/proto-loader':
+        specifier: ^0.7.13
+        version: 0.7.15
+      '@repoguru/core':
+        specifier: workspace:*
+        version: link:../shared/core
+      '@repoguru/desktop-adapter':
+        specifier: workspace:*
+        version: link:../shared/desktop-adapter
+      '@repoguru/ui':
+        specifier: workspace:*
+        version: link:../shared/ui
+      '@types/d3':
+        specifier: ^7.4.3
+        version: 7.4.3
+      d3:
+        specifier: ^7.9.0
+        version: 7.9.0
+      echarts:
+        specifier: ^5.6.0
+        version: 5.6.0
+      echarts-for-react:
+        specifier: ^3.0.2
+        version: 3.0.6(echarts@5.6.0)(react@19.2.5)
+      electron-updater:
+        specifier: ^6.8.3
+        version: 6.8.3
+      react:
+        specifier: ^19.0.0
+        version: 19.2.5
+      react-dom:
+        specifier: ^19.0.0
+        version: 19.2.5(react@19.2.5)
+      react-router:
+        specifier: ^7.1.0
+        version: 7.14.2(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
+    devDependencies:
+      '@tailwindcss/vite':
+        specifier: ^4.0.0
+        version: 4.2.4(vite@6.4.2(@types/node@25.6.0)(jiti@2.6.1)(lightningcss@1.32.0)(tsx@4.21.0)(yaml@2.8.3))
+      '@types/react':
+        specifier: ^19.0.0
+        version: 19.2.14
+      '@types/react-dom':
+        specifier: ^19.0.0
+        version: 19.2.3(@types/react@19.2.14)
+      '@vitejs/plugin-react':
+        specifier: ^4.3.4
+        version: 4.7.0(vite@6.4.2(@types/node@25.6.0)(jiti@2.6.1)(lightningcss@1.32.0)(tsx@4.21.0)(yaml@2.8.3))
+      electron:
+        specifier: ^33.3.1
+        version: 33.4.11
+      electron-builder:
+        specifier: ^25.1.8
+        version: 25.1.8(electron-builder-squirrel-windows@25.1.8)
+      playwright:
+        specifier: ^1.58.2
+        version: 1.59.1
+      tailwindcss:
+        specifier: ^4.0.0
+        version: 4.2.4
+      typescript:
+        specifier: ^5.7.3
+        version: 5.9.3
+      vite:
+        specifier: ^6.0.7
+        version: 6.4.2(@types/node@25.6.0)(jiti@2.6.1)(lightningcss@1.32.0)(tsx@4.21.0)(yaml@2.8.3)
+      vite-plugin-electron:
+        specifier: ^0.29.0
+        version: 0.29.1(vite-plugin-electron-renderer@0.14.6)
+      vite-plugin-electron-renderer:
+        specifier: ^0.14.6
+        version: 0.14.6
+
+  shared/browser-adapter:
     dependencies:
       '@repoguru/core':
         specifier: workspace:*
@@ -25,13 +104,13 @@ importers:
         specifier: ^5.7.3
         version: 5.9.3
 
-  packages/core:
+  shared/core:
     devDependencies:
       typescript:
         specifier: ^5.7.3
         version: 5.9.3
 
-  packages/desktop-adapter:
+  shared/desktop-adapter:
     dependencies:
       '@repoguru/core':
         specifier: workspace:*
@@ -44,7 +123,7 @@ importers:
         specifier: ^5.7.3
         version: 5.9.3
 
-  packages/ui:
+  shared/ui:
     dependencies:
       '@headlessui/react':
         specifier: ^2.2.10
@@ -90,7 +169,7 @@ importers:
         specifier: ^5.7.3
         version: 5.9.3
 
-  repoguru:
+  web:
     dependencies:
       '@headlessui/react':
         specifier: ^2.2.10
@@ -100,13 +179,13 @@ importers:
         version: 4.6.2
       '@repoguru/browser-adapter':
         specifier: workspace:*
-        version: link:../packages/browser-adapter
+        version: link:../shared/browser-adapter
       '@repoguru/core':
         specifier: workspace:*
-        version: link:../packages/core
+        version: link:../shared/core
       '@repoguru/ui':
         specifier: workspace:*
-        version: link:../packages/ui
+        version: link:../shared/ui
       '@tailwindcss/vite':
         specifier: ^4.2.0
         version: 4.2.4(vite@7.3.2(@types/node@25.6.0)(jiti@2.6.1)(lightningcss@1.32.0)(tsx@4.21.0)(yaml@2.8.3))
@@ -282,85 +361,6 @@ importers:
       vitest:
         specifier: ^4.0.18
         version: 4.1.5(@types/node@25.6.0)(@vitest/browser-playwright@4.1.5)(@vitest/coverage-v8@4.1.5)(jsdom@28.1.0)(vite@7.3.2(@types/node@25.6.0)(jiti@2.6.1)(lightningcss@1.32.0)(tsx@4.21.0)(yaml@2.8.3))
-
-  repoguru-spec/electron-app/repoguru-desktop:
-    dependencies:
-      '@grpc/grpc-js':
-        specifier: ^1.12.5
-        version: 1.14.3
-      '@grpc/proto-loader':
-        specifier: ^0.7.13
-        version: 0.7.15
-      '@repoguru/core':
-        specifier: workspace:*
-        version: link:../../../packages/core
-      '@repoguru/desktop-adapter':
-        specifier: workspace:*
-        version: link:../../../packages/desktop-adapter
-      '@repoguru/ui':
-        specifier: workspace:*
-        version: link:../../../packages/ui
-      '@types/d3':
-        specifier: ^7.4.3
-        version: 7.4.3
-      d3:
-        specifier: ^7.9.0
-        version: 7.9.0
-      echarts:
-        specifier: ^5.6.0
-        version: 5.6.0
-      echarts-for-react:
-        specifier: ^3.0.2
-        version: 3.0.6(echarts@5.6.0)(react@19.2.5)
-      electron-updater:
-        specifier: ^6.8.3
-        version: 6.8.3
-      react:
-        specifier: ^19.0.0
-        version: 19.2.5
-      react-dom:
-        specifier: ^19.0.0
-        version: 19.2.5(react@19.2.5)
-      react-router:
-        specifier: ^7.1.0
-        version: 7.14.2(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
-    devDependencies:
-      '@tailwindcss/vite':
-        specifier: ^4.0.0
-        version: 4.2.4(vite@6.4.2(@types/node@25.6.0)(jiti@2.6.1)(lightningcss@1.32.0)(tsx@4.21.0)(yaml@2.8.3))
-      '@types/react':
-        specifier: ^19.0.0
-        version: 19.2.14
-      '@types/react-dom':
-        specifier: ^19.0.0
-        version: 19.2.3(@types/react@19.2.14)
-      '@vitejs/plugin-react':
-        specifier: ^4.3.4
-        version: 4.7.0(vite@6.4.2(@types/node@25.6.0)(jiti@2.6.1)(lightningcss@1.32.0)(tsx@4.21.0)(yaml@2.8.3))
-      electron:
-        specifier: ^33.3.1
-        version: 33.4.11
-      electron-builder:
-        specifier: ^25.1.8
-        version: 25.1.8(electron-builder-squirrel-windows@25.1.8)
-      playwright:
-        specifier: ^1.58.2
-        version: 1.59.1
-      tailwindcss:
-        specifier: ^4.0.0
-        version: 4.2.4
-      typescript:
-        specifier: ^5.7.3
-        version: 5.9.3
-      vite:
-        specifier: ^6.0.7
-        version: 6.4.2(@types/node@25.6.0)(jiti@2.6.1)(lightningcss@1.32.0)(tsx@4.21.0)(yaml@2.8.3)
-      vite-plugin-electron:
-        specifier: ^0.29.0
-        version: 0.29.1(vite-plugin-electron-renderer@0.14.6)
-      vite-plugin-electron-renderer:
-        specifier: ^0.14.6
-        version: 0.14.6
 
 packages:
 
@@ -6060,6 +6060,7 @@ packages:
 
   uuid@9.0.1:
     resolution: {integrity: sha512-b+1eJOlsR9K8HJpow9Ok3fiWOWSIcIzXodvv0rQjVoOVNpWMpxf1wZNpt4y9h10odCNrqnYp1OBzRktckBe3sA==}
+    deprecated: uuid@10 and below is no longer supported.  For ESM codebases, update to uuid@latest.  For CommonJS codebases, use uuid@11 (but be aware this version will likely be deprecated in 2028).
     hasBin: true
 
   uvu@0.5.6:
@@ -8602,7 +8603,7 @@ snapshots:
 
   aria-hidden@1.2.6:
     dependencies:
-      tslib: 2.3.0
+      tslib: 2.8.1
 
   aria-query@5.3.0:
     dependencies:
@@ -8621,11 +8622,11 @@ snapshots:
 
   ast-types@0.13.4:
     dependencies:
-      tslib: 2.3.0
+      tslib: 2.8.1
 
   ast-types@0.16.1:
     dependencies:
-      tslib: 2.3.0
+      tslib: 2.8.1
 
   ast-v8-to-istanbul@1.0.0:
     dependencies:
@@ -11592,7 +11593,7 @@ snapshots:
     dependencies:
       react: 19.2.5
       react-style-singleton: 2.2.3(@types/react@19.2.14)(react@19.2.5)
-      tslib: 2.3.0
+      tslib: 2.8.1
     optionalDependencies:
       '@types/react': 19.2.14
 
@@ -11601,7 +11602,7 @@ snapshots:
       react: 19.2.5
       react-remove-scroll-bar: 2.3.8(@types/react@19.2.14)(react@19.2.5)
       react-style-singleton: 2.2.3(@types/react@19.2.14)(react@19.2.5)
-      tslib: 2.3.0
+      tslib: 2.8.1
       use-callback-ref: 1.3.3(@types/react@19.2.14)(react@19.2.5)
       use-sidecar: 1.1.3(@types/react@19.2.14)(react@19.2.5)
     optionalDependencies:
@@ -11629,7 +11630,7 @@ snapshots:
     dependencies:
       get-nonce: 1.0.1
       react: 19.2.5
-      tslib: 2.3.0
+      tslib: 2.8.1
     optionalDependencies:
       '@types/react': 19.2.14
 
@@ -11708,7 +11709,7 @@ snapshots:
       esprima: 4.0.1
       source-map: 0.6.1
       tiny-invariant: 1.3.3
-      tslib: 2.3.0
+      tslib: 2.8.1
 
   redent@3.0.0:
     dependencies:
@@ -12453,7 +12454,7 @@ snapshots:
   use-callback-ref@1.3.3(@types/react@19.2.14)(react@19.2.5):
     dependencies:
       react: 19.2.5
-      tslib: 2.3.0
+      tslib: 2.8.1
     optionalDependencies:
       '@types/react': 19.2.14
 
@@ -12461,7 +12462,7 @@ snapshots:
     dependencies:
       detect-node-es: 1.1.0
       react: 19.2.5
-      tslib: 2.3.0
+      tslib: 2.8.1
     optionalDependencies:
       '@types/react': 19.2.14
 

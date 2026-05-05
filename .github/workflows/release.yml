@@ -1,0 +1,128 @@
+name: Release
+
+# Tag-driven. release-please creates per-component tags:
+#   • cli-v<x.y.z>     → builds CLI binaries for 4 targets
+#   • desktop-v<x.y.z> → packages Electron installers for 3 OSes
+# A bare `v<x.y.z>` tag (manual / legacy) builds everything.
+on:
+  push:
+    tags:
+      - 'cli-v*'
+      - 'desktop-v*'
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write   # to create the GitHub Release
+
+env:
+  PNPM_VERSION: 10.28.2
+  NODE_VERSION: 22
+
+jobs:
+  # ─────────────────────────────────────────────────────────────────────
+  # CLI binary — one job per target triple. Linux is the canonical build;
+  # macOS + Windows runners cross-compile to their native targets.
+  # ─────────────────────────────────────────────────────────────────────
+  cli:
+    name: cli · ${{ matrix.target }}
+    if: |
+      startsWith(github.ref, 'refs/tags/cli-v') ||
+      startsWith(github.ref, 'refs/tags/v')    ||
+      github.event_name == 'workflow_dispatch'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-latest,  target: x86_64-unknown-linux-gnu,  ext: ''     }
+          - { os: macos-latest,   target: aarch64-apple-darwin,      ext: ''     }
+          - { os: macos-13,       target: x86_64-apple-darwin,       ext: ''     }
+          - { os: windows-latest, target: x86_64-pc-windows-msvc,    ext: '.exe' }
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with: { targets: "${{ matrix.target }}" }
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: cli
+          key: ${{ matrix.target }}
+      - name: Build release binary
+        working-directory: cli
+        run: cargo build --release --bin repoanalyze --target ${{ matrix.target }}
+      - name: Stage artefact
+        shell: bash
+        run: |
+          mkdir -p out
+          cp cli/target/${{ matrix.target }}/release/repoanalyze${{ matrix.ext }} \
+             out/repoanalyze-${{ matrix.target }}${{ matrix.ext }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cli-${{ matrix.target }}
+          path: out/*
+          retention-days: 7
+
+  # ─────────────────────────────────────────────────────────────────────
+  # Desktop Electron app — one runner per OS so electron-builder runs
+  # natively (cross-builds for codesigning are fragile).
+  # ─────────────────────────────────────────────────────────────────────
+  desktop:
+    name: desktop · ${{ matrix.os }}
+    if: |
+      startsWith(github.ref, 'refs/tags/desktop-v') ||
+      startsWith(github.ref, 'refs/tags/v')         ||
+      github.event_name == 'workflow_dispatch'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-latest,  task: package-desktop-linux, glob: 'desktop/release/*.{AppImage,deb}' }
+          - { os: macos-latest,   task: package-desktop-mac,   glob: 'desktop/release/*.{dmg,zip}'      }
+          - { os: windows-latest, task: package-desktop-win,   glob: 'desktop/release/*.{exe,msi}'      }
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with: { version: "${{ env.PNPM_VERSION }}" }
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Package
+        run: make ${{ matrix.task }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: desktop-${{ matrix.os }}
+          path: ${{ matrix.glob }}
+          retention-days: 7
+          if-no-files-found: warn
+
+  # ─────────────────────────────────────────────────────────────────────
+  # Publish — gather every artefact and attach to a GitHub Release.
+  # Skipped for workflow_dispatch (creates artefacts but no release).
+  # ─────────────────────────────────────────────────────────────────────
+  release:
+    name: Publish GitHub Release
+    needs: [cli, desktop]
+    if: |
+      always() &&
+      !contains(needs.*.result, 'failure') &&
+      !contains(needs.*.result, 'cancelled') &&
+      startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: artefacts
+          merge-multiple: true
+      - name: List artefacts
+        run: ls -la artefacts/
+      - name: Create / update release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: artefacts/*
+          generate_release_notes: true
+          draft: false
+          prerelease: ${{ contains(github.ref, '-rc.') || contains(github.ref, '-beta.') }}

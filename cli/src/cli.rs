@@ -16,8 +16,25 @@ pub enum Commands {
     Scan(ScanArgs),
     /// Detect technologies, frameworks, and cloud services in a repository
     DetectTech(DetectTechArgs),
+    /// Score a repository on a Report Card (engineering, activity,
+    /// maintainability, documentation, modernity). Emits JSON to
+    /// stdout; intended for portfolio/report use.
+    ReportCard(ReportCardArgs),
     /// Start a gRPC server for programmatic access
     Serve(ServeArgs),
+}
+
+/// Arguments for the `report-card` subcommand.
+#[derive(Debug, Parser)]
+pub struct ReportCardArgs {
+    /// Path to git repository (worktree root)
+    #[arg(long)]
+    pub repo: PathBuf,
+
+    /// Optional path to a tech-detect JSON output (skip re-running
+    /// detect-tech if already produced upstream).
+    #[arg(long)]
+    pub tech_detect_json: Option<PathBuf>,
 }
 
 /// Arguments for the `scan` subcommand (§3.2).
@@ -102,6 +119,12 @@ pub struct ScanArgs {
     /// Bounded channel capacity for planner→worker and worker→aggregator queues
     #[arg(long, default_value_t = 256)]
     pub channel_capacity: usize,
+
+    /// Cap the revwalk at this many commits (0 = no cap). Lets a scan
+    /// run in predictable time against shallow clones for portfolio
+    /// analyses where only recent activity matters.
+    #[arg(long, default_value_t = 0)]
+    pub max_commits: usize,
 }
 
 /// Arguments for the `detect-tech` subcommand.
@@ -171,12 +194,146 @@ pub fn run() -> anyhow::Result<()> {
     match cli.command {
         Commands::Scan(args) => run_scan(args),
         Commands::DetectTech(args) => run_detect_tech(args),
+        Commands::ReportCard(args) => run_report_card(args),
         Commands::Serve(args) => run_serve(args),
     }
 }
 
 fn run_scan(args: ScanArgs) -> anyhow::Result<()> {
     crate::pipeline::run_pipeline(&args)?;
+    Ok(())
+}
+
+fn run_report_card(args: ReportCardArgs) -> anyhow::Result<()> {
+    use serde_json::json;
+    use std::fs;
+    use std::path::Path;
+
+    // Cheap signal probes against the worktree at HEAD. Each is a
+    // boolean / count answerable from path existence + small reads.
+    let repo = &args.repo;
+
+    fn exists(p: &Path) -> bool { p.exists() }
+    fn dir_count(p: &Path) -> usize {
+        match fs::read_dir(p) {
+            Ok(entries) => entries.filter_map(|e| e.ok()).count(),
+            Err(_) => 0,
+        }
+    }
+    fn read_size(p: &Path) -> u64 {
+        fs::metadata(p).map(|m| m.len()).unwrap_or(0)
+    }
+
+    // Tech-detect — either run it or read pre-computed JSON.
+    let td_value: serde_json::Value = if let Some(path) = &args.tech_detect_json {
+        let raw = fs::read_to_string(path)
+            .map_err(|e| anyhow::anyhow!("read tech-detect JSON: {e}"))?;
+        serde_json::from_str(&raw).map_err(|e| anyhow::anyhow!("parse tech-detect JSON: {e}"))?
+    } else {
+        let result = crate::techdetect::run_detect_tech(repo)?;
+        serde_json::to_value(&result)?
+    };
+
+    let arr_len = |key: &str| -> usize {
+        td_value.get(key)
+            .and_then(|v| v.as_array())
+            .map(|a| a.iter().filter(|x| !x.is_null()).count())
+            .unwrap_or(0)
+    };
+    let has_cicd = arr_len("cicd") > 0;
+    let has_tests = arr_len("testing") > 0;
+    let has_framework = arr_len("frameworks") > 0;
+    let has_db = arr_len("databases") > 0;
+    let has_any_cloud = arr_len("aws") > 0 || arr_len("azure") > 0 || arr_len("gcp") > 0;
+
+    // Documentation signals — pure filesystem.
+    let readme_size = ["README.md", "README.rst", "README.txt", "README"]
+        .iter()
+        .map(|n| read_size(&repo.join(n)))
+        .max()
+        .unwrap_or(0);
+    let has_readme = readme_size > 0;
+    let has_changelog = exists(&repo.join("CHANGELOG.md")) || exists(&repo.join("CHANGELOG"));
+    let has_contributing = exists(&repo.join("CONTRIBUTING.md"));
+    let has_security = exists(&repo.join("SECURITY.md"));
+    let has_license = exists(&repo.join("LICENSE")) || exists(&repo.join("LICENSE.md")) || exists(&repo.join("LICENCE"));
+    let has_docs_dir = exists(&repo.join("docs")) && dir_count(&repo.join("docs")) > 0;
+
+    // Supply-chain hygiene.
+    let has_dependabot = exists(&repo.join(".github/dependabot.yml")) || exists(&repo.join(".github/dependabot.yaml"));
+    let has_renovate = exists(&repo.join("renovate.json")) || exists(&repo.join(".renovaterc")) || exists(&repo.join(".renovaterc.json"));
+    let has_codeowners = exists(&repo.join("CODEOWNERS")) || exists(&repo.join(".github/CODEOWNERS"));
+    let has_lockfile = ["package-lock.json", "yarn.lock", "pnpm-lock.yaml",
+                        "Cargo.lock", "Gemfile.lock", "poetry.lock",
+                        "composer.lock", "go.sum", "uv.lock"]
+        .iter().any(|n| exists(&repo.join(n)));
+
+    // AI tooling configs (the "is this team AI-augmented" signal).
+    let claude_md = exists(&repo.join("CLAUDE.md"));
+    let agents_md = exists(&repo.join("AGENTS.md"));
+    let cursor_dir = exists(&repo.join(".cursor")) || exists(&repo.join(".cursorrules"));
+    let copilot_instr = exists(&repo.join(".github/copilot-instructions.md"));
+    let claude_dir = exists(&repo.join(".claude"));
+    let aider_conf = exists(&repo.join(".aider.conf.yml"));
+
+    // Categorical scoring — each 0-100, then average.
+    fn pts(v: bool, p: u32) -> u32 { if v { p } else { 0 } }
+
+    let engineering = pts(has_cicd, 50) + pts(has_tests, 30)
+        + pts(has_dependabot || has_renovate, 10) + pts(has_lockfile, 10);
+    let documentation = pts(has_readme, 30)
+        + pts(readme_size >= 500, 10)  // bonus for non-trivial README
+        + pts(has_docs_dir, 25)
+        + pts(has_changelog, 15)
+        + pts(has_contributing, 10) + pts(has_security, 10);
+    let supply_chain = pts(has_license, 30) + pts(has_dependabot || has_renovate, 30)
+        + pts(has_codeowners, 20) + pts(has_security, 10) + pts(has_lockfile, 10);
+    let modernity = pts(has_framework, 30) + pts(has_db, 20)
+        + pts(has_any_cloud, 30)
+        + pts(claude_md || agents_md || cursor_dir || copilot_instr || claude_dir || aider_conf, 20);
+    let testing_culture = pts(has_tests, 60) + pts(has_cicd, 40);
+
+    fn grade(score: u32) -> &'static str {
+        if score >= 90 { "A" } else if score >= 75 { "B" }
+        else if score >= 60 { "C" } else if score >= 40 { "D" } else { "F" }
+    }
+    let categories = [
+        ("engineering", engineering),
+        ("documentation", documentation),
+        ("supply_chain", supply_chain),
+        ("modernity", modernity),
+        ("testing_culture", testing_culture),
+    ];
+    let overall: u32 = categories.iter().map(|(_, s)| *s).sum::<u32>() / categories.len() as u32;
+
+    let report = json!({
+        "overall_score": overall,
+        "overall_grade": grade(overall),
+        "categories": {
+            "engineering":     {"score": engineering,      "grade": grade(engineering)},
+            "documentation":   {"score": documentation,    "grade": grade(documentation)},
+            "supply_chain":    {"score": supply_chain,     "grade": grade(supply_chain)},
+            "modernity":       {"score": modernity,        "grade": grade(modernity)},
+            "testing_culture": {"score": testing_culture,  "grade": grade(testing_culture)},
+        },
+        "signals": {
+            "has_cicd": has_cicd, "has_tests": has_tests, "has_framework": has_framework,
+            "has_db": has_db, "has_any_cloud": has_any_cloud,
+            "has_readme": has_readme, "readme_size": readme_size,
+            "has_changelog": has_changelog, "has_contributing": has_contributing,
+            "has_security": has_security, "has_license": has_license,
+            "has_docs_dir": has_docs_dir,
+            "has_dependabot": has_dependabot, "has_renovate": has_renovate,
+            "has_codeowners": has_codeowners, "has_lockfile": has_lockfile,
+            "ai_tooling": {
+                "claude_md": claude_md, "agents_md": agents_md,
+                "cursor": cursor_dir, "copilot_instructions": copilot_instr,
+                "claude_dir": claude_dir, "aider_conf": aider_conf,
+            },
+        },
+    });
+
+    println!("{}", serde_json::to_string(&report)?);
     Ok(())
 }
 

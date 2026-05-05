@@ -2,8 +2,8 @@
 
 Working directory for consolidating the two RepoGuru frontends into a single
 shared view layer. The two original projects sit here verbatim (copied from
-`~/Development/repoguru/` and `~/Development/repoguru-spec/`, both of which
-remain untouched as backups). All consolidation work happens in `packages/`.
+`~/Development/web/` and `~/Development/spec/`, both of which
+remain untouched as backups). All consolidation work happens in `shared/`.
 
 ## Layout
 
@@ -14,8 +14,8 @@ packages/
 ├── browser-adapter/   @repoguru/browser-adapter   BrowserAnalyzer (mappers + smoke)
 └── desktop-adapter/   @repoguru/desktop-adapter   GrpcAnalyzer (mappers + smoke)
 
-repoguru/              ← in-browser app (workspace member, charts not yet swapped)
-repoguru-spec/         ← Rust crate + Electron app (workspace member, lifted charts wired)
+web/              ← in-browser app (workspace member, charts not yet swapped)
+spec/         ← Rust crate + Electron app (workspace member, lifted charts wired)
 ```
 
 ## Getting the contract running
@@ -41,7 +41,7 @@ streaming analyzer end-to-end against a stub client/runner.
 | `HealthRadarChart`     | `HealthSection['radarMetrics']`           |
 
 All five are wired into the desktop `GitStats` page from `canonical.*`
-and their local copies under `repoguru-spec/.../components/charts/` have
+and their local copies under `spec/.../components/charts/` have
 been deleted.
 
 ## Next migration step

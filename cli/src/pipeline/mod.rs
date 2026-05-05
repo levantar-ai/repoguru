@@ -38,7 +38,17 @@ pub fn run_pipeline(args: &ScanArgs) -> Result<(), ScanError> {
 
     // Phase: deterministic walk
     let walk_timer = Timer::start();
-    let commits = deterministic_walk(&repo, &tips)?;
+    let mut commits = deterministic_walk(&repo, &tips)?;
+    // Honour --max-commits: keep only the most recent N entries. The
+    // walk returns oldest-first, so we take the tail.
+    if args.max_commits > 0 && commits.len() > args.max_commits {
+        let trim = commits.len() - args.max_commits;
+        commits.drain(..trim);
+        log.log(&format!(
+            "[walk] capped to last {} commits (--max-commits)",
+            args.max_commits
+        ));
+    }
     let items = expand_to_workitems(&commits, &repo, args.merge_policy)?;
     telemetry.walk_time_ms = walk_timer.elapsed_ms();
     log.log(&format!(

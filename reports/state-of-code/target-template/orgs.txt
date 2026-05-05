@@ -1,0 +1,17 @@
+# One organisation per line. Lines starting with '#' and blank lines
+# are ignored.
+#
+# Format: optional platform prefix + org/group/workspace slug.
+# A bare slug defaults to GitHub.
+#
+#   alphagov                 # bare → defaults to github
+#   github:hmrc              # explicit github
+#   gitlab:ministryofjustice # gitlab.com group
+#   bitbucket:atlassian      # bitbucket.org workspace
+#
+# Aim for the canonical org slug as it appears on the platform — for
+# GitHub use the owner.login (e.g. 'alphagov', not 'AlphaGov'); for
+# GitLab use the group's full path; for Bitbucket the workspace slug.
+#
+# Cloning works against any URL the enumerator emits — git handles
+# GitHub, GitLab, and Bitbucket HTTPS URLs identically.

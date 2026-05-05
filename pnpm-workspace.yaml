@@ -1,4 +1,4 @@
 packages:
-  - 'packages/*'
-  - 'repoguru'
-  - 'repoguru-spec/electron-app/repoguru-desktop'
+  - 'shared/*'
+  - 'web'
+  - 'desktop'

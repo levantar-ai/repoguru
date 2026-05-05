@@ -1,0 +1,202 @@
+name: CI
+
+# Branch policy:
+#   • PRs: every job runs, all must pass before merge.
+#   • main pushes: same checks; release.yml takes over for tags.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# A single run-group per ref — pushing twice in quick succession cancels
+# the in-flight run instead of doubling spend.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  PNPM_VERSION: 10.28.2
+  NODE_VERSION: 22
+
+jobs:
+  # ─────────────────────────────────────────────────────────────────────
+  # Pre-flight — fast checks that should fail before we spend on builds.
+  # Format + typecheck across the whole monorepo; <2 min on a warm cache.
+  # ─────────────────────────────────────────────────────────────────────
+  preflight:
+    name: Pre-flight (format + typecheck)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with: { version: "${{ env.PNPM_VERSION }}" }
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+      - run: pnpm install --frozen-lockfile
+      - run: make format-check
+      - run: make typecheck
+
+  # ─────────────────────────────────────────────────────────────────────
+  # Component matrix — each component's full CI runs in parallel.
+  # ─────────────────────────────────────────────────────────────────────
+  ci-cli:
+    name: CI · cli (Rust)
+    needs: preflight
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+      # Cache cargo registry + git deps + target/ so subsequent runs are fast.
+      # The protobuf-src C++ build is the slow part — caching cli/target/
+      # alone saves ~5 min per CI run.
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: cli
+          shared-key: cli-release
+      - run: sudo apt-get update && sudo apt-get install -y jq
+      - run: make ci-cli
+
+  ci-shared:
+    name: CI · shared (TypeScript)
+    needs: preflight
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with: { version: "${{ env.PNPM_VERSION }}" }
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: make ci-shared
+
+  ci-web:
+    name: CI · web (Vite)
+    needs: ci-shared  # web depends on built shared/* dist/
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with: { version: "${{ env.PNPM_VERSION }}" }
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: make ci-web
+      - name: Bundle-size budget
+        run: make size
+
+  ci-desktop:
+    name: CI · desktop (Electron renderer)
+    needs: ci-shared
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with: { version: "${{ env.PNPM_VERSION }}" }
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: make ci-desktop
+
+  # ─────────────────────────────────────────────────────────────────────
+  # Security + compliance — runs in parallel with the component CI.
+  # ─────────────────────────────────────────────────────────────────────
+  audit:
+    name: Audit (pnpm + cargo)
+    needs: preflight
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with: { version: "${{ env.PNPM_VERSION }}" }
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: cli
+      - run: pnpm install --frozen-lockfile
+      - name: Install cargo-audit
+        run: cargo install cargo-audit --locked --version ^0.20
+      - run: make audit
+
+  licenses:
+    name: License compliance (web)
+    needs: preflight
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with: { version: "${{ env.PNPM_VERSION }}" }
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: make license-check
+
+  # ─────────────────────────────────────────────────────────────────────
+  # Commit-message lint — PR titles must be Conventional Commits because
+  # we squash-merge and release-please reads the merge subject to decide
+  # the next semver bump. Skipped on direct `main` pushes (which are the
+  # release PR merges themselves and already conform).
+  # ─────────────────────────────────────────────────────────────────────
+  commitlint:
+    name: Commit message format (PR title)
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: Install commitlint
+        run: npm install --no-save @commitlint/cli @commitlint/config-conventional
+      - name: Lint PR title against Conventional Commits
+        run: echo "${{ github.event.pull_request.title }}" | npx commitlint
+
+  # ─────────────────────────────────────────────────────────────────────
+  # Final gate — every required check must pass. Branch protection in
+  # GitHub should require this single status, not the individual jobs;
+  # adding/removing a child job then doesn't need a settings change.
+  # ─────────────────────────────────────────────────────────────────────
+  required-checks:
+    name: Required checks
+    if: always()
+    runs-on: ubuntu-latest
+    needs: [preflight, ci-cli, ci-shared, ci-web, ci-desktop, audit, licenses, commitlint]
+    steps:
+      - name: All checks passed
+        if: ${{ !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled') }}
+        run: echo "✅ all required checks passed"
+      - name: One or more checks failed
+        if: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}
+        run: |
+          echo "::error::one or more required checks failed"
+          echo "results:"
+          echo '${{ toJSON(needs) }}'
+          exit 1
