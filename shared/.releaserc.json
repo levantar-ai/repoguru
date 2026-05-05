@@ -1,0 +1,29 @@
+{
+  "branches": ["main"],
+  "tagFormat": "shared-v${version}",
+  "plugins": [
+    [
+      "@semantic-release/commit-analyzer",
+      {
+        "preset": "conventionalcommits",
+        "releaseRules": [
+          { "type": "feat", "scope": "shared", "release": "minor" },
+          { "type": "fix", "scope": "shared", "release": "patch" },
+          { "type": "perf", "scope": "shared", "release": "patch" },
+          { "type": "refactor", "scope": "shared", "release": "patch" },
+          { "breaking": true, "scope": "shared", "release": "major" },
+          { "scope": "shared", "release": false },
+          { "scope": "*", "release": false }
+        ]
+      }
+    ],
+    [
+      "@semantic-release/release-notes-generator",
+      { "preset": "conventionalcommits" }
+    ],
+    [
+      "@semantic-release/github",
+      { "successComment": false, "failComment": false, "releasedLabels": false }
+    ]
+  ]
+}

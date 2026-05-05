@@ -32,6 +32,34 @@ env:
   NODE_VERSION: 22
 
 jobs:
+  release-shared:
+    name: Release · shared
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - id: semrel
+        uses: cycjimmy/semantic-release-action@v4
+        with:
+          working_directory: shared
+          extra_plugins: |
+            conventional-changelog-conventionalcommits
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Dispatch release-attach
+        if: steps.semrel.outputs.new_release_published == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.semrel.outputs.new_release_git_tag }}
+        run: |
+          echo "Dispatching release-attach.yml for $TAG"
+          gh workflow run release-attach.yml -f tag="$TAG"
+
   release-cli:
     name: Release · cli
     runs-on: ubuntu-latest

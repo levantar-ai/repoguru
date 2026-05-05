@@ -13,10 +13,11 @@ on:
       - 'cli-v*'
       - 'web-v*'
       - 'desktop-v*'
+      - 'shared-v*'
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Tag to attach artifacts to (e.g. cli-v0.2.0)'
+        description: 'Tag to attach artifacts to (e.g. cli-v0.2.0, shared-v0.1.0)'
         required: true
         type: string
 
@@ -48,8 +49,9 @@ jobs:
             cli-v*)     echo "component=cli"     >> "$GITHUB_OUTPUT" ;;
             web-v*)     echo "component=web"     >> "$GITHUB_OUTPUT" ;;
             desktop-v*) echo "component=desktop" >> "$GITHUB_OUTPUT" ;;
+            shared-v*)  echo "component=shared"  >> "$GITHUB_OUTPUT" ;;
             *)
-              echo "::error::Tag '$TAG' does not match cli-v*/web-v*/desktop-v*"
+              echo "::error::Tag '$TAG' does not match cli-v*/web-v*/desktop-v*/shared-v*"
               exit 1 ;;
           esac
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
@@ -218,3 +220,29 @@ jobs:
           body: |
             Web deployed to S3 (`s3://${{ secrets.AWS_S3_BUCKET }}/`) at
             `${{ github.sha }}`.
+
+  # ─────────────────────────────────────────────────────────────────────
+  # Shared — no binary artefact (TS source consumed via pnpm workspace by
+  # web/ + desktop/ in-tree). Creates the GitHub Release as a doc anchor
+  # so `shared-v*` tags are visible in the release timeline.
+  # ─────────────────────────────────────────────────────────────────────
+  attach-shared:
+    name: Mark shared Release
+    needs: classify
+    if: needs.classify.outputs.component == 'shared'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Mark GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.classify.outputs.tag }}
+          generate_release_notes: true
+          body: |
+            Internal release of the shared TypeScript packages
+            (`@repoguru/core`, `@repoguru/ui`, `@repoguru/browser-adapter`,
+            `@repoguru/desktop-adapter`) at `${{ github.sha }}`.
+
+            Consumed in-tree by web/ and desktop/ via pnpm workspace —
+            this tag is for changelog/audit purposes only.

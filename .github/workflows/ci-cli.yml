@@ -1,13 +1,18 @@
 name: CI · cli
 
-# Triggers:
-#   • push/PR on cli/** or spec/**     → run CI + multi-target build
-#   • workflow_run from CI · shared    → cascade after shared lands
-#   • workflow_dispatch                → on demand
+# Pipeline stages (each is a separate, named job — fail fast, parallel where safe):
 #
-# Artifact policy: every run on main publishes the 4-target binary set as
-# a workflow artifact (`cli-binaries`). The release-attach workflow pulls
-# that artifact when a cli-v* tag fires.
+#   guard       → gate cascade runs from CI · shared (success-only)
+#   lint        → cargo fmt --check + cargo clippy -D warnings
+#   test        → cargo test --release (unit + integration)
+#   security    → cargo audit (CVEs) + cargo deny (licenses/advisories)
+#   quality     → cargo llvm-cov (coverage report) + cargo machete (unused deps)
+#   build       → multi-target release binaries → workflow artifacts
+#
+# Triggers:
+#   • push/PR on cli/** or spec/**     → run pipeline
+#   • workflow_run from CI · shared    → cascade (cli also re-validates on shared changes)
+#   • workflow_dispatch                → on demand
 on:
   push:
     branches: [main]
@@ -40,49 +45,123 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
+  # ─────────────────────────────────────────────────────────────────────
+  # 0. Guard — cascade from CI · shared only proceeds on success.
+  # ─────────────────────────────────────────────────────────────────────
   guard:
-    name: Guard (cascade gate)
+    name: 0 · guard
     runs-on: ubuntu-latest
     timeout-minutes: 1
     steps:
-      - name: Check cascade preconditions
-        if: github.event_name == 'workflow_run'
+      - if: github.event_name == 'workflow_run'
         run: |
           if [[ "${{ github.event.workflow_run.conclusion }}" != "success" ]]; then
-            echo "::warning::${{ github.event.workflow_run.name }} concluded ${{ github.event.workflow_run.conclusion }} — skipping cli pipeline"
+            echo "::warning::${{ github.event.workflow_run.name }} concluded ${{ github.event.workflow_run.conclusion }} — skipping"
             exit 78
           fi
       - run: echo "✅ proceed"
 
   # ─────────────────────────────────────────────────────────────────────
-  # CI — clippy + tests on Linux only. Fast feedback path.
+  # 1. Lint + style — format check, clippy with -D warnings.
   # ─────────────────────────────────────────────────────────────────────
-  ci:
-    name: cli CI
+  lint:
+    name: 1 · lint + style
     needs: guard
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy, rustfmt
       - uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: cli
-          shared-key: cli-release
-      - run: sudo apt-get update && sudo apt-get install -y jq
-      - run: make ci-cli
+        with: { workspaces: cli, shared-key: cli-release }
+      - name: cargo fmt --check
+        working-directory: cli
+        run: cargo fmt --check
+      - name: cargo clippy -D warnings
+        working-directory: cli
+        run: cargo clippy --release --all-targets -- -D warnings
 
   # ─────────────────────────────────────────────────────────────────────
-  # Build artifacts — multi-target binaries on every push to main and on
-  # workflow_dispatch. PRs skip this matrix to keep PR CI quick.
-  # The artifact is the source-of-truth for downstream releases; the
-  # release-attach workflow downloads it when a cli-v* tag fires.
+  # 2. Functional testing — unit + integration tests.
+  # ─────────────────────────────────────────────────────────────────────
+  test:
+    name: 2 · functional tests
+    needs: guard
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with: { workspaces: cli, shared-key: cli-release }
+      - name: cargo test --release
+        working-directory: cli
+        run: cargo test --release
+
+  # ─────────────────────────────────────────────────────────────────────
+  # 3. Code security — CVE scanning + license/advisory enforcement.
+  # ─────────────────────────────────────────────────────────────────────
+  security:
+    name: 3 · code security
+    needs: guard
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with: { workspaces: cli, shared-key: cli-release }
+      - name: Install cargo-audit + cargo-deny
+        run: |
+          cargo install cargo-audit --locked --version ^0.20
+          cargo install cargo-deny  --locked --version ^0.16
+      - name: cargo audit (RUSTSEC advisories)
+        working-directory: cli
+        run: cargo audit
+      - name: cargo deny (advisories + bans + licenses)
+        working-directory: cli
+        # `bans` checks for duplicate-version pulls; `licenses` enforces our policy;
+        # `sources` blocks crates from non-allowed registries. Advisory-only on this
+        # first run — flip to `--all-features` + remove continue-on-error once a
+        # `deny.toml` is committed alongside.
+        continue-on-error: true
+        run: cargo deny check advisories bans licenses sources
+
+  # ─────────────────────────────────────────────────────────────────────
+  # 4. Code quality — coverage report + unused-dep detection.
+  # ─────────────────────────────────────────────────────────────────────
+  quality:
+    name: 4 · code quality
+    needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with: { components: llvm-tools-preview }
+      - uses: Swatinem/rust-cache@v2
+        with: { workspaces: cli, shared-key: cli-release }
+      - name: Install tools
+        run: |
+          cargo install cargo-llvm-cov --locked --version ^0.6
+          cargo install cargo-machete  --locked --version ^0.7
+      - name: Coverage report
+        working-directory: cli
+        run: cargo llvm-cov --release --summary-only
+      - name: Unused dependencies (advisory)
+        working-directory: cli
+        continue-on-error: true
+        run: cargo machete
+
+  # ─────────────────────────────────────────────────────────────────────
+  # 5. Build artifacts — multi-target release binaries → workflow store.
+  # PR runs skip this matrix (heavy); main + dispatch trigger the full set.
   # ─────────────────────────────────────────────────────────────────────
   build:
-    name: build · ${{ matrix.target }}
-    needs: ci
+    name: 5 · build · ${{ matrix.target }}
+    needs: [lint, test, security]
     if: github.event_name != 'pull_request'
     strategy:
       fail-fast: false
@@ -99,10 +178,8 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with: { targets: "${{ matrix.target }}" }
       - uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: cli
-          key: ${{ matrix.target }}
-      - name: Build release binary
+        with: { workspaces: cli, key: "${{ matrix.target }}" }
+      - name: cargo build --release
         working-directory: cli
         run: cargo build --release --bin repoanalyze --target ${{ matrix.target }}
       - name: Stage artefact

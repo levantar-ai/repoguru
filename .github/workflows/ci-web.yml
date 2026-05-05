@@ -1,13 +1,12 @@
 name: CI · web
 
-# Triggers:
-#   • push/PR on web/**            → run CI + upload web/dist as artifact
-#   • workflow_run from CI · shared (success) → cascade after shared lands
-#   • workflow_dispatch            → on demand
-#
-# Artifact policy: every run on main publishes web/dist as workflow
-# artifact `web-dist`. The release-attach workflow pulls it on web-v*
-# tag and syncs to S3.
+# Pipeline stages:
+#   guard       → cascade gate (CI · shared success-only when triggered upstream)
+#   lint        → eslint + prettier
+#   test        → vitest (unit + component)
+#   security    → pnpm audit + license compliance
+#   quality     → bundle-size budget + (advisory) coverage
+#   build       → vite production bundle → workflow artifact
 on:
   push:
     branches: [main]
@@ -38,21 +37,39 @@ env:
 
 jobs:
   guard:
-    name: Guard (cascade gate)
+    name: 0 · guard
     runs-on: ubuntu-latest
     timeout-minutes: 1
     steps:
-      - name: Check cascade preconditions
-        if: github.event_name == 'workflow_run'
+      - if: github.event_name == 'workflow_run'
         run: |
           if [[ "${{ github.event.workflow_run.conclusion }}" != "success" ]]; then
-            echo "::warning::ci-shared concluded ${{ github.event.workflow_run.conclusion }} — skipping web pipeline"
+            echo "::warning::ci-shared concluded ${{ github.event.workflow_run.conclusion }} — skipping"
             exit 78
           fi
       - run: echo "✅ proceed"
 
-  ci:
-    name: web CI
+  lint:
+    name: 1 · lint + style
+    needs: guard
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with: { version: "${{ env.PNPM_VERSION }}" }
+      - uses: actions/setup-node@v4
+        with: { node-version: "${{ env.NODE_VERSION }}", cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - name: Typecheck
+        run: pnpm --filter repoguru typecheck
+      - name: ESLint
+        run: pnpm --filter repoguru lint
+      - name: Prettier
+        run: pnpm --filter repoguru exec prettier --check .
+
+  test:
+    name: 2 · functional tests
     needs: guard
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -61,18 +78,65 @@ jobs:
       - uses: pnpm/action-setup@v4
         with: { version: "${{ env.PNPM_VERSION }}" }
       - uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: pnpm
+        with: { node-version: "${{ env.NODE_VERSION }}", cache: pnpm }
       - run: pnpm install --frozen-lockfile
-      - run: make ci-web
-      - name: License compliance
+      - name: Build shared (vitest pulls @repoguru/* dist)
+        run: make build-shared
+      - name: vitest
+        run: pnpm --filter repoguru test
+
+  security:
+    name: 3 · code security
+    needs: guard
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with: { version: "${{ env.PNPM_VERSION }}" }
+      - uses: actions/setup-node@v4
+        with: { node-version: "${{ env.NODE_VERSION }}", cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - name: pnpm audit (critical+)
+        run: pnpm audit --audit-level=critical
+      - name: License compliance (no GPL/AGPL/SSPL)
         run: make license-check
+
+  quality:
+    name: 4 · code quality
+    needs: [lint, test]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with: { version: "${{ env.PNPM_VERSION }}" }
+      - uses: actions/setup-node@v4
+        with: { node-version: "${{ env.NODE_VERSION }}", cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - name: Build (size budget needs dist/)
+        run: make build-web
       - name: Bundle-size budget
-        run: make size
-      - name: Upload web/dist as artifact
-        if: github.event_name != 'pull_request'
-        uses: actions/upload-artifact@v4
+        run: cd web && pnpm run size
+      - name: Coverage (advisory)
+        continue-on-error: true
+        run: pnpm --filter repoguru test -- --coverage || true
+
+  build:
+    name: 5 · build
+    needs: [lint, test, security]
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with: { version: "${{ env.PNPM_VERSION }}" }
+      - uses: actions/setup-node@v4
+        with: { node-version: "${{ env.NODE_VERSION }}", cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - run: make build-web
+      - uses: actions/upload-artifact@v4
         with:
           name: web-dist
           path: web/dist/**

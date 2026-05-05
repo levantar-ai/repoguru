@@ -1,17 +1,13 @@
 name: CI · desktop
 
-# Triggers:
-#   • push/PR on desktop/**         → run CI directly
-#   • workflow_run from CI · shared / CI · cli (success) → cascade
-#   • workflow_dispatch             → on demand
-#
-# Artifact policy: every run on main packages Electron installers for all
-# 3 OSes and uploads them as workflow artifacts. The release-attach
-# workflow pulls them when a desktop-v* tag fires.
-#
-# Desktop bundles the CLI binary (extraResources → resources/bin/), so the
-# packaging job always pulls the latest cli artifact (or falls back to
-# building from source if no cli artifact exists yet).
+# Pipeline stages:
+#   guard         → cascade gate (CI · shared / CI · cli success-only)
+#   wait-for-cli  → block until ci-cli completes for this SHA (desktop bundles its binary)
+#   lint          → typecheck + prettier
+#   test          → vitest (when present)
+#   security      → pnpm audit + electronegativity (Electron-specific SAST)
+#   quality       → renderer bundle-size + typecheck strict
+#   build         → matrix electron-builder per OS → workflow artifacts (with bundled CLI)
 on:
   push:
     branches: [main]
@@ -35,7 +31,7 @@ concurrency:
 
 permissions:
   contents: read
-  actions: read     # wait-for-cli + cli-artifact download read sibling runs
+  actions: read
 
 env:
   PNPM_VERSION: 10.28.2
@@ -43,32 +39,25 @@ env:
 
 jobs:
   guard:
-    name: Guard (cascade gate)
+    name: 0 · guard
     runs-on: ubuntu-latest
     timeout-minutes: 1
     steps:
-      - name: Check cascade preconditions
-        if: github.event_name == 'workflow_run'
+      - if: github.event_name == 'workflow_run'
         run: |
           if [[ "${{ github.event.workflow_run.conclusion }}" != "success" ]]; then
-            echo "::warning::${{ github.event.workflow_run.name }} concluded ${{ github.event.workflow_run.conclusion }} — skipping desktop pipeline"
+            echo "::warning::${{ github.event.workflow_run.name }} concluded ${{ github.event.workflow_run.conclusion }} — skipping"
             exit 78
           fi
       - run: echo "✅ proceed"
 
-  # ─────────────────────────────────────────────────────────────────────
-  # Wait for CI · cli on this commit. Desktop bundles the CLI binary, so
-  # we hold here until cli's run for this same SHA finishes. No-op when
-  # cli/** wasn't touched (no ci-cli run for this SHA).
-  # ─────────────────────────────────────────────────────────────────────
   wait-for-cli:
-    name: Wait for CI · cli
+    name: 0b · wait for CI · cli
     needs: guard
     runs-on: ubuntu-latest
     timeout-minutes: 35
     steps:
-      - name: Resolve target SHA
-        id: sha
+      - id: sha
         run: |
           if [[ "${{ github.event_name }}" == "workflow_run" ]]; then
             echo "value=${{ github.event.workflow_run.head_sha }}" >> "$GITHUB_OUTPUT"
@@ -83,38 +72,82 @@ jobs:
         run: |
           sleep 10
           for attempt in $(seq 1 60); do
-            STATE=$(gh run list \
-                      --workflow "CI · cli" \
-                      --limit 20 \
+            STATE=$(gh run list --workflow "CI · cli" --limit 20 \
                       --json databaseId,headSha,status,conclusion \
                       --jq "[.[] | select(.headSha == \"$SHA\")] | first" 2>/dev/null || echo "")
             if [[ -z "$STATE" || "$STATE" == "null" ]]; then
-              echo "::notice::No CI · cli run for $SHA — proceeding without wait"
-              exit 0
+              echo "::notice::No CI · cli run for $SHA — proceeding"; exit 0
             fi
             STATUS=$(echo "$STATE" | jq -r '.status // ""')
             CONCLUSION=$(echo "$STATE" | jq -r '.conclusion // ""')
-            RUN_ID=$(echo "$STATE" | jq -r '.databaseId')
-            echo "[$(date -u +%H:%M:%S)] CI · cli run $RUN_ID: status=$STATUS conclusion=$CONCLUSION"
+            echo "[$(date -u +%H:%M:%S)] CI · cli: status=$STATUS conclusion=$CONCLUSION"
             if [[ "$STATUS" == "completed" ]]; then
-              if [[ "$CONCLUSION" == "success" ]]; then
-                echo "✅ CI · cli succeeded — proceeding"
-                exit 0
-              fi
-              echo "::error::CI · cli concluded $CONCLUSION — aborting desktop"
-              exit 1
+              [[ "$CONCLUSION" == "success" ]] && exit 0
+              echo "::error::CI · cli concluded $CONCLUSION"; exit 1
             fi
             sleep 30
           done
-          echo "::error::Timed out waiting for CI · cli after 30 minutes"
-          exit 1
+          echo "::error::Timed out after 30 minutes"; exit 1
 
-  # ─────────────────────────────────────────────────────────────────────
-  # CI — typecheck + renderer build on Linux. Fast feedback path for PRs.
-  # ─────────────────────────────────────────────────────────────────────
-  ci:
-    name: desktop CI
+  lint:
+    name: 1 · lint + style
     needs: wait-for-cli
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with: { version: "${{ env.PNPM_VERSION }}" }
+      - uses: actions/setup-node@v4
+        with: { node-version: "${{ env.NODE_VERSION }}", cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - name: Typecheck
+        run: pnpm --filter repoguru-desktop typecheck
+      - name: Prettier
+        run: pnpm --filter repoguru exec prettier --check '../desktop/**/*.{ts,tsx,json,md,yml}'
+
+  test:
+    name: 2 · functional tests
+    needs: wait-for-cli
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with: { version: "${{ env.PNPM_VERSION }}" }
+      - uses: actions/setup-node@v4
+        with: { node-version: "${{ env.NODE_VERSION }}", cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - name: Tests (no-op when no test script)
+        run: make test-desktop
+
+  security:
+    name: 3 · code security
+    needs: wait-for-cli
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with: { version: "${{ env.PNPM_VERSION }}" }
+      - uses: actions/setup-node@v4
+        with: { node-version: "${{ env.NODE_VERSION }}", cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - name: pnpm audit (critical+)
+        run: pnpm audit --audit-level=critical
+      - name: Electronegativity (Electron-specific SAST)
+        # Advisory until we triage the baseline — Electron defaults trip
+        # several rules even on a clean app.
+        continue-on-error: true
+        run: |
+          npx --yes @doyensec/electronegativity \
+            -i desktop/electron \
+            -o electronegativity-report.csv \
+            -s
+
+  quality:
+    name: 4 · code quality
+    needs: [lint, test]
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -122,20 +155,17 @@ jobs:
       - uses: pnpm/action-setup@v4
         with: { version: "${{ env.PNPM_VERSION }}" }
       - uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: pnpm
+        with: { node-version: "${{ env.NODE_VERSION }}", cache: pnpm }
       - run: pnpm install --frozen-lockfile
-      - run: make ci-desktop
+      - name: Renderer build (advisory size check)
+        run: make build-desktop
 
   # ─────────────────────────────────────────────────────────────────────
-  # Package — multi-OS Electron installers as workflow artifacts. Skipped
-  # on PRs (matrix is heavy). Each runner pulls cli artifacts from the
-  # most recent successful CI · cli run on main and bundles them in.
+  # 5. Build artifacts — multi-OS Electron installers with bundled CLI.
   # ─────────────────────────────────────────────────────────────────────
-  package:
-    name: package · ${{ matrix.os }}
-    needs: ci
+  build:
+    name: 5 · build · ${{ matrix.os }}
+    needs: [lint, test, security]
     if: github.event_name != 'pull_request'
     strategy:
       fail-fast: false
@@ -151,32 +181,19 @@ jobs:
       - uses: pnpm/action-setup@v4
         with: { version: "${{ env.PNPM_VERSION }}" }
       - uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: pnpm
+        with: { node-version: "${{ env.NODE_VERSION }}", cache: pnpm }
       - run: pnpm install --frozen-lockfile
 
-      # ────────────────────────────────────────────────────────────────
-      # Stage CLI binaries from the latest successful CI · cli run on
-      # main into desktop/resources/bin/. Falls back to building from
-      # source if no cli run is found (bootstrap).
-      # ────────────────────────────────────────────────────────────────
       - name: Stage CLI binaries
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           mkdir -p desktop/resources/bin
-          # Find the most recent successful CI · cli run on main and download every cli-* artifact.
-          RUN_ID=$(gh run list \
-                     --workflow "CI · cli" \
-                     --branch main \
-                     --status success \
-                     --limit 1 \
-                     --json databaseId \
-                     --jq '.[0].databaseId // ""')
+          RUN_ID=$(gh run list --workflow "CI · cli" --branch main --status success --limit 1 \
+                     --json databaseId --jq '.[0].databaseId // ""')
           if [[ -z "$RUN_ID" ]]; then
-            echo "::warning::No successful CI · cli run on main — building CLI from this checkout."
+            echo "::warning::No successful CI · cli run on main — building from source"
             cd cli && cargo build --release --bin repoanalyze && cd ..
             case "${{ runner.os }}" in
               Linux)   cp cli/target/release/repoanalyze     desktop/resources/bin/repoanalyze-linux-x86_64 ;;
@@ -184,10 +201,7 @@ jobs:
               Windows) cp cli/target/release/repoanalyze.exe desktop/resources/bin/repoanalyze-win32-x86_64.exe ;;
             esac
           else
-            echo "Pulling cli artifacts from CI · cli run $RUN_ID"
             gh run download "$RUN_ID" --pattern 'cli-*' --dir /tmp/cli-artifacts/
-            # Each artifact is a directory named cli-<target>; flatten + rename
-            # to desktop's runtime convention (see desktop/electron/process-manager.ts).
             for dir in /tmp/cli-artifacts/cli-*; do
               [[ -d "$dir" ]] || continue
               for f in "$dir"/*; do
@@ -208,9 +222,7 @@ jobs:
 
       - name: Package
         run: make ${{ matrix.task }}
-
-      - name: Upload installer artifact
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
         with:
           name: desktop-${{ runner.os }}
           path: ${{ matrix.glob }}

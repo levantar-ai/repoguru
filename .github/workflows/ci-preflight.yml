@@ -1,11 +1,14 @@
 name: CI · preflight
 
-# Cheap, repo-wide checks that run on every PR / push to main:
-#   • Conventional Commit format on PR titles (release-please reads them)
-#   • Prettier check across the whole tree
-#   • cargo fmt across cli/ + spec/
+# Cheap, repo-wide checks that fan out on every PR / push:
 #
-# Per-component CI runs in ci-{shared,web,cli,desktop}.yml.
+#   format     → prettier + rustfmt across the whole tree
+#   secrets    → gitleaks scan of working tree + git history
+#   audit      → pnpm audit + cargo audit (CVEs)
+#   commitlint → Conventional Commit format on PR titles
+#
+# Per-component pipelines live in ci-{shared,cli,web,desktop}.yml — each
+# has its own lint / test / security / quality / build stages.
 on:
   push:
     branches: [main]
@@ -25,7 +28,7 @@ env:
 
 jobs:
   format:
-    name: Format (prettier + rustfmt)
+    name: 1 · format
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -33,32 +36,27 @@ jobs:
       - uses: pnpm/action-setup@v4
         with: { version: "${{ env.PNPM_VERSION }}" }
       - uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: pnpm
+        with: { node-version: "${{ env.NODE_VERSION }}", cache: pnpm }
       - uses: dtolnay/rust-toolchain@stable
-        with:
-          components: rustfmt
+        with: { components: rustfmt }
       - run: pnpm install --frozen-lockfile
       - run: make format-check
 
-  commitlint:
-    name: Commit message format (PR title)
-    if: github.event_name == 'pull_request'
+  secrets:
+    name: 2 · secret scan (gitleaks)
     runs-on: ubuntu-latest
-    timeout-minutes: 3
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
         with:
-          node-version: ${{ env.NODE_VERSION }}
-      - name: Install commitlint
-        run: npm install --no-save @commitlint/cli @commitlint/config-conventional
-      - name: Lint PR title against Conventional Commits
-        run: echo "${{ github.event.pull_request.title }}" | npx commitlint
+          fetch-depth: 0  # gitleaks scans full history
+      - name: gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   audit:
-    name: Audit (pnpm + cargo)
+    name: 3 · dependency audit
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -66,14 +64,25 @@ jobs:
       - uses: pnpm/action-setup@v4
         with: { version: "${{ env.PNPM_VERSION }}" }
       - uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: pnpm
+        with: { node-version: "${{ env.NODE_VERSION }}", cache: pnpm }
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: cli
+        with: { workspaces: cli }
       - run: pnpm install --frozen-lockfile
       - name: Install cargo-audit
         run: cargo install cargo-audit --locked --version ^0.20
       - run: make audit
+
+  commitlint:
+    name: 4 · commit message format
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "${{ env.NODE_VERSION }}" }
+      - name: Install commitlint
+        run: npm install --no-save @commitlint/cli @commitlint/config-conventional
+      - name: Lint PR title
+        run: echo "${{ github.event.pull_request.title }}" | npx commitlint

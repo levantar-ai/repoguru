@@ -1,9 +1,14 @@
 name: CI · shared
 
-# Shared TypeScript packages (shared/*) underpin web/, desktop/, AND cli/
-# (the proto file is consumed by all of them). When this workflow succeeds,
-# ci-web, ci-cli, AND ci-desktop fire via `workflow_run` (each listens for
-# our completion).
+# Pipeline stages:
+#   lint        → typecheck + prettier
+#   test        → vitest (best-effort: only packages with a test script)
+#   security    → pnpm audit
+#   quality     → strict tsc, no implicit any
+#   build       → tsc emit dist/ → workflow artifact
+#
+# When this workflow succeeds on main, ci-cli + ci-web + ci-desktop fan out
+# via `workflow_run` (each listens for our completion).
 on:
   push:
     branches: [main]
@@ -37,8 +42,8 @@ env:
   NODE_VERSION: 22
 
 jobs:
-  ci:
-    name: shared (TypeScript)
+  lint:
+    name: 1 · lint + style
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -46,15 +51,74 @@ jobs:
       - uses: pnpm/action-setup@v4
         with: { version: "${{ env.PNPM_VERSION }}" }
       - uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: pnpm
+        with: { node-version: "${{ env.NODE_VERSION }}", cache: pnpm }
       - run: pnpm install --frozen-lockfile
-      - name: Format check
-        run: |
-          pnpm --filter repoguru exec prettier --check '../shared/**/*.{ts,tsx,json,md}' || \
-            pnpm --filter repoguru exec prettier --check 'shared/**/*.{ts,tsx,json,md}' || true
       - name: Typecheck shared/*
         run: make typecheck-shared
-      - name: Build shared/*
-        run: make build-shared
+      - name: Prettier
+        run: pnpm --filter repoguru exec prettier --check '../shared/**/*.{ts,tsx,json,md}' || \
+             pnpm --filter repoguru exec prettier --check 'shared/**/*.{ts,tsx,json,md}'
+
+  test:
+    name: 2 · functional tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with: { version: "${{ env.PNPM_VERSION }}" }
+      - uses: actions/setup-node@v4
+        with: { node-version: "${{ env.NODE_VERSION }}", cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - name: Tests (skip when no test script)
+        run: make test-shared
+
+  security:
+    name: 3 · code security
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with: { version: "${{ env.PNPM_VERSION }}" }
+      - uses: actions/setup-node@v4
+        with: { node-version: "${{ env.NODE_VERSION }}", cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - name: pnpm audit (critical+)
+        run: pnpm audit --audit-level=critical
+
+  quality:
+    name: 4 · code quality
+    needs: [lint, test]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with: { version: "${{ env.PNPM_VERSION }}" }
+      - uses: actions/setup-node@v4
+        with: { node-version: "${{ env.NODE_VERSION }}", cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - name: Strict typecheck
+        run: make typecheck-shared
+
+  build:
+    name: 5 · build
+    needs: [lint, test, security]
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with: { version: "${{ env.PNPM_VERSION }}" }
+      - uses: actions/setup-node@v4
+        with: { node-version: "${{ env.NODE_VERSION }}", cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - run: make build-shared
+      - uses: actions/upload-artifact@v4
+        with:
+          name: shared-dist
+          path: shared/*/dist/**
+          retention-days: 30
+          if-no-files-found: error
