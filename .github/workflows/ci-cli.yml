@@ -1,12 +1,14 @@
 name: CI · cli
 
 # Triggers:
-#   • push/PR on cli/** or spec/**     → run CI
-#   • tag cli-v* or v*                 → run CI then publish binaries to GitHub Releases
-#   • workflow_dispatch                → run CI on demand
-#
-# CLI is Rust-only — no dependency on shared/, so this workflow does NOT
-# cascade from ci-shared.
+#   • push/PR on cli/** or spec/**     → run CI directly
+#   • workflow_run from CI · shared    → cascade after shared lands (the
+#                                        proto symlink lives in spec/, and
+#                                        shared TS packages reference it,
+#                                        so a shared change should re-validate
+#                                        the CLI's gRPC surface)
+#   • tag cli-v* or v*                 → run CI then publish binaries
+#   • workflow_dispatch                → on demand
 on:
   push:
     branches: [main]
@@ -25,6 +27,10 @@ on:
       - 'spec/**'
       - 'Cargo.toml'
       - '.github/workflows/ci-cli.yml'
+  workflow_run:
+    workflows: ['CI · shared']
+    types: [completed]
+    branches: [main]
   workflow_dispatch:
 
 concurrency:
@@ -38,11 +44,26 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
+  guard:
+    name: Guard (cascade gate)
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+    steps:
+      - name: Check cascade preconditions
+        if: github.event_name == 'workflow_run'
+        run: |
+          if [[ "${{ github.event.workflow_run.conclusion }}" != "success" ]]; then
+            echo "::warning::${{ github.event.workflow_run.name }} concluded ${{ github.event.workflow_run.conclusion }} — skipping cli pipeline"
+            exit 78
+          fi
+      - run: echo "✅ proceed"
+
   # ─────────────────────────────────────────────────────────────────────
   # CI — runs on every push/PR/tag. Format-check + clippy + tests + build.
   # ─────────────────────────────────────────────────────────────────────
   ci:
     name: cli CI
+    needs: guard
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
