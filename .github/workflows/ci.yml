@@ -1,16 +1,20 @@
 name: CI
 
 # Branch policy:
-#   • PRs: every job runs, all must pass before merge.
-#   • main pushes: same checks; release.yml takes over for tags.
+#   • PRs: every relevant component runs based on the changed paths.
+#   • main pushes: same path filtering; release.yml takes over for tags.
+#
+# Path-based triggering (per andy@):
+#   • cli/** or spec/**       → only the CLI pipeline runs
+#   • web/**                  → only the web pipeline runs
+#   • desktop/**              → only the desktop pipeline runs
+#   • shared/**, root configs → all three component pipelines run
 on:
   push:
     branches: [main]
   pull_request:
     branches: [main]
 
-# A single run-group per ref — pushing twice in quick succession cancels
-# the in-flight run instead of doubling spend.
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -22,11 +26,59 @@ env:
 
 jobs:
   # ─────────────────────────────────────────────────────────────────────
-  # Pre-flight — fast checks that should fail before we spend on builds.
-  # Format + typecheck across the whole monorepo; <2 min on a warm cache.
+  # changes — detect which top-level directories were touched. Other jobs
+  # gate on the booleans this exposes (see needs.changes.outputs.*).
+  # ─────────────────────────────────────────────────────────────────────
+  changes:
+    name: Detect component changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    permissions:
+      pull-requests: read  # paths-filter needs this on PRs
+    outputs:
+      cli: ${{ steps.filter.outputs.cli }}
+      web: ${{ steps.filter.outputs.web }}
+      desktop: ${{ steps.filter.outputs.desktop }}
+      shared: ${{ steps.filter.outputs.shared }}
+      root: ${{ steps.filter.outputs.root }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            cli:
+              - 'cli/**'
+              - 'spec/**'
+            web:
+              - 'web/**'
+            desktop:
+              - 'desktop/**'
+            shared:
+              - 'shared/**'
+            # Root-level changes (workflows, lockfile, top-level configs)
+            # cascade to every component because they alter the build env.
+            root:
+              - '.github/workflows/**'
+              - 'pnpm-lock.yaml'
+              - 'pnpm-workspace.yaml'
+              - 'package.json'
+              - 'Makefile'
+              - 'tsconfig*.json'
+
+  # ─────────────────────────────────────────────────────────────────────
+  # Pre-flight — fast checks (format + typecheck) across whatever
+  # components are in scope. Runs whenever ANY change is detected.
   # ─────────────────────────────────────────────────────────────────────
   preflight:
     name: Pre-flight (format + typecheck)
+    needs: changes
+    if: |
+      needs.changes.outputs.cli == 'true' ||
+      needs.changes.outputs.web == 'true' ||
+      needs.changes.outputs.desktop == 'true' ||
+      needs.changes.outputs.shared == 'true' ||
+      needs.changes.outputs.root == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -45,11 +97,17 @@ jobs:
       - run: make typecheck
 
   # ─────────────────────────────────────────────────────────────────────
-  # Component matrix — each component's full CI runs in parallel.
+  # Component matrix — each fires only when its component (or anything
+  # cross-cutting: shared/, root configs) actually changed.
   # ─────────────────────────────────────────────────────────────────────
   ci-cli:
     name: CI · cli (Rust)
-    needs: preflight
+    needs: [changes, preflight]
+    # CLI is independent of shared/ (Rust crate), but a root-config or
+    # workflow change should still re-run it to be safe.
+    if: |
+      needs.changes.outputs.cli == 'true' ||
+      needs.changes.outputs.root == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -57,9 +115,6 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy, rustfmt
-      # Cache cargo registry + git deps + target/ so subsequent runs are fast.
-      # The protobuf-src C++ build is the slow part — caching cli/target/
-      # alone saves ~5 min per CI run.
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: cli
@@ -69,7 +124,12 @@ jobs:
 
   ci-shared:
     name: CI · shared (TypeScript)
-    needs: preflight
+    needs: [changes, preflight]
+    if: |
+      needs.changes.outputs.shared == 'true' ||
+      needs.changes.outputs.web == 'true' ||
+      needs.changes.outputs.desktop == 'true' ||
+      needs.changes.outputs.root == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -85,7 +145,11 @@ jobs:
 
   ci-web:
     name: CI · web (Vite)
-    needs: ci-shared  # web depends on built shared/* dist/
+    needs: [changes, ci-shared]
+    if: |
+      needs.changes.outputs.web == 'true' ||
+      needs.changes.outputs.shared == 'true' ||
+      needs.changes.outputs.root == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -103,7 +167,11 @@ jobs:
 
   ci-desktop:
     name: CI · desktop (Electron renderer)
-    needs: ci-shared
+    needs: [changes, ci-shared]
+    if: |
+      needs.changes.outputs.desktop == 'true' ||
+      needs.changes.outputs.shared == 'true' ||
+      needs.changes.outputs.root == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -118,11 +186,18 @@ jobs:
       - run: make ci-desktop
 
   # ─────────────────────────────────────────────────────────────────────
-  # Security + compliance — runs in parallel with the component CI.
+  # Security + compliance — runs whenever any pnpm or cargo workspace was
+  # touched (which transitively means any component change).
   # ─────────────────────────────────────────────────────────────────────
   audit:
     name: Audit (pnpm + cargo)
-    needs: preflight
+    needs: [changes, preflight]
+    if: |
+      needs.changes.outputs.cli == 'true' ||
+      needs.changes.outputs.web == 'true' ||
+      needs.changes.outputs.desktop == 'true' ||
+      needs.changes.outputs.shared == 'true' ||
+      needs.changes.outputs.root == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -144,7 +219,11 @@ jobs:
 
   licenses:
     name: License compliance (web)
-    needs: preflight
+    needs: [changes, preflight]
+    if: |
+      needs.changes.outputs.web == 'true' ||
+      needs.changes.outputs.shared == 'true' ||
+      needs.changes.outputs.root == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -159,10 +238,8 @@ jobs:
       - run: make license-check
 
   # ─────────────────────────────────────────────────────────────────────
-  # Commit-message lint — PR titles must be Conventional Commits because
-  # we squash-merge and release-please reads the merge subject to decide
-  # the next semver bump. Skipped on direct `main` pushes (which are the
-  # release PR merges themselves and already conform).
+  # commitlint — PR titles must be Conventional Commits because we squash
+  # and release-please reads the merge subject for semver.
   # ─────────────────────────────────────────────────────────────────────
   commitlint:
     name: Commit message format (PR title)
@@ -180,23 +257,35 @@ jobs:
         run: echo "${{ github.event.pull_request.title }}" | npx commitlint
 
   # ─────────────────────────────────────────────────────────────────────
-  # Final gate — every required check must pass. Branch protection in
-  # GitHub should require this single status, not the individual jobs;
-  # adding/removing a child job then doesn't need a settings change.
+  # Final gate — succeeds when no required check failed. Skipped checks
+  # (because their paths weren't touched) count as "success" for the
+  # purposes of this gate, so a CLI-only change doesn't fail because the
+  # web pipeline didn't fire.
   # ─────────────────────────────────────────────────────────────────────
   required-checks:
     name: Required checks
     if: always()
     runs-on: ubuntu-latest
-    needs: [preflight, ci-cli, ci-shared, ci-web, ci-desktop, audit, licenses, commitlint]
+    needs:
+      - changes
+      - preflight
+      - ci-cli
+      - ci-shared
+      - ci-web
+      - ci-desktop
+      - audit
+      - licenses
+      - commitlint
     steps:
-      - name: All checks passed
-        if: ${{ !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled') }}
-        run: echo "✅ all required checks passed"
-      - name: One or more checks failed
-        if: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}
+      - name: Evaluate gate
+        env:
+          NEEDS: ${{ toJSON(needs) }}
         run: |
-          echo "::error::one or more required checks failed"
-          echo "results:"
-          echo '${{ toJSON(needs) }}'
-          exit 1
+          # Fail if any required check failed or was cancelled. Skipped
+          # checks (path filter) are NOT failures.
+          if echo "$NEEDS" | jq -e '[.[] | .result] | any(. == "failure" or . == "cancelled")' >/dev/null; then
+            echo "::error::one or more required checks failed"
+            echo "$NEEDS"
+            exit 1
+          fi
+          echo "✅ all required checks passed (or were correctly skipped)"

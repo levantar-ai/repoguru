@@ -29,6 +29,7 @@ fn run_pipeline(repo_path: &Path, report_on: bool) -> tempfile::TempDir {
         sizer_cache_mb: 64,
         sizer_chunk_size: 10_000,
         channel_capacity: 256,
+        max_commits: 0,
     };
     repoanalyze::pipeline::run_pipeline(&args).unwrap();
     out
@@ -99,7 +100,7 @@ fn create_medium_repo(dir: &Path) -> anyhow::Result<std::path::PathBuf> {
             });
         }
 
-        if i >= 20 && i < 35 {
+        if (20..35).contains(&i) {
             let test_content = format!("#[test]\nfn test_v{i}() {{ assert!(true); }}\n");
             let test_blob = repo.write_blob(test_content.as_bytes())?.detach();
             entries.push(objs::tree::Entry {

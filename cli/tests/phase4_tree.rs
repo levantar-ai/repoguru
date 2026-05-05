@@ -3,7 +3,6 @@ mod common;
 use repoanalyze::diff::binary::is_binary;
 use repoanalyze::diff::tree_delta::compute_tree_delta;
 use repoanalyze::model::change::ChangeKind;
-use repoanalyze::repo::open::open_repo;
 
 /// Helper: create a repo and return (repo, tree_oid) for a given set of file entries.
 fn make_tree(

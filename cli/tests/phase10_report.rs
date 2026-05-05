@@ -27,6 +27,7 @@ fn run_pipeline_with_report(repo_path: &std::path::Path, report_on: bool) -> tem
         sizer_cache_mb: 64,
         sizer_chunk_size: 10_000,
         channel_capacity: 256,
+        max_commits: 0,
     };
     repoanalyze::pipeline::run_pipeline(&args).unwrap();
     out

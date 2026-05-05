@@ -1,14 +1,16 @@
 name: Release
 
-# Tag-driven. release-please creates per-component tags:
-#   • cli-v<x.y.z>     → builds CLI binaries for 4 targets
-#   • desktop-v<x.y.z> → packages Electron installers for 3 OSes
-# A bare `v<x.y.z>` tag (manual / legacy) builds everything.
+# Per-component publishing (per andy@):
+#   • cli-v<x.y.z>     → builds CLI binaries for 4 targets, attaches to GitHub Release
+#   • desktop-v<x.y.z> → packages Electron installers for 3 OSes, attaches to GitHub Release
+#   • web-v<x.y.z>     → builds the Vite bundle, deploys to S3 website
+#   • v<x.y.z>         → bare tag = release everything (manual / legacy)
 on:
   push:
     tags:
       - 'cli-v*'
       - 'desktop-v*'
+      - 'web-v*'
       - 'v*'
   workflow_dispatch:
 
@@ -23,6 +25,7 @@ jobs:
   # ─────────────────────────────────────────────────────────────────────
   # CLI binary — one job per target triple. Linux is the canonical build;
   # macOS + Windows runners cross-compile to their native targets.
+  # Publishes to GitHub Releases (see `release` job below).
   # ─────────────────────────────────────────────────────────────────────
   cli:
     name: cli · ${{ matrix.target }}
@@ -65,6 +68,7 @@ jobs:
   # ─────────────────────────────────────────────────────────────────────
   # Desktop Electron app — one runner per OS so electron-builder runs
   # natively (cross-builds for codesigning are fragile).
+  # Publishes to GitHub Releases (see `release` job below).
   # ─────────────────────────────────────────────────────────────────────
   desktop:
     name: desktop · ${{ matrix.os }}
@@ -99,8 +103,82 @@ jobs:
           if-no-files-found: warn
 
   # ─────────────────────────────────────────────────────────────────────
-  # Publish — gather every artefact and attach to a GitHub Release.
-  # Skipped for workflow_dispatch (creates artefacts but no release).
+  # Web — builds the Vite bundle and syncs to S3 static hosting.
+  #
+  # Requires repository secrets:
+  #   AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY  — IAM credentials with
+  #     s3:PutObject / s3:DeleteObject / s3:ListBucket on the bucket
+  #   AWS_REGION                                — e.g. eu-west-2
+  #   AWS_S3_BUCKET                             — bucket name (no s3:// prefix)
+  #   CLOUDFRONT_DISTRIBUTION_ID (optional)     — invalidate this distro on deploy
+  # ─────────────────────────────────────────────────────────────────────
+  web:
+    name: web · S3 deploy
+    if: |
+      startsWith(github.ref, 'refs/tags/web-v') ||
+      startsWith(github.ref, 'refs/tags/v')    ||
+      github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with: { version: "${{ env.PNPM_VERSION }}" }
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Build web bundle
+        run: make build-web
+      - uses: actions/upload-artifact@v4
+        with:
+          name: web-dist
+          path: web/dist/**
+          retention-days: 7
+      # Skip the sync if the secret isn't configured — lets the workflow
+      # be exercised in forks / dispatched runs without crashing.
+      - name: Verify AWS secrets
+        id: aws_check
+        run: |
+          if [[ -n "${{ secrets.AWS_S3_BUCKET }}" && -n "${{ secrets.AWS_ACCESS_KEY_ID }}" ]]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::S3 secrets missing — skipping deploy. Set AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_REGION, AWS_S3_BUCKET."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Configure AWS credentials
+        if: steps.aws_check.outputs.ready == 'true'
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+      - name: Sync bundle to S3
+        if: steps.aws_check.outputs.ready == 'true'
+        run: |
+          # Cache hashed assets aggressively (filename change = cache bust).
+          aws s3 sync web/dist/ "s3://${{ secrets.AWS_S3_BUCKET }}/" \
+            --delete \
+            --exclude "index.html" \
+            --cache-control "public, max-age=31536000, immutable"
+          # Never cache index.html — it's the entry that points at the new hashes.
+          aws s3 cp web/dist/index.html "s3://${{ secrets.AWS_S3_BUCKET }}/index.html" \
+            --cache-control "no-cache, no-store, must-revalidate" \
+            --content-type "text/html; charset=utf-8"
+      - name: Invalidate CloudFront
+        if: steps.aws_check.outputs.ready == 'true' && env.CLOUDFRONT_ID != ''
+        env:
+          CLOUDFRONT_ID: ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }}
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id "$CLOUDFRONT_ID" \
+            --paths "/*"
+
+  # ─────────────────────────────────────────────────────────────────────
+  # Publish — gather every binary artefact (cli + desktop) and attach to
+  # a GitHub Release. The web job publishes to S3 itself; nothing for it
+  # to attach here.
   # ─────────────────────────────────────────────────────────────────────
   release:
     name: Publish GitHub Release
@@ -109,7 +187,8 @@ jobs:
       always() &&
       !contains(needs.*.result, 'failure') &&
       !contains(needs.*.result, 'cancelled') &&
-      startsWith(github.ref, 'refs/tags/')
+      startsWith(github.ref, 'refs/tags/') &&
+      (needs.cli.result == 'success' || needs.desktop.result == 'success')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -117,8 +196,10 @@ jobs:
         with:
           path: artefacts
           merge-multiple: true
+          # Only download cli + desktop binaries; skip web-dist (deployed to S3).
+          pattern: '!web-dist'
       - name: List artefacts
-        run: ls -la artefacts/
+        run: ls -la artefacts/ || echo '(none)'
       - name: Create / update release
         uses: softprops/action-gh-release@v2
         with:

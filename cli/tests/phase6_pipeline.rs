@@ -30,6 +30,7 @@ fn run_pipeline_on(repo_path: &Path) -> tempfile::TempDir {
         sizer_cache_mb: 64,
         sizer_chunk_size: 10_000,
         channel_capacity: 256,
+        max_commits: 0,
     };
 
     repoanalyze::pipeline::run_pipeline(&args).expect("pipeline should succeed");

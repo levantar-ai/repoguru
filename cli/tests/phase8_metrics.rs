@@ -96,6 +96,7 @@ fn phase8_test_metrics_in_json() {
         sizer_cache_mb: 64,
         sizer_chunk_size: 10_000,
         channel_capacity: 256,
+        max_commits: 0,
     };
 
     repoanalyze::pipeline::run_pipeline(&args).unwrap();

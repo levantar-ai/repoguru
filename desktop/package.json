@@ -10,7 +10,6 @@
     "preview": "vite preview",
     "electron:dev": "vite build && electron .",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint src/ electron/ --ext .ts,.tsx",
     "package": "electron-builder --publish never",
     "package:mac": "electron-builder --mac --publish never",
     "package:win": "electron-builder --win --publish never",

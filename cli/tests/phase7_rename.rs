@@ -215,7 +215,6 @@ fn phase7_test_greedy_pairing_deterministic() {
 #[test]
 fn phase7_test_rename_events_bin() {
     use repoanalyze::model::rename_event::{RenameEvent, RENAME_EVENT_ROW_SIZE};
-    use std::path::Path;
 
     // Build a fixture repo with a rename: commit1 adds "old.txt", commit2 renames to "new.txt"
     let tmp = tempfile::tempdir().unwrap();
@@ -243,6 +242,7 @@ fn phase7_test_rename_events_bin() {
         sizer_cache_mb: 64,
         sizer_chunk_size: 10_000,
         channel_capacity: 256,
+        max_commits: 0,
     };
 
     repoanalyze::pipeline::run_pipeline(&args).unwrap();

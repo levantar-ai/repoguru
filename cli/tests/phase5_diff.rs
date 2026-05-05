@@ -1,4 +1,4 @@
-use repoanalyze::diff::line_diff::{compute_line_stats, LineStats, BINARY_SENTINEL};
+use repoanalyze::diff::line_diff::{compute_line_stats, BINARY_SENTINEL};
 
 #[test]
 fn test_empty_to_content() {

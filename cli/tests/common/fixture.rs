@@ -1,6 +1,10 @@
 //! Programmatic fixture repo creation using gix.
 //!
 //! Creates test repositories without invoking the `git` CLI.
+//!
+//! Per-phase test crates only consume a subset of these helpers; the rest
+//! read as dead code under `-D warnings`.
+#![allow(dead_code)]
 
 use std::path::{Path, PathBuf};
 

@@ -37,3 +37,13 @@ tempfile = "3"
 assert_cmd = "2"
 predicates = "3"
 blake3 = "1"
+
+# Newer toolchains add stricter clippy lints. These three are stylistic — not bugs:
+#   * result_large_err: tonic::Status is 176 B; boxing every Err is more churn than it's worth.
+#   * format_in_format_args: rare in this code, hits the giant report HTML template once.
+#   * unnecessary_sort_by: sort_by(|a,b| a.x.cmp(&b.x)) and sort_by_key are equivalent here.
+# Allow them at the crate level rather than littering #[allow(..)] across files.
+[lints.clippy]
+result_large_err = "allow"
+format_in_format_args = "allow"
+unnecessary_sort_by = "allow"

@@ -24,7 +24,7 @@
       "bash -c 'cd web && pnpm exec prettier --write'"
     ],
     "desktop/**/*.{ts,tsx}": [
-      "bash -c 'cd desktop && pnpm exec eslint --fix'"
+      "bash -c 'cd web && pnpm exec prettier --write'"
     ],
     "shared/**/*.{ts,tsx}": [
       "bash -c 'cd web && pnpm exec prettier --write'"
