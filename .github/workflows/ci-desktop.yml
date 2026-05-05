@@ -1,0 +1,106 @@
+name: CI · desktop
+
+# Triggers:
+#   • push/PR on desktop/**        → run CI directly
+#   • workflow_run from CI · shared (success) → cascade run after shared lands
+#   • tag desktop-v* or v*         → run CI then package + publish Electron binaries
+#   • workflow_dispatch            → run CI / package on demand
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'desktop/**'
+      - '.github/workflows/ci-desktop.yml'
+    tags:
+      - 'desktop-v*'
+      - 'v*'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'desktop/**'
+      - '.github/workflows/ci-desktop.yml'
+  workflow_run:
+    workflows: ['CI · shared']
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-desktop-${{ github.ref }}
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
+
+permissions:
+  contents: write   # publish-job uploads to a GitHub Release
+
+env:
+  PNPM_VERSION: 10.28.2
+  NODE_VERSION: 22
+
+jobs:
+  guard:
+    name: Guard (cascade gate)
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+    steps:
+      - name: Check cascade preconditions
+        if: github.event_name == 'workflow_run'
+        run: |
+          if [[ "${{ github.event.workflow_run.conclusion }}" != "success" ]]; then
+            echo "::warning::ci-shared concluded ${{ github.event.workflow_run.conclusion }} — skipping desktop pipeline"
+            exit 78
+          fi
+      - run: echo "✅ proceed"
+
+  ci:
+    name: desktop CI
+    needs: guard
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with: { version: "${{ env.PNPM_VERSION }}" }
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: make ci-desktop
+
+  # ─────────────────────────────────────────────────────────────────────
+  # Publish — only on tag pushes (desktop-v* or bare v*). One runner per
+  # OS so electron-builder runs natively (cross-build for codesigning is
+  # fragile). Each job uploads its installer to the GitHub Release.
+  # ─────────────────────────────────────────────────────────────────────
+  publish:
+    name: publish · ${{ matrix.os }}
+    needs: ci
+    if: |
+      startsWith(github.ref, 'refs/tags/desktop-v') ||
+      startsWith(github.ref, 'refs/tags/v')
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-latest,  task: package-desktop-linux, glob: 'desktop/release/*.{AppImage,deb}' }
+          - { os: macos-latest,   task: package-desktop-mac,   glob: 'desktop/release/*.{dmg,zip}'      }
+          - { os: windows-latest, task: package-desktop-win,   glob: 'desktop/release/*.{exe,msi}'      }
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with: { version: "${{ env.PNPM_VERSION }}" }
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Package
+        run: make ${{ matrix.task }}
+      - name: Attach to Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ matrix.glob }}
+          generate_release_notes: true
+          draft: false
+          prerelease: ${{ contains(github.ref, '-rc.') || contains(github.ref, '-beta.') }}

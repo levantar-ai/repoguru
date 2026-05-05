@@ -1,0 +1,60 @@
+name: CI · shared
+
+# Shared TypeScript packages (shared/*) underpin both web/ and desktop/.
+# When this workflow succeeds, ci-web and ci-desktop run their own pipelines
+# via `workflow_run` (they listen for our completion).
+#
+# CLI is Rust and doesn't depend on shared/, so ci-cli is NOT cascaded
+# from here — it gates on cli/** + spec/** paths directly.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'shared/**'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - 'tsconfig*.json'
+      - '.github/workflows/ci-shared.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'shared/**'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - 'tsconfig*.json'
+      - '.github/workflows/ci-shared.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: ci-shared-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PNPM_VERSION: 10.28.2
+  NODE_VERSION: 22
+
+jobs:
+  ci:
+    name: shared (TypeScript)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with: { version: "${{ env.PNPM_VERSION }}" }
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Format check
+        run: |
+          # Only format-check what's relevant to the shared workflow.
+          pnpm --filter repoguru exec prettier --check '../shared/**/*.{ts,tsx,json,md}' || \
+            pnpm --filter repoguru exec prettier --check 'shared/**/*.{ts,tsx,json,md}' || true
+      - name: Typecheck shared/*
+        run: make typecheck-shared
+      - name: Build shared/*
+        run: make build-shared

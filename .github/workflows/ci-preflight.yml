@@ -1,0 +1,79 @@
+name: CI · preflight
+
+# Cheap, repo-wide checks that run on every PR / push to main:
+#   • Conventional Commit format on PR titles (release-please reads them)
+#   • Prettier check across the whole tree
+#   • cargo fmt across cli/ + spec/
+#
+# Per-component CI runs in ci-{shared,web,cli,desktop}.yml.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-preflight-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  PNPM_VERSION: 10.28.2
+  NODE_VERSION: 22
+
+jobs:
+  format:
+    name: Format (prettier + rustfmt)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with: { version: "${{ env.PNPM_VERSION }}" }
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+      - run: pnpm install --frozen-lockfile
+      - run: make format-check
+
+  commitlint:
+    name: Commit message format (PR title)
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: Install commitlint
+        run: npm install --no-save @commitlint/cli @commitlint/config-conventional
+      - name: Lint PR title against Conventional Commits
+        run: echo "${{ github.event.pull_request.title }}" | npx commitlint
+
+  audit:
+    name: Audit (pnpm + cargo)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with: { version: "${{ env.PNPM_VERSION }}" }
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: cli
+      - run: pnpm install --frozen-lockfile
+      - name: Install cargo-audit
+        run: cargo install cargo-audit --locked --version ^0.20
+      - run: make audit

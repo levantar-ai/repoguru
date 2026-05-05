@@ -1,0 +1,102 @@
+name: CI · cli
+
+# Triggers:
+#   • push/PR on cli/** or spec/**     → run CI
+#   • tag cli-v* or v*                 → run CI then publish binaries to GitHub Releases
+#   • workflow_dispatch                → run CI on demand
+#
+# CLI is Rust-only — no dependency on shared/, so this workflow does NOT
+# cascade from ci-shared.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'cli/**'
+      - 'spec/**'
+      - 'Cargo.toml'
+      - '.github/workflows/ci-cli.yml'
+    tags:
+      - 'cli-v*'
+      - 'v*'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'cli/**'
+      - 'spec/**'
+      - 'Cargo.toml'
+      - '.github/workflows/ci-cli.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: ci-cli-${{ github.ref }}
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
+
+permissions:
+  contents: write   # publish-job needs this to upload to a Release
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  # ─────────────────────────────────────────────────────────────────────
+  # CI — runs on every push/PR/tag. Format-check + clippy + tests + build.
+  # ─────────────────────────────────────────────────────────────────────
+  ci:
+    name: cli CI
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: cli
+          shared-key: cli-release
+      - run: sudo apt-get update && sudo apt-get install -y jq
+      - run: make ci-cli
+
+  # ─────────────────────────────────────────────────────────────────────
+  # Publish — only on tag pushes (cli-v* or bare v*). Builds release
+  # binaries for Linux / macOS (arm64+x64) / Windows, uploads to GH Release.
+  # ─────────────────────────────────────────────────────────────────────
+  publish:
+    name: publish · ${{ matrix.target }}
+    needs: ci
+    if: |
+      startsWith(github.ref, 'refs/tags/cli-v') ||
+      startsWith(github.ref, 'refs/tags/v')
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-latest,  target: x86_64-unknown-linux-gnu,  ext: ''     }
+          - { os: macos-latest,   target: aarch64-apple-darwin,      ext: ''     }
+          - { os: macos-13,       target: x86_64-apple-darwin,       ext: ''     }
+          - { os: windows-latest, target: x86_64-pc-windows-msvc,    ext: '.exe' }
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with: { targets: "${{ matrix.target }}" }
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: cli
+          key: ${{ matrix.target }}
+      - name: Build release binary
+        working-directory: cli
+        run: cargo build --release --bin repoanalyze --target ${{ matrix.target }}
+      - name: Stage artefact
+        shell: bash
+        run: |
+          mkdir -p out
+          cp cli/target/${{ matrix.target }}/release/repoanalyze${{ matrix.ext }} \
+             out/repoanalyze-${{ matrix.target }}${{ matrix.ext }}
+      - name: Attach to Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: out/*
+          generate_release_notes: true
+          draft: false
+          prerelease: ${{ contains(github.ref, '-rc.') || contains(github.ref, '-beta.') }}
