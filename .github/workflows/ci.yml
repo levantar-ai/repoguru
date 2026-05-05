@@ -34,6 +34,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 3
     permissions:
+      contents: read       # required for checkout (explicit permissions = default-deny)
       pull-requests: read  # paths-filter needs this on PRs
     outputs:
       cli: ${{ steps.filter.outputs.cli }}
