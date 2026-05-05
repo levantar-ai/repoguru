@@ -11,7 +11,7 @@ path = "src/main.rs"
 anyhow = "1"
 thiserror = "2"
 clap = { version = "4", features = ["derive"] }
-gix = { version = "0.80", default-features = false, features = ["blocking-network-client", "revparse-regex"] }
+gix = { version = "0.83", default-features = false, features = ["blocking-network-client", "revparse-regex"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 byteorder = "1"
