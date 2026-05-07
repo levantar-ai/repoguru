@@ -17,10 +17,10 @@
   },
   "lint-staged": {
     "{web,shared,desktop}/**/*.{ts,tsx,json,md,css,yml,yaml}": [
-      "web/node_modules/.bin/prettier --write --config web/.prettierrc.json"
+      "web/node_modules/.bin/prettier --write"
     ],
     "web/**/*.{ts,tsx}": [
-      "bash -c 'cd web && pnpm exec eslint --fix'"
+      "bash -c 'cd web && pnpm exec eslint --fix \"$@\"' --"
     ],
     "{cli,spec}/**/*.rs": [
       "rustfmt --edition 2021"
