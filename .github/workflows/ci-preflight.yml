@@ -108,11 +108,15 @@ jobs:
 
   # ─────────────────────────────────────────────────────────────────────
   # 5 · CodeQL — JS/TS static analysis. Uploads SARIF to the Security tab.
+  # Advisory until Advanced Security is enabled on this private repo —
+  # without it, the SARIF upload returns "Code Security must be enabled".
+  # The analysis still runs and produces useful local logs either way.
   # ─────────────────────────────────────────────────────────────────────
   codeql:
     name: 5 · CodeQL · ${{ matrix.language }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    continue-on-error: true
     strategy:
       fail-fast: false
       matrix:
@@ -126,8 +130,8 @@ jobs:
       - uses: github/codeql-action/analyze@v3
 
   # ─────────────────────────────────────────────────────────────────────
-  # 6 · Semgrep — cross-language SAST (covers TS + Rust). Advisory: results
-  # ship to the Security tab as SARIF; the run itself doesn't fail CI.
+  # 6 · Semgrep — cross-language SAST. Advisory for the same reason as
+  # CodeQL: SARIF upload requires Code Security to be enabled.
   # ─────────────────────────────────────────────────────────────────────
   semgrep:
     name: 6 · Semgrep
@@ -135,6 +139,7 @@ jobs:
     container:
       image: semgrep/semgrep
     timeout-minutes: 15
+    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
       - run: semgrep ci --config auto --sarif --output semgrep.sarif || true

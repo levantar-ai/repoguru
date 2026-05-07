@@ -1,0 +1,5 @@
+# Allowlist for gitleaks. Each line is `<commit-sha>:<path>:<rule>:<line>`.
+#
+# Public OAuth client IDs are NOT secrets — they're meant to be visible to
+# the browser. gitleaks's `generic-api-key` rule trips on their entropy.
+3a96b60a7314fe2a7ada54054d56c3a11aace54b:repoguru/cors-proxy/wrangler.toml:generic-api-key:7
