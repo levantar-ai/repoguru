@@ -123,6 +123,11 @@ jobs:
           cargo install cargo-deny  --locked --version ^0.16
       - name: cargo audit (RUSTSEC advisories)
         working-directory: cli
+        # Upstream rustsec/advisory-db has a malformed TOML
+        # (libcrux-poly1305 / RUSTSEC-2026-0073) which crashes cargo-audit
+        # before any CVE check runs. cargo-deny below covers the same
+        # advisories cleanly, so don't gate on this until upstream fixes.
+        continue-on-error: true
         run: cargo audit
       - name: cargo deny (advisories + bans + licenses)
         working-directory: cli
@@ -151,6 +156,10 @@ jobs:
         run: |
           cargo install cargo-llvm-cov --locked --version ^0.6
           cargo install cargo-machete  --locked --version ^0.7
+      - name: Configure git identity (gix tests need it)
+        run: |
+          git config --global user.email "ci@repoguru.dev"
+          git config --global user.name  "RepoGuru CI"
       - name: Coverage report
         working-directory: cli
         run: cargo llvm-cov --release --summary-only
