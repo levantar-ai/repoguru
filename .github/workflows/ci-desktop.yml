@@ -13,11 +13,13 @@ on:
     branches: [main]
     paths:
       - 'desktop/**'
+      - 'Makefile'
       - '.github/workflows/ci-desktop.yml'
   pull_request:
     branches: [main]
     paths:
       - 'desktop/**'
+      - 'Makefile'
       - '.github/workflows/ci-desktop.yml'
   workflow_run:
     workflows: ['CI · shared', 'CI · cli']

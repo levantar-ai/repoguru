@@ -20,6 +20,7 @@ on:
       - 'cli/**'
       - 'spec/**'
       - 'Cargo.toml'
+      - 'Makefile'
       - '.github/workflows/ci-cli.yml'
   pull_request:
     branches: [main]
@@ -27,6 +28,7 @@ on:
       - 'cli/**'
       - 'spec/**'
       - 'Cargo.toml'
+      - 'Makefile'
       - '.github/workflows/ci-cli.yml'
   workflow_run:
     workflows: ['CI · shared']

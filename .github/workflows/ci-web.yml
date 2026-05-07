@@ -12,11 +12,13 @@ on:
     branches: [main]
     paths:
       - 'web/**'
+      - 'Makefile'
       - '.github/workflows/ci-web.yml'
   pull_request:
     branches: [main]
     paths:
       - 'web/**'
+      - 'Makefile'
       - '.github/workflows/ci-web.yml'
   workflow_run:
     workflows: ['CI · shared']
