@@ -51,9 +51,12 @@ export function CommitHeatmap({ weeklyActivity }: Props) {
     }
 
     const maxCount = Math.max(...days.map((d) => d.count), 1);
-    const colorScale = d3.scaleSequential()
+    const colorScale = d3
+      .scaleSequential()
       .domain([0, maxCount])
-      .interpolator(d3.interpolateRgbBasis(['#1e293b', '#0e4429', '#006d32', '#26a641', '#39d353']));
+      .interpolator(
+        d3.interpolateRgbBasis(['#1e293b', '#0e4429', '#006d32', '#26a641', '#39d353']),
+      );
 
     const svg = d3.select(svgRef.current);
     svg.selectAll('*').remove();
@@ -107,7 +110,7 @@ export function CommitHeatmap({ weeklyActivity }: Props) {
       .attr('width', CELL_SIZE)
       .attr('height', CELL_SIZE)
       .attr('rx', 2)
-      .attr('fill', (d) => d.count > 0 ? colorScale(d.count) as string : '#1e293b')
+      .attr('fill', (d) => (d.count > 0 ? (colorScale(d.count) as string) : '#1e293b'))
       .append('title')
       .text((d) => `${d.date.toISOString().slice(0, 10)}: ${d.count} commits`);
 
@@ -117,7 +120,11 @@ export function CommitHeatmap({ weeklyActivity }: Props) {
   }, [weeklyActivity]);
 
   return (
-    <ChartCard title="Commit Heatmap" subtitle="Last 12 months of commit activity" className="col-span-full">
+    <ChartCard
+      title="Commit Heatmap"
+      subtitle="Last 12 months of commit activity"
+      className="col-span-full"
+    >
       <div className="overflow-x-auto">
         <svg ref={svgRef} />
       </div>

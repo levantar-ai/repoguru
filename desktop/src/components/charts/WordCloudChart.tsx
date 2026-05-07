@@ -35,7 +35,8 @@ export function WordCloudChart({ words }: Props) {
       const fontSize = fontScale(freq);
 
       // Spiral outward to find non-overlapping position
-      let x = 0, y = 0;
+      let x = 0,
+        y = 0;
       let placed_ok = false;
       for (let t = 0; t < 500 && !placed_ok; t++) {
         const angle = t * 0.15;
@@ -46,9 +47,10 @@ export function WordCloudChart({ words }: Props) {
         const estimatedW = word.length * fontSize * 0.6;
         const estimatedH = fontSize * 1.2;
 
-        const overlaps = placed.some((p) =>
-          Math.abs(x - p.x) < (estimatedW + p.w) / 2 &&
-          Math.abs(y - p.y) < (estimatedH + p.h) / 2,
+        const overlaps = placed.some(
+          (p) =>
+            Math.abs(x - p.x) < (estimatedW + p.w) / 2 &&
+            Math.abs(y - p.y) < (estimatedH + p.h) / 2,
         );
 
         if (!overlaps && Math.abs(x) < width / 2 - 30 && Math.abs(y) < height / 2 - 20) {

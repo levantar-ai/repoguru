@@ -35,22 +35,28 @@ export function ContributorChart({ authors, authorNames }: Props) {
       },
     },
     grid: { top: 20, right: 20, bottom: 10, left: 10, containLabel: true },
-    xAxis: { type: 'value', axisLabel: { color: '#64748b' }, splitLine: { lineStyle: { color: '#1e293b' } } },
+    xAxis: {
+      type: 'value',
+      axisLabel: { color: '#64748b' },
+      splitLine: { lineStyle: { color: '#1e293b' } },
+    },
     yAxis: {
       type: 'category',
       data: top.map((a) => getName(a.author_id)).reverse(),
       axisLabel: { color: '#94a3b8', fontSize: 11, width: 120, overflow: 'truncate' },
       axisLine: { show: false },
     },
-    series: [{
-      type: 'bar',
-      data: top.map((a) => a.commits).reverse(),
-      itemStyle: {
-        color: (params: any) => CHART_COLORS[params.dataIndex % CHART_COLORS.length],
-        borderRadius: [0, 3, 3, 0],
+    series: [
+      {
+        type: 'bar',
+        data: top.map((a) => a.commits).reverse(),
+        itemStyle: {
+          color: (params: any) => CHART_COLORS[params.dataIndex % CHART_COLORS.length],
+          borderRadius: [0, 3, 3, 0],
+        },
+        barWidth: '65%',
       },
-      barWidth: '65%',
-    }],
+    ],
   });
 
   return (

@@ -16,7 +16,9 @@ export function useOrgScan() {
   const mountedRef = useRef(true);
 
   useEffect(() => {
-    return () => { mountedRef.current = false; };
+    return () => {
+      mountedRef.current = false;
+    };
   }, []);
 
   const startOrgScan = useCallback(async (req: OrgScanRequest) => {

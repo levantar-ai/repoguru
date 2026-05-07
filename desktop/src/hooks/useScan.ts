@@ -16,7 +16,9 @@ export function useScan() {
   const mountedRef = useRef(true);
 
   useEffect(() => {
-    return () => { mountedRef.current = false; };
+    return () => {
+      mountedRef.current = false;
+    };
   }, []);
 
   const startScan = useCallback(async (req: ScanRequest) => {

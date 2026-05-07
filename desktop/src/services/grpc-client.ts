@@ -87,17 +87,14 @@ export const grpcClient = {
   scan: (req: ScanRequest, onProgress: (p: ScanProgress) => void) =>
     window.repoGuru.scan(req as any, onProgress as any),
 
-  describeScan: (outPath: string) =>
-    window.repoGuru.describeScan(outPath),
+  describeScan: (outPath: string) => window.repoGuru.describeScan(outPath),
 
   getSection: (outPath: string, section: string, repoPath?: string) =>
     window.repoGuru.getSection(outPath, section, repoPath),
 
-  getReport: (outPath: string) =>
-    window.repoGuru.getReport(outPath),
+  getReport: (outPath: string) => window.repoGuru.getReport(outPath),
 
-  listSections: () =>
-    window.repoGuru.listSections(),
+  listSections: () => window.repoGuru.listSections(),
 
   scoreReportCard: (repoPath: string, outPath?: string) =>
     window.repoGuru.scoreReportCard(repoPath, outPath) as Promise<ScoreResponse>,
@@ -108,8 +105,7 @@ export const grpcClient = {
   evaluatePolicyCustom: (policy: unknown, reportCard: ScoreResponse) =>
     window.repoGuru.evaluatePolicyCustom(policy, reportCard),
 
-  detectTech: (repoPath: string) =>
-    window.repoGuru.detectTech(repoPath),
+  detectTech: (repoPath: string) => window.repoGuru.detectTech(repoPath),
 
   generateSBOM: (repoPath: string, format?: string) =>
     window.repoGuru.generateSBOM(repoPath, format),
@@ -120,15 +116,11 @@ export const grpcClient = {
   scanOrg: (req: OrgScanRequest, onProgress: (p: OrgScanProgress) => void) =>
     window.repoGuru.scanOrg(req as any, onProgress as any),
 
-  compareRepos: (pathA: string, pathB: string) =>
-    window.repoGuru.compareRepos(pathA, pathB),
+  compareRepos: (pathA: string, pathB: string) => window.repoGuru.compareRepos(pathA, pathB),
 
-  health: () =>
-    window.repoGuru.health(),
+  health: () => window.repoGuru.health(),
 
-  selectDirectory: () =>
-    window.repoGuru.selectDirectory(),
+  selectDirectory: () => window.repoGuru.selectDirectory(),
 
-  openExternal: (url: string) =>
-    window.repoGuru.openExternal(url),
+  openExternal: (url: string) => window.repoGuru.openExternal(url),
 };

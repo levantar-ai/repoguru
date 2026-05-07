@@ -9,18 +9,48 @@ import { wireToLegacy } from '../services/wireToLegacy';
 // instead. When every consumer has migrated, this whole interface can go.
 export interface GitStatsData {
   // activity
-  timeseries: Array<{ period_start: string; commits: number; insertions: number; deletions: number; authors: number }>;
+  timeseries: Array<{
+    period_start: string;
+    commits: number;
+    insertions: number;
+    deletions: number;
+    authors: number;
+  }>;
   cumulative_files: Array<[string, number]>;
   file_operations: Array<[string, number]>;
   lines_by_ext: Array<[string, number, number]>;
   lines_by_ext_time?: { months: string[]; extensions: string[]; data: number[][] };
-  lines_stats_summary: Array<{ label: string; min: number; max: number; avg: number; median: number; total: number }>;
+  lines_stats_summary: Array<{
+    label: string;
+    min: number;
+    max: number;
+    avg: number;
+    median: number;
+    total: number;
+  }>;
 
   // contributors
-  authors: Array<{ author_id: number; commits: number; insertions: number; deletions: number; first_commit: number; last_commit: number }>;
+  authors: Array<{
+    author_id: number;
+    commits: number;
+    insertions: number;
+    deletions: number;
+    first_commit: number;
+    last_commit: number;
+  }>;
   author_names: Record<string, string>;
-  author_of_year?: Array<{ author_id: number; commits: number; period: string; total_authors: number }>;
-  author_of_month?: Array<{ author_id: number; commits: number; period: string; total_authors: number }>;
+  author_of_year?: Array<{
+    author_id: number;
+    commits: number;
+    period: string;
+    total_authors: number;
+  }>;
+  author_of_month?: Array<{
+    author_id: number;
+    commits: number;
+    period: string;
+    total_authors: number;
+  }>;
   author_timelines?: Array<{ author_id: number; points: Array<[string, number]> }>;
   commits_by_domain?: Array<[string, number]>;
   contributor_network_nodes: Array<[number, string]>;
@@ -30,7 +60,12 @@ export interface GitStatsData {
   code_ownership?: Array<{ lines: number; owner_id: number; path: string }>;
   hotspots: Array<{ path: string; commits: number; total_churn: number; distinct_authors: number }>;
   file_coupling: Array<{ file_a: string; file_b: string; count: number; coupling_pct: number }>;
-  sequential_coupling?: Array<{ files: string[]; occurrences: number; avg_span_hours: number; confidence: number }>;
+  sequential_coupling?: Array<{
+    files: string[];
+    occurrences: number;
+    avg_span_hours: number;
+    confidence: number;
+  }>;
 
   // patterns
   commits_by_weekday: number[];
@@ -84,7 +119,14 @@ export function useGitStats() {
   }, []);
 
   const loadStats = useCallback(async (outPath: string, repoPath?: string) => {
-    setState({ loading: true, data: null, canonical: null, analysis: null, error: null, loadedSections: [] });
+    setState({
+      loading: true,
+      data: null,
+      canonical: null,
+      analysis: null,
+      error: null,
+      loadedSections: [],
+    });
 
     // Wrap grpcClient so we capture each raw JSON payload as it flows through
     // the analyzer. That gives us the wire shape "for free" without a second

@@ -81,14 +81,16 @@ export interface RepoGuruAPI {
   // flow desktop OAuth tools (gh CLI, gcloud, etc.) use.
   githubOAuthBrowser(args: { clientId: string; corsProxy: string }): Promise<{ token: string }>;
   githubOAuthCancel(): Promise<void>;
-  githubListRepos(token: string): Promise<Array<{
-    owner: string;
-    repo: string;
-    description?: string;
-    language?: string;
-    stars?: number;
-    ownerLabel?: string;
-  }>>;
+  githubListRepos(token: string): Promise<
+    Array<{
+      owner: string;
+      repo: string;
+      description?: string;
+      language?: string;
+      stars?: number;
+      ownerLabel?: string;
+    }>
+  >;
   githubCloneRepo(
     args: { slug: string; token?: string },
     onProgress?: (p: CloneProgress) => void,

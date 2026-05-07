@@ -58,12 +58,19 @@ export function RepoPicker({
     loadToken().then((t) => {
       if (!cancelled) setHasToken(!!t);
     });
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [showRecent]);
 
   // GitHub search when typing (if token available)
   useEffect(() => {
-    if (!debouncedValue || debouncedValue.startsWith('/') || debouncedValue.startsWith('.') || !hasToken) {
+    if (
+      !debouncedValue ||
+      debouncedValue.startsWith('/') ||
+      debouncedValue.startsWith('.') ||
+      !hasToken
+    ) {
       setGithubResults([]);
       return;
     }
@@ -73,12 +80,15 @@ export function RepoPicker({
       try {
         const token = await loadToken();
         const query = encodeURIComponent(debouncedValue);
-        const res = await fetch(`https://api.github.com/search/repositories?q=${query}&per_page=8&sort=stars`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            Accept: 'application/vnd.github.v3+json',
+        const res = await fetch(
+          `https://api.github.com/search/repositories?q=${query}&per_page=8&sort=stars`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+              Accept: 'application/vnd.github.v3+json',
+            },
           },
-        });
+        );
         if (!cancelled && res.ok) {
           const data = await res.json();
           setGithubResults(data.items || []);
@@ -89,7 +99,9 @@ export function RepoPicker({
         if (!cancelled) setSearching(false);
       }
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [debouncedValue, hasToken]);
 
   // Close on outside click
@@ -157,19 +169,28 @@ export function RepoPicker({
       r.path.toLowerCase().includes(value.toLowerCase()),
   );
 
-  const hasDropdownContent = filteredRecent.length > 0 || githubResults.length > 0 || searching || !hasToken;
+  const hasDropdownContent =
+    filteredRecent.length > 0 || githubResults.length > 0 || searching || !hasToken;
 
-  const formatStars = (n: number) => n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(n);
+  const formatStars = (n: number) => (n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(n));
 
   return (
     <div ref={containerRef} className="relative">
-      {label && (
-        <label className="block text-sm font-medium text-gray-300 mb-2">{label}</label>
-      )}
+      {label && <label className="block text-sm font-medium text-gray-300 mb-2">{label}</label>}
       <div className="flex gap-2">
         <div className="relative flex-1">
-          <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+          <svg
+            className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={1.5}
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"
+            />
           </svg>
           <input
             ref={inputRef}
@@ -194,8 +215,18 @@ export function RepoPicker({
           disabled={disabled}
           className="px-4 py-2.5 bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-md text-sm text-gray-300 transition-colors disabled:opacity-50 flex items-center gap-1.5"
         >
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+          <svg
+            className="w-4 h-4"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={1.5}
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"
+            />
           </svg>
           Browse
         </button>
@@ -208,8 +239,18 @@ export function RepoPicker({
           {filteredRecent.length > 0 && (
             <>
               <div className="px-3 py-1.5 text-[10px] text-gray-500 uppercase tracking-wider border-b border-gray-700 flex items-center gap-1.5">
-                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                <svg
+                  className="w-3 h-3"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
                 </svg>
                 Recent
               </div>
@@ -220,8 +261,18 @@ export function RepoPicker({
                   onClick={() => handleSelectRecent(repo)}
                   className="w-full flex items-center gap-3 px-3 py-2 text-left hover:bg-gray-700/50 transition-colors"
                 >
-                  <svg className="w-3.5 h-3.5 text-gray-600 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                  <svg
+                    className="w-3.5 h-3.5 text-gray-600 flex-shrink-0"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={1.5}
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"
+                    />
                   </svg>
                   <div className="flex-1 min-w-0">
                     <div className="text-sm text-gray-200 truncate">{repo.name}</div>
@@ -271,7 +322,10 @@ export function RepoPicker({
           {/* Hint when no token */}
           {!hasToken && !filteredRecent.length && (
             <div className="px-3 py-3 text-xs text-gray-500 text-center">
-              <p>Type a local path or set a GitHub token in <strong className="text-gray-400">Settings</strong> to search repos.</p>
+              <p>
+                Type a local path or set a GitHub token in{' '}
+                <strong className="text-gray-400">Settings</strong> to search repos.
+              </p>
             </div>
           )}
 
@@ -286,7 +340,8 @@ export function RepoPicker({
           {/* Browse local hint */}
           {!value && !filteredRecent.length && hasToken && (
             <div className="px-3 py-3 text-xs text-gray-500 text-center">
-              Start typing to search GitHub, or click <strong className="text-gray-400">Browse</strong> for a local repo.
+              Start typing to search GitHub, or click{' '}
+              <strong className="text-gray-400">Browse</strong> for a local repo.
             </div>
           )}
         </div>

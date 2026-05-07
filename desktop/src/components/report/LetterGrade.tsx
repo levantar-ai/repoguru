@@ -1,12 +1,19 @@
 import { useMemo } from 'react';
 
 const GRADE_COLORS: Record<string, string> = {
-  A: '#22c55e', B: '#84cc16', C: '#eab308', D: '#f97316', F: '#ef4444',
+  A: '#22c55e',
+  B: '#84cc16',
+  C: '#eab308',
+  D: '#f97316',
+  F: '#ef4444',
 };
 
 const GRADE_GLOWS: Record<string, string> = {
-  A: 'grade-glow-a', B: 'grade-glow-b', C: 'grade-glow-c',
-  D: 'grade-glow-d', F: 'grade-glow-f',
+  A: 'grade-glow-a',
+  B: 'grade-glow-b',
+  C: 'grade-glow-c',
+  D: 'grade-glow-d',
+  F: 'grade-glow-f',
 };
 
 interface Props {
@@ -17,9 +24,10 @@ interface Props {
 }
 
 export function LetterGrade({ grade, score, size = 'lg', animated = false }: Props) {
-  const dims = size === 'lg'
-    ? { svgSize: 120, radius: 48, stroke: 6, fontSize: 36, scoreFontSize: 12 }
-    : { svgSize: 48, radius: 18, stroke: 3, fontSize: 16, scoreFontSize: 0 };
+  const dims =
+    size === 'lg'
+      ? { svgSize: 120, radius: 48, stroke: 6, fontSize: 36, scoreFontSize: 12 }
+      : { svgSize: 48, radius: 18, stroke: 3, fontSize: 16, scoreFontSize: 0 };
 
   const { circumference, offset } = useMemo(() => {
     const c = 2 * Math.PI * dims.radius;
@@ -30,8 +38,14 @@ export function LetterGrade({ grade, score, size = 'lg', animated = false }: Pro
   const glow = GRADE_GLOWS[grade] || '';
 
   return (
-    <div className={`inline-flex flex-col items-center ${animated ? 'animate-grade-reveal' : ''} ${glow}`}>
-      <svg width={dims.svgSize} height={dims.svgSize} viewBox={`0 0 ${dims.svgSize} ${dims.svgSize}`}>
+    <div
+      className={`inline-flex flex-col items-center ${animated ? 'animate-grade-reveal' : ''} ${glow}`}
+    >
+      <svg
+        width={dims.svgSize}
+        height={dims.svgSize}
+        viewBox={`0 0 ${dims.svgSize} ${dims.svgSize}`}
+      >
         {/* Background circle */}
         <circle
           cx={dims.svgSize / 2}

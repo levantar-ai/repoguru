@@ -22,7 +22,9 @@ export function useGithubToken() {
         setLoading(false);
       }
     });
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const save = useCallback(async (value: string) => {

@@ -4,7 +4,9 @@ import { app } from 'electron';
 
 // Ensure child processes die when Electron exits unexpectedly
 process.on('exit', () => {
-  try { process.kill(0, 'SIGTERM'); } catch {}
+  try {
+    process.kill(0, 'SIGTERM');
+  } catch {}
 });
 
 // The shipped Rust binary prints "RepoAnalyze gRPC server listening on
@@ -36,9 +38,7 @@ export class ProcessManager {
     if (platform === 'win32') {
       binaryName = 'repoanalyze-win32-x86_64.exe';
     } else if (platform === 'darwin') {
-      binaryName = arch === 'arm64'
-        ? 'repoanalyze-darwin-aarch64'
-        : 'repoanalyze-darwin-x86_64';
+      binaryName = arch === 'arm64' ? 'repoanalyze-darwin-aarch64' : 'repoanalyze-darwin-x86_64';
     } else {
       binaryName = 'repoanalyze-linux-x86_64';
     }
@@ -76,7 +76,9 @@ export class ProcessManager {
         if (!resolved) {
           resolved = true;
           child.kill('SIGKILL');
-          reject(new Error(`Rust binary did not report listening port within ${STARTUP_TIMEOUT_MS}ms`));
+          reject(
+            new Error(`Rust binary did not report listening port within ${STARTUP_TIMEOUT_MS}ms`),
+          );
         }
       }, STARTUP_TIMEOUT_MS);
 
@@ -113,7 +115,9 @@ export class ProcessManager {
           clearTimeout(timeout);
           reject(new Error(`Rust binary exited during startup: code=${code}, signal=${signal}`));
         } else if (!this.stopping) {
-          console.error(`[repoanalyze] process exited: code=${code}, signal=${signal} — scheduling restart`);
+          console.error(
+            `[repoanalyze] process exited: code=${code}, signal=${signal} — scheduling restart`,
+          );
           this.scheduleRestart();
         }
       });

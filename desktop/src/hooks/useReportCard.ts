@@ -16,7 +16,9 @@ export function useReportCard() {
   const mountedRef = useRef(true);
 
   useEffect(() => {
-    return () => { mountedRef.current = false; };
+    return () => {
+      mountedRef.current = false;
+    };
   }, []);
 
   const scoreRepo = useCallback(async (repoPath: string, outPath?: string) => {

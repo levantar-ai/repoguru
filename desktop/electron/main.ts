@@ -20,20 +20,28 @@ app.disableHardwareAcceleration();
 
 // Lightweight Node-native HTTPS POST/GET that doesn't share fate with
 // Chromium's network service — survives even if Electron's GPU crashes.
-function nodeHttpsRequest(url: string, opts: { method?: string; headers?: OutgoingHttpHeaders; body?: string } = {}): Promise<{ status: number; body: string }> {
+function nodeHttpsRequest(
+  url: string,
+  opts: { method?: string; headers?: OutgoingHttpHeaders; body?: string } = {},
+): Promise<{ status: number; body: string }> {
   return new Promise((resolve, reject) => {
     const u = new URL(url);
-    const req = httpsRequest({
-      method: opts.method || 'GET',
-      hostname: u.hostname,
-      port: u.port || 443,
-      path: u.pathname + u.search,
-      headers: opts.headers,
-    }, (res) => {
-      const chunks: Buffer[] = [];
-      res.on('data', (c) => chunks.push(c as Buffer));
-      res.on('end', () => resolve({ status: res.statusCode || 0, body: Buffer.concat(chunks).toString('utf-8') }));
-    });
+    const req = httpsRequest(
+      {
+        method: opts.method || 'GET',
+        hostname: u.hostname,
+        port: u.port || 443,
+        path: u.pathname + u.search,
+        headers: opts.headers,
+      },
+      (res) => {
+        const chunks: Buffer[] = [];
+        res.on('data', (c) => chunks.push(c as Buffer));
+        res.on('end', () =>
+          resolve({ status: res.statusCode || 0, body: Buffer.concat(chunks).toString('utf-8') }),
+        );
+      },
+    );
     req.on('error', reject);
     if (opts.body) req.write(opts.body);
     req.end();
@@ -44,12 +52,12 @@ function nodeHttpsRequest(url: string, opts: { method?: string; headers?: Outgoi
  *  it to the renderer so the progress bar reflects real network /
  *  delta-resolution state instead of pretending nothing is happening. */
 export interface GitProgress {
-  phase: string;          // "Receiving objects" / "Resolving deltas" / "Counting objects" / …
-  percent?: number;       // 0–100, when git includes a percentage
-  current?: number;       // current object count, when present
-  total?: number;         // total object count, when present
-  rate?: string;          // transfer rate, when present (e.g. "5.20 MiB/s")
-  message: string;        // raw line, trimmed
+  phase: string; // "Receiving objects" / "Resolving deltas" / "Counting objects" / …
+  percent?: number; // 0–100, when git includes a percentage
+  current?: number; // current object count, when present
+  total?: number; // total object count, when present
+  rate?: string; // transfer rate, when present (e.g. "5.20 MiB/s")
+  message: string; // raw line, trimmed
 }
 
 /** Parse a single line of git's --progress stderr output.
@@ -62,7 +70,9 @@ export interface GitProgress {
 function parseGitProgress(line: string): GitProgress | null {
   const cleaned = line.replace(/^remote:\s*/, '').trim();
   if (!cleaned) return null;
-  const m = cleaned.match(/^([A-Za-z][A-Za-z ]+?):\s+(\d+)%(?:\s+\((\d+)\/(\d+)\))?(?:.*?\|\s*([\d.]+\s*[KMGT]?i?B\/s))?/);
+  const m = cleaned.match(
+    /^([A-Za-z][A-Za-z ]+?):\s+(\d+)%(?:\s+\((\d+)\/(\d+)\))?(?:.*?\|\s*([\d.]+\s*[KMGT]?i?B\/s))?/,
+  );
   if (!m) {
     // Lines like "Cloning into '...'" — surface as a phase tag without %
     if (/^Cloning into/.test(cleaned)) return { phase: 'Connecting', message: cleaned };
@@ -102,7 +112,12 @@ function runGit(args: string[], onProgress?: (p: GitProgress) => void): Promise<
     proc.on('close', (code) => {
       if (code === 0) resolve();
       // Strip the embedded token from any error output before surfacing
-      else reject(new Error(`git ${args[0]} exited ${code}: ${stderr.replace(/x-access-token:[^@]+@/g, '<token>@').slice(0, 500)}`));
+      else
+        reject(
+          new Error(
+            `git ${args[0]} exited ${code}: ${stderr.replace(/x-access-token:[^@]+@/g, '<token>@').slice(0, 500)}`,
+          ),
+        );
     });
   });
 }
@@ -214,9 +229,12 @@ function registerIpcHandlers(): void {
     return bridge.describeScan(outPath);
   });
 
-  ipcMain.handle('getSection', async (_event, outPath: string, section: string, repoPath?: string) => {
-    return bridge.getSection(outPath, section, repoPath);
-  });
+  ipcMain.handle(
+    'getSection',
+    async (_event, outPath: string, section: string, repoPath?: string) => {
+      return bridge.getSection(outPath, section, repoPath);
+    },
+  );
 
   ipcMain.handle('getReport', async (_event, outPath: string) => {
     return bridge.getReport(outPath);
@@ -250,9 +268,12 @@ function registerIpcHandlers(): void {
   });
 
   // Export
-  ipcMain.handle('exportReport', async (_event, format: string, reportCard: unknown, repoName: string) => {
-    return bridge.exportReport(format, reportCard, repoName);
-  });
+  ipcMain.handle(
+    'exportReport',
+    async (_event, format: string, reportCard: unknown, repoName: string) => {
+      return bridge.exportReport(format, reportCard, repoName);
+    },
+  );
 
   // Org Scan
   ipcMain.handle('scanOrg', async (_event, req) => {
@@ -353,137 +374,179 @@ app.whenReady().then(async () => {
   // that's a one-time setting on the GitHub App.
   let oauthInFlight: { server: Server; cleanup: () => void } | null = null;
 
-  ipcMain.handle('githubOAuthBrowser', async (_event, args: { clientId: string; corsProxy: string }) => {
-    const { clientId, corsProxy } = args;
-    if (!clientId) throw new Error('GitHub OAuth not configured (no client_id).');
-    if (oauthInFlight) {
-      try { oauthInFlight.cleanup(); } catch { /* ignore */ }
-      oauthInFlight = null;
-    }
-
-    const state = randomUUID();
-    const scope = 'repo read:org';
-
-    return new Promise<{ token: string }>((resolve, reject) => {
-      let settled = false;
-      const server = createServer((req, res) => {
+  ipcMain.handle(
+    'githubOAuthBrowser',
+    async (_event, args: { clientId: string; corsProxy: string }) => {
+      const { clientId, corsProxy } = args;
+      if (!clientId) throw new Error('GitHub OAuth not configured (no client_id).');
+      if (oauthInFlight) {
         try {
-          const url = new URL(req.url || '/', 'http://127.0.0.1');
-          if (url.pathname !== '/oauth/callback') {
-            res.writeHead(404, { 'Content-Type': 'text/plain' });
-            res.end('Not found');
-            return;
-          }
-          const code = url.searchParams.get('code');
-          const stateParam = url.searchParams.get('state');
-          const ghError = url.searchParams.get('error_description') || url.searchParams.get('error');
+          oauthInFlight.cleanup();
+        } catch {
+          /* ignore */
+        }
+        oauthInFlight = null;
+      }
 
-          if (ghError) {
-            res.writeHead(400, { 'Content-Type': 'text/html' });
-            res.end(renderCallbackHtml({ ok: false, message: ghError }));
-            settle(new Error(ghError));
-            return;
-          }
-          if (!code || stateParam !== state) {
-            res.writeHead(400, { 'Content-Type': 'text/html' });
-            res.end(renderCallbackHtml({ ok: false, message: 'Invalid OAuth callback (state mismatch).' }));
-            settle(new Error('OAuth state mismatch — possible CSRF, please try again.'));
-            return;
-          }
+      const state = randomUUID();
+      const scope = 'repo read:org';
 
-          // Render the success page right away so the user sees a clean
-          // close-this-tab message; exchange the code in parallel.
-          res.writeHead(200, { 'Content-Type': 'text/html' });
-          res.end(renderCallbackHtml({ ok: true, message: 'You can close this tab and return to RepoGuru.' }));
-
-          (async () => {
-            try {
-              const tokenRes = await nodeHttpsRequest(`${corsProxy}/api/oauth/token`, {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                  // CORS proxy enforces a browser-style Origin allowlist;
-                  // without it server-to-server requests get 403. Use the
-                  // apex domain that's already whitelisted for the web app.
-                  'Origin': 'https://repo.guru',
-                },
-                body: JSON.stringify({ code }),
-              });
-              let data: { access_token?: string; error?: string; error_description?: string } = {};
-              try { data = JSON.parse(tokenRes.body); } catch { /* keep empty */ }
-              if (tokenRes.status < 200 || tokenRes.status >= 300 || !data.access_token) {
-                throw new Error(data.error_description || data.error || `Token exchange failed (HTTP ${tokenRes.status})`);
-              }
-              settle(null, data.access_token);
-            } catch (err) {
-              settle(err instanceof Error ? err : new Error(String(err)));
+      return new Promise<{ token: string }>((resolve, reject) => {
+        let settled = false;
+        const server = createServer((req, res) => {
+          try {
+            const url = new URL(req.url || '/', 'http://127.0.0.1');
+            if (url.pathname !== '/oauth/callback') {
+              res.writeHead(404, { 'Content-Type': 'text/plain' });
+              res.end('Not found');
+              return;
             }
-          })();
-        } catch (err) {
-          settle(err instanceof Error ? err : new Error(String(err)));
-        }
-      });
+            const code = url.searchParams.get('code');
+            const stateParam = url.searchParams.get('state');
+            const ghError =
+              url.searchParams.get('error_description') || url.searchParams.get('error');
 
-      const settle = (err: Error | null, token?: string) => {
-        if (settled) return;
-        settled = true;
-        try { server.close(); } catch { /* ignore */ }
-        if (oauthInFlight?.server === server) oauthInFlight = null;
-        if (err) reject(err);
-        else if (token) resolve({ token });
-        else reject(new Error('OAuth flow ended without token'));
-      };
+            if (ghError) {
+              res.writeHead(400, { 'Content-Type': 'text/html' });
+              res.end(renderCallbackHtml({ ok: false, message: ghError }));
+              settle(new Error(ghError));
+              return;
+            }
+            if (!code || stateParam !== state) {
+              res.writeHead(400, { 'Content-Type': 'text/html' });
+              res.end(
+                renderCallbackHtml({
+                  ok: false,
+                  message: 'Invalid OAuth callback (state mismatch).',
+                }),
+              );
+              settle(new Error('OAuth state mismatch — possible CSRF, please try again.'));
+              return;
+            }
 
-      // 5-minute hard cap so we don't hold a server open forever.
-      const timeout = setTimeout(() => settle(new Error('GitHub authorization timed out.')), 5 * 60 * 1000);
+            // Render the success page right away so the user sees a clean
+            // close-this-tab message; exchange the code in parallel.
+            res.writeHead(200, { 'Content-Type': 'text/html' });
+            res.end(
+              renderCallbackHtml({
+                ok: true,
+                message: 'You can close this tab and return to RepoGuru.',
+              }),
+            );
 
-      // Fixed port so the App's callback-URL list only needs ONE entry
-      // (not one per random ephemeral port). 47821 is unassigned by IANA
-      // and unlikely to clash with anything else on the user's machine.
-      const FIXED_PORT = 47821;
+            (async () => {
+              try {
+                const tokenRes = await nodeHttpsRequest(`${corsProxy}/api/oauth/token`, {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    // CORS proxy enforces a browser-style Origin allowlist;
+                    // without it server-to-server requests get 403. Use the
+                    // apex domain that's already whitelisted for the web app.
+                    Origin: 'https://repo.guru',
+                  },
+                  body: JSON.stringify({ code }),
+                });
+                let data: { access_token?: string; error?: string; error_description?: string } =
+                  {};
+                try {
+                  data = JSON.parse(tokenRes.body);
+                } catch {
+                  /* keep empty */
+                }
+                if (tokenRes.status < 200 || tokenRes.status >= 300 || !data.access_token) {
+                  throw new Error(
+                    data.error_description ||
+                      data.error ||
+                      `Token exchange failed (HTTP ${tokenRes.status})`,
+                  );
+                }
+                settle(null, data.access_token);
+              } catch (err) {
+                settle(err instanceof Error ? err : new Error(String(err)));
+              }
+            })();
+          } catch (err) {
+            settle(err instanceof Error ? err : new Error(String(err)));
+          }
+        });
 
-      server.on('error', (err: NodeJS.ErrnoException) => {
-        if (err.code === 'EADDRINUSE') {
-          settle(new Error(`Port ${FIXED_PORT} is busy — close whatever's using it and try Connect again.`));
-        } else {
-          settle(err);
-        }
-      });
-      // Bind to 127.0.0.1 and use the same hostname in redirect_uri.
-      // GitHub does exact host-string matching against the App's
-      // registered callback URLs, so the hostname spelling here MUST
-      // match exactly what's saved on the App ("127.0.0.1" — not
-      // "localhost", even though they resolve identically).
-      server.listen(FIXED_PORT, '127.0.0.1', () => {
-        const port = (server.address() as AddressInfo).port;
-        const redirectUri = `http://127.0.0.1:${port}/oauth/callback`;
-        const authUrl =
-          `https://github.com/login/oauth/authorize?client_id=${encodeURIComponent(clientId)}` +
-          `&scope=${encodeURIComponent(scope)}` +
-          `&state=${encodeURIComponent(state)}` +
-          `&redirect_uri=${encodeURIComponent(redirectUri)}`;
-        oauthInFlight = {
-          server,
-          cleanup: () => {
-            // Triggered by githubOAuthCancel — close the server AND
-            // reject the awaiting Promise so the renderer can move
-            // out of its "Waiting for GitHub…" state. Without the
-            // settle() call, closing the browser would leave the
-            // Promise pending until the 5-minute timeout fires.
-            clearTimeout(timeout);
-            settle(new Error('Cancelled by user'));
-          },
+        const settle = (err: Error | null, token?: string) => {
+          if (settled) return;
+          settled = true;
+          try {
+            server.close();
+          } catch {
+            /* ignore */
+          }
+          if (oauthInFlight?.server === server) oauthInFlight = null;
+          if (err) reject(err);
+          else if (token) resolve({ token });
+          else reject(new Error('OAuth flow ended without token'));
         };
-        // Open in the user's default browser — passkeys, password
-        // managers, 2FA all work the way they normally do.
-        shell.openExternal(authUrl).catch((err) => settle(err));
+
+        // 5-minute hard cap so we don't hold a server open forever.
+        const timeout = setTimeout(
+          () => settle(new Error('GitHub authorization timed out.')),
+          5 * 60 * 1000,
+        );
+
+        // Fixed port so the App's callback-URL list only needs ONE entry
+        // (not one per random ephemeral port). 47821 is unassigned by IANA
+        // and unlikely to clash with anything else on the user's machine.
+        const FIXED_PORT = 47821;
+
+        server.on('error', (err: NodeJS.ErrnoException) => {
+          if (err.code === 'EADDRINUSE') {
+            settle(
+              new Error(
+                `Port ${FIXED_PORT} is busy — close whatever's using it and try Connect again.`,
+              ),
+            );
+          } else {
+            settle(err);
+          }
+        });
+        // Bind to 127.0.0.1 and use the same hostname in redirect_uri.
+        // GitHub does exact host-string matching against the App's
+        // registered callback URLs, so the hostname spelling here MUST
+        // match exactly what's saved on the App ("127.0.0.1" — not
+        // "localhost", even though they resolve identically).
+        server.listen(FIXED_PORT, '127.0.0.1', () => {
+          const port = (server.address() as AddressInfo).port;
+          const redirectUri = `http://127.0.0.1:${port}/oauth/callback`;
+          const authUrl =
+            `https://github.com/login/oauth/authorize?client_id=${encodeURIComponent(clientId)}` +
+            `&scope=${encodeURIComponent(scope)}` +
+            `&state=${encodeURIComponent(state)}` +
+            `&redirect_uri=${encodeURIComponent(redirectUri)}`;
+          oauthInFlight = {
+            server,
+            cleanup: () => {
+              // Triggered by githubOAuthCancel — close the server AND
+              // reject the awaiting Promise so the renderer can move
+              // out of its "Waiting for GitHub…" state. Without the
+              // settle() call, closing the browser would leave the
+              // Promise pending until the 5-minute timeout fires.
+              clearTimeout(timeout);
+              settle(new Error('Cancelled by user'));
+            },
+          };
+          // Open in the user's default browser — passkeys, password
+          // managers, 2FA all work the way they normally do.
+          shell.openExternal(authUrl).catch((err) => settle(err));
+        });
       });
-    });
-  });
+    },
+  );
 
   ipcMain.handle('githubOAuthCancel', async () => {
     if (oauthInFlight) {
-      try { oauthInFlight.cleanup(); } catch { /* ignore */ }
+      try {
+        oauthInFlight.cleanup();
+      } catch {
+        /* ignore */
+      }
       oauthInFlight = null;
     }
   });
@@ -493,14 +556,17 @@ app.whenReady().then(async () => {
   // fetch was silently swallowing 401s, leaving the picker blank).
   ipcMain.handle('githubListRepos', async (_event, token: string) => {
     if (!token) throw new Error('No GitHub token');
-    const res = await nodeHttpsRequest('https://api.github.com/user/repos?per_page=100&sort=updated', {
-      headers: {
-        Accept: 'application/vnd.github+json',
-        Authorization: `Bearer ${token}`,
-        'X-GitHub-Api-Version': '2022-11-28',
-        'User-Agent': 'RepoGuru-Desktop',
+    const res = await nodeHttpsRequest(
+      'https://api.github.com/user/repos?per_page=100&sort=updated',
+      {
+        headers: {
+          Accept: 'application/vnd.github+json',
+          Authorization: `Bearer ${token}`,
+          'X-GitHub-Api-Version': '2022-11-28',
+          'User-Agent': 'RepoGuru-Desktop',
+        },
       },
-    });
+    );
     if (res.status === 401) {
       // Token is rejected (expired/revoked). Drop it from secureStore so the
       // picker shows Connect again instead of looping on bad credentials.
@@ -508,7 +574,9 @@ app.whenReady().then(async () => {
         const store = loadSecureStore();
         delete store['repoguru:github-token'];
         saveSecureStore(store);
-      } catch { /* ignore */ }
+      } catch {
+        /* ignore */
+      }
       throw new Error('Reconnect to GitHub — your saved session is no longer valid.');
     }
     if (res.status < 200 || res.status >= 300) {

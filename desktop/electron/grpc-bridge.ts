@@ -7,7 +7,10 @@ import { existsSync, writeFileSync } from 'fs';
 function getProtoPath(): string {
   // DIAGNOSTIC: dump dir to /tmp before any logic.
   try {
-    writeFileSync('/tmp/grpc-bridge-startup.log', `__dirname=${__dirname}\nresourcesPath=${process.resourcesPath}\n`);
+    writeFileSync(
+      '/tmp/grpc-bridge-startup.log',
+      `__dirname=${__dirname}\nresourcesPath=${process.resourcesPath}\n`,
+    );
   } catch {}
   const candidates = [
     join(__dirname, '..', '..', '..', 'proto', 'repoanalyze.proto'),
@@ -24,7 +27,9 @@ function getProtoPath(): string {
     if (exists && !chosen) chosen = p;
   }
   log += `chosen: ${chosen || '(none)'}\n`;
-  try { writeFileSync('/tmp/grpc-bridge-startup.log', log); } catch {}
+  try {
+    writeFileSync('/tmp/grpc-bridge-startup.log', log);
+  } catch {}
   return chosen || join(process.resourcesPath ?? '', 'proto', 'repoanalyze.proto');
 }
 
@@ -57,14 +62,10 @@ export class GrpcBridge {
     // can exceed the default 4 MB gRPC receive cap — getSection raises
     // RESOURCE_EXHAUSTED otherwise. The CLI talks only to this same
     // process locally, so a generous 256 MB cap is safe.
-    this.client = new service(
-      `[::1]:${this.port}`,
-      grpc.credentials.createInsecure(),
-      {
-        'grpc.max_receive_message_length': 256 * 1024 * 1024,
-        'grpc.max_send_message_length': 256 * 1024 * 1024,
-      },
-    ) as ServiceClient;
+    this.client = new service(`[::1]:${this.port}`, grpc.credentials.createInsecure(), {
+      'grpc.max_receive_message_length': 256 * 1024 * 1024,
+      'grpc.max_send_message_length': 256 * 1024 * 1024,
+    }) as ServiceClient;
 
     // Wait for the channel to connect
     await new Promise<void>((resolve, reject) => {
@@ -83,7 +84,9 @@ export class GrpcBridge {
       '/tmp/grpc-bridge-methods.json',
       JSON.stringify({ proto: PROTO_PATH, methods }, null, 2),
     );
-    process.stderr.write(`[grpc-bridge] CONNECTED. proto=${PROTO_PATH} method-count=${methods.length} sample=${methods.slice(0, 5).join(',')}\n`);
+    process.stderr.write(
+      `[grpc-bridge] CONNECTED. proto=${PROTO_PATH} method-count=${methods.length} sample=${methods.slice(0, 5).join(',')}\n`,
+    );
   }
 
   reconnect(port: number): Promise<void> {

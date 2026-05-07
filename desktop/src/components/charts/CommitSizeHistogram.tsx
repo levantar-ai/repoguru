@@ -8,7 +8,12 @@ interface Props {
 
 export function CommitSizeHistogram({ data }: Props) {
   const option = baseOption({
-    tooltip: { trigger: 'axis', backgroundColor: '#1e293b', borderColor: '#334155', textStyle: { color: '#f1f5f9' } },
+    tooltip: {
+      trigger: 'axis',
+      backgroundColor: '#1e293b',
+      borderColor: '#334155',
+      textStyle: { color: '#f1f5f9' },
+    },
     xAxis: {
       type: 'category',
       data: data.map((d) => d[0]),
@@ -21,12 +26,14 @@ export function CommitSizeHistogram({ data }: Props) {
       axisLabel: { color: '#64748b' },
       splitLine: { lineStyle: { color: '#1e293b' } },
     },
-    series: [{
-      type: 'bar',
-      data: data.map((d) => d[1]),
-      itemStyle: { color: '#fb923c', borderRadius: [3, 3, 0, 0] },
-      barWidth: '60%',
-    }],
+    series: [
+      {
+        type: 'bar',
+        data: data.map((d) => d[1]),
+        itemStyle: { color: '#fb923c', borderRadius: [3, 3, 0, 0] },
+        barWidth: '60%',
+      },
+    ],
   });
 
   return (

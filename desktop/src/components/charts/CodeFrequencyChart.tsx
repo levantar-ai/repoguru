@@ -3,12 +3,22 @@ import { baseOption } from './echarts-theme';
 import { ChartCard } from './ChartCard';
 
 interface Props {
-  timeseries: Array<{ period_start: string; commits: number; insertions: number; deletions: number }>;
+  timeseries: Array<{
+    period_start: string;
+    commits: number;
+    insertions: number;
+    deletions: number;
+  }>;
 }
 
 export function CodeFrequencyChart({ timeseries }: Props) {
   const option = baseOption({
-    tooltip: { trigger: 'axis', backgroundColor: '#1e293b', borderColor: '#334155', textStyle: { color: '#f1f5f9' } },
+    tooltip: {
+      trigger: 'axis',
+      backgroundColor: '#1e293b',
+      borderColor: '#334155',
+      textStyle: { color: '#f1f5f9' },
+    },
     legend: { data: ['Insertions', 'Deletions'], textStyle: { color: '#94a3b8' } },
     xAxis: {
       type: 'category',

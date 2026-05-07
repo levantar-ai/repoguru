@@ -43,12 +43,14 @@ export function TagHistoryChart({ tags }: Props) {
       axisLabel: { color: '#64748b' },
       splitLine: { lineStyle: { color: '#1e293b' } },
     },
-    series: [{
-      type: 'bar',
-      data: recent.map((t) => t.commits_since_prev),
-      itemStyle: { color: '#c084fc', borderRadius: [3, 3, 0, 0] },
-      barWidth: '65%',
-    }],
+    series: [
+      {
+        type: 'bar',
+        data: recent.map((t) => t.commits_since_prev),
+        itemStyle: { color: '#c084fc', borderRadius: [3, 3, 0, 0] },
+        barWidth: '65%',
+      },
+    ],
   });
 
   return (

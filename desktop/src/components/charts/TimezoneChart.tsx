@@ -36,12 +36,14 @@ export function TimezoneChart({ data }: Props) {
       axisLabel: { color: '#64748b' },
       splitLine: { lineStyle: { color: '#1e293b' } },
     },
-    series: [{
-      type: 'bar',
-      data: sorted.map((d) => d[1]),
-      itemStyle: { color: '#22d3ee', borderRadius: [3, 3, 0, 0] },
-      barWidth: '70%',
-    }],
+    series: [
+      {
+        type: 'bar',
+        data: sorted.map((d) => d[1]),
+        itemStyle: { color: '#22d3ee', borderRadius: [3, 3, 0, 0] },
+        barWidth: '70%',
+      },
+    ],
   });
 
   return (

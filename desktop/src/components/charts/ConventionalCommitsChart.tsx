@@ -34,18 +34,20 @@ export function ConventionalCommitsChart({ data }: Props) {
       borderColor: '#334155',
       textStyle: { color: '#f1f5f9', fontSize: 12 },
     },
-    series: [{
-      type: 'pie',
-      radius: ['35%', '65%'],
-      data: entries.map(([type, count], i) => ({
-        name: type,
-        value: count,
-        itemStyle: { color: TYPE_COLORS[type] ?? CHART_COLORS[i % CHART_COLORS.length] },
-      })),
-      label: { color: '#94a3b8', fontSize: 11 },
-      labelLine: { lineStyle: { color: '#475569' } },
-      emphasis: { itemStyle: { shadowBlur: 10, shadowColor: 'rgba(0,0,0,0.3)' } },
-    }],
+    series: [
+      {
+        type: 'pie',
+        radius: ['35%', '65%'],
+        data: entries.map(([type, count], i) => ({
+          name: type,
+          value: count,
+          itemStyle: { color: TYPE_COLORS[type] ?? CHART_COLORS[i % CHART_COLORS.length] },
+        })),
+        label: { color: '#94a3b8', fontSize: 11 },
+        labelLine: { lineStyle: { color: '#475569' } },
+        emphasis: { itemStyle: { shadowBlur: 10, shadowColor: 'rgba(0,0,0,0.3)' } },
+      },
+    ],
   };
 
   return (

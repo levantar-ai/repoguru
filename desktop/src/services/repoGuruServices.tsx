@@ -17,7 +17,12 @@ import {
   type OrgScanResult,
   type GitStatsResult,
 } from '@repoguru/ui';
-import { grpcClient, type ScoreResponse, type ScanRequest, type ScanProgress } from '@/services/grpc-client';
+import {
+  grpcClient,
+  type ScoreResponse,
+  type ScanRequest,
+  type ScanProgress,
+} from '@/services/grpc-client';
 import { GrpcAnalyzer, type GrpcSectionClient } from '@repoguru/desktop-adapter';
 import type { GitStatsData as CanonicalGitStatsData } from '@repoguru/core';
 import { wireToLegacy } from '@/services/wireToLegacy';
@@ -69,7 +74,11 @@ function scoreToReportCardData(score: ScoreResponse, repoPath: string): ReportCa
       label: c.label,
       score: c.score,
       weight: c.weight,
-      signals: c.signals.map((s) => ({ name: s.name, found: s.found, details: s.details || undefined })),
+      signals: c.signals.map((s) => ({
+        name: s.name,
+        found: s.found,
+        details: s.details || undefined,
+      })),
     })),
     strengths: score.strengths,
     risks: score.risks,
@@ -81,15 +90,29 @@ function scoreToReportCardData(score: ScoreResponse, repoPath: string): ReportCa
 interface CompareResponseWire {
   report_card_a: ScoreResponse;
   report_card_b: ScoreResponse;
-  deltas: Array<{ category: string; score_a: number; score_b: number; delta: number; winner: string }>;
+  deltas: Array<{
+    category: string;
+    score_a: number;
+    score_b: number;
+    delta: number;
+    winner: string;
+  }>;
   winner: string;
   score_delta: number;
 }
 
 const DESKTOP_PRESETS: PolicyPreset[] = [
   { id: 'basic-hygiene', label: 'Basic Hygiene', description: 'README, LICENSE, CI/CD basics' },
-  { id: 'production-ready', label: 'Production Ready', description: 'Full CI/CD, security, quality' },
-  { id: 'security-focused', label: 'Security Focused', description: 'Strict security and supply chain' },
+  {
+    id: 'production-ready',
+    label: 'Production Ready',
+    description: 'Full CI/CD, security, quality',
+  },
+  {
+    id: 'security-focused',
+    label: 'Security Focused',
+    description: 'Strict security and supply chain',
+  },
 ];
 
 // Pages call our services with whatever the user typed/picked — that's
@@ -105,7 +128,14 @@ const GITHUB_SLUG_RE = /^[A-Za-z0-9][\w.-]*\/[\w.-]+$/;
  *  afterwards; 0–95 for single-shot RPCs that have no further
  *  meaningful progress). */
 function cloneToAnalysisProgress(
-  p: { phase: string; percent?: number; current?: number; total?: number; rate?: string; message: string },
+  p: {
+    phase: string;
+    percent?: number;
+    current?: number;
+    total?: number;
+    rate?: string;
+    message: string;
+  },
   cloneEnd: number,
 ): { message: string; overall: number; sub: number; phase: string } {
   const sub = typeof p.percent === 'number' ? p.percent : 0;
@@ -114,14 +144,25 @@ function cloneToAnalysisProgress(
   const detail = [
     p.current && p.total ? `${p.current.toLocaleString()} / ${p.total.toLocaleString()}` : '',
     p.rate ? `· ${p.rate}` : '',
-  ].filter(Boolean).join(' ');
+  ]
+    .filter(Boolean)
+    .join(' ');
   const msg = detail ? `${p.phase}: ${detail}` : p.message;
   return { message: msg, overall, sub, phase: p.phase.toLowerCase() };
 }
 
 async function resolveRepoPath(
   repo: string,
-  opts: { onProgress?: (p: { phase: string; percent?: number; current?: number; total?: number; rate?: string; message: string }) => void } = {},
+  opts: {
+    onProgress?: (p: {
+      phase: string;
+      percent?: number;
+      current?: number;
+      total?: number;
+      rate?: string;
+      message: string;
+    }) => void;
+  } = {},
 ): Promise<string> {
   if (!repo) return repo;
   if (!GITHUB_SLUG_RE.test(repo)) return repo;
@@ -130,7 +171,9 @@ async function resolveRepoPath(
   let token: string | undefined;
   try {
     token = (await loadToken()) || undefined;
-  } catch { /* no-op */ }
+  } catch {
+    /* no-op */
+  }
   const { path } = await window.repoGuru.githubCloneRepo({ slug: repo, token }, opts.onProgress);
   return path;
 }
@@ -163,7 +206,9 @@ export const desktopServices: RepoGuruServices = {
       // "Waiting for GitHub…" until the 5-minute server timeout.
       try {
         await window.repoGuru.githubOAuthCancel();
-      } catch { /* ignore — best-effort */ }
+      } catch {
+        /* ignore — best-effort */
+      }
     },
     async connectGitHub() {
       // Pop up GitHub's normal login/authorize page in a small Electron
@@ -171,7 +216,8 @@ export const desktopServices: RepoGuruServices = {
       // via the same CORS proxy the web uses. Same flow as the web,
       // delivered through the OS's native window pattern instead of
       // hijacking page navigation. No App-config changes required.
-      if (!GITHUB_CLIENT_ID) throw new Error('GitHub OAuth not configured (VITE_GITHUB_CLIENT_ID missing).');
+      if (!GITHUB_CLIENT_ID)
+        throw new Error('GitHub OAuth not configured (VITE_GITHUB_CLIENT_ID missing).');
       const { token } = await window.repoGuru.githubOAuthBrowser({
         clientId: GITHUB_CLIENT_ID,
         corsProxy: CORS_PROXY,
@@ -265,7 +311,7 @@ export const desktopServices: RepoGuruServices = {
       });
       opts?.onProgress?.({ message: 'Detecting tech…', overall: 92, sub: 80, phase: 'detecting' });
       const res = (await grpcClient.detectTech(path)) as { json?: string };
-      const raw = res?.json ? JSON.parse(res.json) as Record<string, unknown> : {};
+      const raw = res?.json ? (JSON.parse(res.json) as Record<string, unknown>) : {};
       const arr = (k: string) => (Array.isArray(raw[k]) ? raw[k] : []);
       return {
         aws: arr('aws'),
@@ -302,14 +348,25 @@ export const desktopServices: RepoGuruServices = {
         pass_count: number;
         fail_count: number;
         results: Array<{
-          rule: { id: string; name: string; description: string; type: string; operator: string; value: number; category: string; signal: string; severity: string };
+          rule: {
+            id: string;
+            name: string;
+            description: string;
+            type: string;
+            operator: string;
+            value: number;
+            category: string;
+            signal: string;
+            severity: string;
+          };
           passed: boolean;
           actual: string;
           expected: string;
         }>;
       };
       const preset = DESKTOP_PRESETS.find((p) => p.id === req.presetId);
-      const asSeverity = (s: string): PolicySeverity => (s === 'error' || s === 'warning' || s === 'info' ? s : 'info');
+      const asSeverity = (s: string): PolicySeverity =>
+        s === 'error' || s === 'warning' || s === 'info' ? s : 'info';
       return {
         passed: wire.passed,
         passCount: wire.pass_count,
@@ -360,12 +417,14 @@ export const desktopServices: RepoGuruServices = {
             // total commits, so cap sub at 30% during phases that have no
             // total yet, then go off commits_processed/scanTotal.
             if (p.commits_processed > scanTotal) scanTotal = p.commits_processed;
-            const sub = scanTotal > 0
-              ? Math.min(99, (p.commits_processed / Math.max(1, scanTotal)) * 100)
-              : 30;
-            const scanFraction = scanTotal > 0
-              ? p.commits_processed / Math.max(1, scanTotal)
-              : Math.min(0.3, p.elapsed_seconds / 10);
+            const sub =
+              scanTotal > 0
+                ? Math.min(99, (p.commits_processed / Math.max(1, scanTotal)) * 100)
+                : 30;
+            const scanFraction =
+              scanTotal > 0
+                ? p.commits_processed / Math.max(1, scanTotal)
+                : Math.min(0.3, p.elapsed_seconds / 10);
             const overall = CLONE_END + scanFraction * (SCAN_END - CLONE_END);
             opts?.onProgress?.({
               message: p.message || `Scanned ${p.commits_processed.toLocaleString()} commits…`,
@@ -390,12 +449,20 @@ export const desktopServices: RepoGuruServices = {
       const wrapped: GrpcSectionClient = {
         async getReport(p) {
           const res = (await grpcClient.getReport(p)) as { metrics_json: string };
-          try { captured['__report'] = JSON.parse(res.metrics_json) as Record<string, unknown>; } catch { captured['__report'] = {}; }
+          try {
+            captured['__report'] = JSON.parse(res.metrics_json) as Record<string, unknown>;
+          } catch {
+            captured['__report'] = {};
+          }
           return res;
         },
         async getSection(p, s, r) {
           const res = (await grpcClient.getSection(p, s, r)) as { data_json: string };
-          try { captured[s] = JSON.parse(res.data_json) as Record<string, unknown>; } catch { captured[s] = {}; }
+          try {
+            captured[s] = JSON.parse(res.data_json) as Record<string, unknown>;
+          } catch {
+            captured[s] = {};
+          }
           return res;
         },
       };
@@ -441,11 +508,14 @@ export const desktopServices: RepoGuruServices = {
       });
       const reportRaw = (captured['__report'] ?? {}) as Record<string, unknown>;
       const overview = canonical.overview;
-      const analysis = wireToLegacy(wireData as never, {
-        ...reportRaw,
-        owner: overview?.owner,
-        repo: overview?.repo,
-      } as Parameters<typeof wireToLegacy>[1]);
+      const analysis = wireToLegacy(
+        wireData as never,
+        {
+          ...reportRaw,
+          owner: overview?.owner,
+          repo: overview?.repo,
+        } as Parameters<typeof wireToLegacy>[1],
+      );
       return { analysis };
     },
   },
@@ -460,7 +530,12 @@ export const desktopServices: RepoGuruServices = {
           repo_name: string;
           repos_total: number;
           repos_completed: number;
-          repo_scores: Array<{ repo_name: string; overall_score: number; grade: string; categories: Array<{ key: string; label: string; score: number }> }>;
+          repo_scores: Array<{
+            repo_name: string;
+            overall_score: number;
+            grade: string;
+            categories: Array<{ key: string; label: string; score: number }>;
+          }>;
           average_score: number;
           average_grade: string;
           error: string;
@@ -474,7 +549,11 @@ export const desktopServices: RepoGuruServices = {
               repo: { owner, repo },
               grade: asGrade(r.grade),
               overallScore: r.overall_score,
-              categories: (r.categories ?? []).map((c) => ({ key: c.key, label: c.label, score: c.score })),
+              categories: (r.categories ?? []).map((c) => ({
+                key: c.key,
+                label: c.label,
+                score: c.score,
+              })),
             };
           });
           items = built;

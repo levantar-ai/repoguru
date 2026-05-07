@@ -58,7 +58,8 @@ export function ScanProgress({ progress }: Props) {
             key={phase}
             className="flex-1 h-1 rounded-full transition-colors"
             style={{
-              backgroundColor: i < phaseIndex ? '#22c55e' : i === phaseIndex ? '#38bdf8' : '#1e293b',
+              backgroundColor:
+                i < phaseIndex ? '#22c55e' : i === phaseIndex ? '#38bdf8' : '#1e293b',
             }}
           />
         ))}

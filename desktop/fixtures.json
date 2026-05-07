@@ -399,9 +399,7 @@
         "Strong OpenSSF (B)"
       ],
       "risks": [],
-      "next_steps": [
-        "Add Pinned dependencies (+15 pts to OpenSSF)"
-      ],
+      "next_steps": ["Add Pinned dependencies (+15 pts to OpenSSF)"],
       "overall_score": 93,
       "grade": "A",
       "scored_at": "2026-04-27T23:55:41Z"
@@ -1013,9 +1011,7 @@
           "Strong OpenSSF (B)"
         ],
         "risks": [],
-        "next_steps": [
-          "Add Pinned dependencies (+15 pts to OpenSSF)"
-        ],
+        "next_steps": ["Add Pinned dependencies (+15 pts to OpenSSF)"],
         "overall_score": 93,
         "grade": "A",
         "scored_at": "2026-04-27T23:55:41Z"
@@ -1407,11 +1403,7 @@
             "weight": 0.1
           }
         ],
-        "strengths": [
-          "Strong CI/CD (A)",
-          "Strong Dependencies (A)",
-          "Strong OpenSSF (B)"
-        ],
+        "strengths": ["Strong CI/CD (A)", "Strong Dependencies (A)", "Strong OpenSSF (B)"],
         "risks": [
           "Documentation needs attention (F)",
           "Code Quality needs attention (F)",

@@ -18,12 +18,12 @@ interface RepoMetrics {
   // Largest objects (top-N curated by CLI's max_top, default 50)
   largest_blobs?: Array<[string, number]>; // [oid, size]
   largest_trees?: Array<[string, number]>; // [oid, entries]
-  largest_commit?: [string, number];       // [oid, bytes]
+  largest_commit?: [string, number]; // [oid, bytes]
   // Path / name extremes
-  deepest_path?: [string, number];         // [path, depth]
-  longest_name?: [string, number];         // [name, length]
-  longest_path?: [string, number];         // [path, length]
-  largest_directory?: [string, number];    // [path, entries]
+  deepest_path?: [string, number]; // [path, depth]
+  longest_name?: [string, number]; // [name, length]
+  longest_path?: [string, number]; // [path, length]
+  largest_directory?: [string, number]; // [path, entries]
   // History shape
   max_parents?: number;
   max_tag_depth?: number;
@@ -76,17 +76,14 @@ export function wireToLegacy(data: GitStatsData, report: ReportLike): Analysis {
   const _paths = report.paths ?? {};
   void _paths;
   const totalCommits =
-    report.total_commits ??
-    (data.authors ?? []).reduce((sum, a) => sum + a.commits, 0);
+    report.total_commits ?? (data.authors ?? []).reduce((sum, a) => sum + a.commits, 0);
 
   // ── Overview ──
   const oldest = repoMetrics.oldest_commit;
   const newest = repoMetrics.newest_commit;
   const firstCommitDate = oldest ? new Date(oldest * 1000).toISOString().slice(0, 10) : '';
-  const repoAgeDays =
-    oldest && newest ? Math.max(1, Math.round((newest - oldest) / 86400)) : 0;
-  const totalLinesOfCode =
-    (report.total_insertions ?? 0) - (report.total_deletions ?? 0) || 0;
+  const repoAgeDays = oldest && newest ? Math.max(1, Math.round((newest - oldest) / 86400)) : 0;
+  const totalLinesOfCode = (report.total_insertions ?? 0) - (report.total_deletions ?? 0) || 0;
 
   // ── Contributors ──
   const contributors: legacy.ContributorSummary[] = (data.authors ?? []).map((a) => {
@@ -162,9 +159,11 @@ export function wireToLegacy(data: GitStatsData, report: ReportLike): Analysis {
   };
 
   // ── Punch / weekly ──
-  const punchCard: legacy.PunchCardData[] = (data.punch_card ?? []).map(
-    ([day, hour, commits]) => ({ day, hour, commits }),
-  );
+  const punchCard: legacy.PunchCardData[] = (data.punch_card ?? []).map(([day, hour, commits]) => ({
+    day,
+    hour,
+    commits,
+  }));
   const weeklyActivity: legacy.WeeklyActivity[] = (data.weekly_activity ?? []).map(
     ([weekStart, total]) => ({ weekStart, total, days: [] }),
   );
