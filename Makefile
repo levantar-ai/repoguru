@@ -62,16 +62,23 @@ build-desktop: build-shared ## Build the Electron renderer (no packaging)
 # ──────────────────────────── Package (release artefacts) ────────────────────────────
 
 .PHONY: package-desktop package-desktop-mac package-desktop-win package-desktop-linux
+# `build:renderer` runs `tsc && vite build` which (via vite-plugin-electron)
+# emits BOTH dist/ (renderer) and dist-electron/ (main + preload) — both
+# are required by electron-builder's app.asar packaging.
 package-desktop: build-shared ## Package Electron desktop for the current OS
+	$(PNPM) --filter repoguru-desktop run build:renderer
 	$(PNPM) --filter repoguru-desktop package
 
 package-desktop-mac: build-shared ## macOS .dmg / .pkg bundle
+	$(PNPM) --filter repoguru-desktop run build:renderer
 	$(PNPM) --filter repoguru-desktop package:mac
 
 package-desktop-win: build-shared ## Windows .exe installer
+	$(PNPM) --filter repoguru-desktop run build:renderer
 	$(PNPM) --filter repoguru-desktop package:win
 
 package-desktop-linux: build-shared ## Linux AppImage / .deb
+	$(PNPM) --filter repoguru-desktop run build:renderer
 	$(PNPM) --filter repoguru-desktop package:linux
 
 # ──────────────────────────── Test ────────────────────────────
