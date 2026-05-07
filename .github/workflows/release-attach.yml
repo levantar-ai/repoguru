@@ -1,12 +1,15 @@
 name: Release · attach artifacts
 
-# Tag-triggered: fires when semantic-release pushes a cli-v* / web-v* /
-# desktop-v* tag (assuming SEMANTIC_RELEASE_TOKEN is configured — without
-# a PAT the release.yml workflow falls back to invoking us via dispatch).
+# Tag-triggered (or workflow_dispatch fallback): resolves the tag's commit
+# SHA, finds the matching CI · X run for THAT SHA, downloads its artifacts,
+# and attaches them to the GitHub Release.
 #
-# Job: download the latest matching artifact from the relevant CI · X
-# workflow on main, attach to the GitHub Release, and (web only) deploy
-# to S3.
+# "Matching" means same commit — not "latest successful on main". This
+# eliminates the race where multiple main pushes land in quick succession
+# and the wrong build gets attached.
+#
+# If the matching CI · X run is still in progress when the tag fires, we
+# poll for up to 30 minutes before giving up.
 on:
   push:
     tags:
@@ -35,12 +38,14 @@ env:
   NODE_VERSION: 22
 
 jobs:
-  classify:
-    name: Classify tag
+  resolve:
+    name: Resolve tag → SHA + component
     runs-on: ubuntu-latest
+    timeout-minutes: 3
     outputs:
       component: ${{ steps.cls.outputs.component }}
-      tag: ${{ steps.cls.outputs.tag }}
+      tag:       ${{ steps.cls.outputs.tag }}
+      sha:       ${{ steps.sha.outputs.value }}
     steps:
       - id: cls
         env:
@@ -56,123 +61,177 @@ jobs:
               exit 1 ;;
           esac
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ steps.cls.outputs.tag }}
+      - id: sha
+        run: |
+          # Resolve the commit the tag points at — works for both annotated
+          # (semantic-release) and lightweight tags.
+          SHA=$(git rev-list -n 1 "${{ steps.cls.outputs.tag }}")
+          echo "Tag ${{ steps.cls.outputs.tag }} → $SHA"
+          echo "value=$SHA" >> "$GITHUB_OUTPUT"
 
   # ─────────────────────────────────────────────────────────────────────
-  # CLI — download cli-* artifacts from the latest successful CI · cli
-  # run on main, attach to the GitHub Release.
+  # CLI — find the CI · cli run for the tag's SHA, download cli-* artifacts,
+  # attach to the Release.
   # ─────────────────────────────────────────────────────────────────────
   attach-cli:
     name: Attach cli binaries
-    needs: classify
-    if: needs.classify.outputs.component == 'cli'
+    needs: resolve
+    if: needs.resolve.outputs.component == 'cli'
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
-      - name: Download latest cli artifacts
+      - name: Find CI · cli run for ${{ needs.resolve.outputs.sha }}
+        id: find_run
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GH_REPO: ${{ github.repository }}
+          GH_REPO:  ${{ github.repository }}
+          SHA:      ${{ needs.resolve.outputs.sha }}
         run: |
-          RUN_ID=$(gh run list \
-                     --workflow "CI · cli" \
-                     --branch main \
-                     --status success \
-                     --limit 1 \
-                     --json databaseId \
-                     --jq '.[0].databaseId // ""')
-          if [[ -z "$RUN_ID" ]]; then
-            echo "::error::No successful CI · cli run on main found — nothing to attach."
-            exit 1
-          fi
-          echo "Pulling cli artifacts from CI · cli run $RUN_ID"
-          gh run download "$RUN_ID" --pattern 'cli-*' --dir staging/
+          for attempt in $(seq 1 60); do
+            STATE=$(gh run list \
+                      --workflow "CI · cli" \
+                      --limit 50 \
+                      --json databaseId,headSha,status,conclusion \
+                      --jq "[.[] | select(.headSha == \"$SHA\")] | first" 2>/dev/null || echo "null")
+            STATUS=$(echo "$STATE" | jq -r '.status // "missing"')
+            CONCLUSION=$(echo "$STATE" | jq -r '.conclusion // ""')
+            RUN_ID=$(echo "$STATE" | jq -r '.databaseId // ""')
+            echo "[$(date -u +%H:%M:%S)] CI · cli for $SHA: status=$STATUS conclusion=$CONCLUSION run=$RUN_ID"
+            if [[ "$STATUS" == "completed" ]]; then
+              if [[ "$CONCLUSION" == "success" ]]; then
+                echo "id=$RUN_ID" >> "$GITHUB_OUTPUT"
+                exit 0
+              fi
+              echo "::error::CI · cli for $SHA concluded $CONCLUSION — refusing to attach broken artifacts"
+              exit 1
+            fi
+            sleep 30
+          done
+          echo "::error::Timed out waiting for CI · cli run for $SHA after 30 minutes"
+          exit 1
+      - name: Download cli artifacts
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh run download "${{ steps.find_run.outputs.id }}" --pattern 'cli-*' --dir staging/
           mkdir -p out
-          # Each artifact is a directory; flatten into out/.
           find staging -type f -exec cp {} out/ \;
           ls -la out/
       - name: Attach to Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ needs.classify.outputs.tag }}
+          tag_name: ${{ needs.resolve.outputs.tag }}
           files: out/*
           generate_release_notes: true
           fail_on_unmatched_files: true
 
   # ─────────────────────────────────────────────────────────────────────
-  # Desktop — same pattern: download installers from latest CI · desktop.
+  # Desktop — same pattern, different artifact glob.
   # ─────────────────────────────────────────────────────────────────────
   attach-desktop:
     name: Attach desktop installers
-    needs: classify
-    if: needs.classify.outputs.component == 'desktop'
+    needs: resolve
+    if: needs.resolve.outputs.component == 'desktop'
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
-      - name: Download latest desktop artifacts
+      - name: Find CI · desktop run for ${{ needs.resolve.outputs.sha }}
+        id: find_run
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GH_REPO: ${{ github.repository }}
+          GH_REPO:  ${{ github.repository }}
+          SHA:      ${{ needs.resolve.outputs.sha }}
         run: |
-          RUN_ID=$(gh run list \
-                     --workflow "CI · desktop" \
-                     --branch main \
-                     --status success \
-                     --limit 1 \
-                     --json databaseId \
-                     --jq '.[0].databaseId // ""')
-          if [[ -z "$RUN_ID" ]]; then
-            echo "::error::No successful CI · desktop run on main found — nothing to attach."
-            exit 1
-          fi
-          echo "Pulling desktop artifacts from CI · desktop run $RUN_ID"
-          gh run download "$RUN_ID" --pattern 'desktop-*' --dir staging/
+          for attempt in $(seq 1 60); do
+            STATE=$(gh run list \
+                      --workflow "CI · desktop" \
+                      --limit 50 \
+                      --json databaseId,headSha,status,conclusion \
+                      --jq "[.[] | select(.headSha == \"$SHA\")] | first" 2>/dev/null || echo "null")
+            STATUS=$(echo "$STATE" | jq -r '.status // "missing"')
+            CONCLUSION=$(echo "$STATE" | jq -r '.conclusion // ""')
+            RUN_ID=$(echo "$STATE" | jq -r '.databaseId // ""')
+            echo "[$(date -u +%H:%M:%S)] CI · desktop for $SHA: status=$STATUS conclusion=$CONCLUSION run=$RUN_ID"
+            if [[ "$STATUS" == "completed" ]]; then
+              if [[ "$CONCLUSION" == "success" ]]; then
+                echo "id=$RUN_ID" >> "$GITHUB_OUTPUT"
+                exit 0
+              fi
+              echo "::error::CI · desktop for $SHA concluded $CONCLUSION"
+              exit 1
+            fi
+            sleep 30
+          done
+          echo "::error::Timed out waiting for CI · desktop run for $SHA"
+          exit 1
+      - name: Download desktop artifacts
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh run download "${{ steps.find_run.outputs.id }}" --pattern 'desktop-*' --dir staging/
           mkdir -p out
           find staging -type f -exec cp {} out/ \;
           ls -la out/
       - name: Attach to Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ needs.classify.outputs.tag }}
+          tag_name: ${{ needs.resolve.outputs.tag }}
           files: out/*
           generate_release_notes: true
           fail_on_unmatched_files: true
 
   # ─────────────────────────────────────────────────────────────────────
-  # Web — download web-dist + deploy to Cloudflare Pages (project: repoguru,
-  # matching the legacy levantar-ai/repoguru pipeline this repo replaces).
-  # The GitHub Release is a doc anchor; the live URL is on Cloudflare.
-  #
-  # Required repo secrets (org-level on levantar-ai already):
-  #   CLOUDFLARE_API_TOKEN
-  #   CLOUDFLARE_ACCOUNT_ID
+  # Web — find CI · web run for the tag's SHA, download web-dist, deploy
+  # to Cloudflare Pages.
   # ─────────────────────────────────────────────────────────────────────
   attach-web:
     name: Deploy web to Cloudflare Pages
-    needs: classify
-    if: needs.classify.outputs.component == 'web'
+    needs: resolve
+    if: needs.resolve.outputs.component == 'web'
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
-      - name: Download latest web-dist artifact
+      - name: Find CI · web run for ${{ needs.resolve.outputs.sha }}
+        id: find_run
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GH_REPO: ${{ github.repository }}
+          GH_REPO:  ${{ github.repository }}
+          SHA:      ${{ needs.resolve.outputs.sha }}
         run: |
-          RUN_ID=$(gh run list \
-                     --workflow "CI · web" \
-                     --branch main \
-                     --status success \
-                     --limit 1 \
-                     --json databaseId \
-                     --jq '.[0].databaseId // ""')
-          if [[ -z "$RUN_ID" ]]; then
-            echo "::error::No successful CI · web run on main found — nothing to deploy."
-            exit 1
-          fi
-          gh run download "$RUN_ID" --name web-dist --dir web/dist/
+          for attempt in $(seq 1 60); do
+            STATE=$(gh run list \
+                      --workflow "CI · web" \
+                      --limit 50 \
+                      --json databaseId,headSha,status,conclusion \
+                      --jq "[.[] | select(.headSha == \"$SHA\")] | first" 2>/dev/null || echo "null")
+            STATUS=$(echo "$STATE" | jq -r '.status // "missing"')
+            CONCLUSION=$(echo "$STATE" | jq -r '.conclusion // ""')
+            RUN_ID=$(echo "$STATE" | jq -r '.databaseId // ""')
+            echo "[$(date -u +%H:%M:%S)] CI · web for $SHA: status=$STATUS conclusion=$CONCLUSION run=$RUN_ID"
+            if [[ "$STATUS" == "completed" ]]; then
+              if [[ "$CONCLUSION" == "success" ]]; then
+                echo "id=$RUN_ID" >> "$GITHUB_OUTPUT"
+                exit 0
+              fi
+              echo "::error::CI · web for $SHA concluded $CONCLUSION"
+              exit 1
+            fi
+            sleep 30
+          done
+          echo "::error::Timed out waiting for CI · web run for $SHA"
+          exit 1
+      - name: Download web-dist
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh run download "${{ steps.find_run.outputs.id }}" --name web-dist --dir web/dist/
           ls -la web/dist/
 
       - name: Verify Cloudflare secrets
@@ -181,10 +240,9 @@ jobs:
           if [[ -n "${{ secrets.CLOUDFLARE_API_TOKEN }}" && -n "${{ secrets.CLOUDFLARE_ACCOUNT_ID }}" ]]; then
             echo "ready=true" >> "$GITHUB_OUTPUT"
           else
-            echo "::warning::Cloudflare secrets missing — skipping deploy. Configure CLOUDFLARE_API_TOKEN + CLOUDFLARE_ACCOUNT_ID in repo settings."
+            echo "::warning::Cloudflare secrets missing — skipping deploy. Configure CLOUDFLARE_API_TOKEN + CLOUDFLARE_ACCOUNT_ID."
             echo "ready=false" >> "$GITHUB_OUTPUT"
           fi
-
       - name: Deploy to Cloudflare Pages
         if: steps.cf_check.outputs.ready == 'true'
         uses: cloudflare/wrangler-action@v3
@@ -192,25 +250,23 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: pages deploy web/dist --project-name=repoguru
-
       - name: Mark GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ needs.classify.outputs.tag }}
+          tag_name: ${{ needs.resolve.outputs.tag }}
           generate_release_notes: true
           body: |
             Web deployed to Cloudflare Pages (project: `repoguru`) at
-            `${{ github.sha }}`.
+            `${{ needs.resolve.outputs.sha }}`.
 
   # ─────────────────────────────────────────────────────────────────────
-  # Shared — no binary artefact (TS source consumed via pnpm workspace by
-  # web/ + desktop/ in-tree). Creates the GitHub Release as a doc anchor
-  # so `shared-v*` tags are visible in the release timeline.
+  # Shared — no binary artefact (TS source consumed via pnpm workspace).
+  # Creates the GitHub Release as a doc anchor.
   # ─────────────────────────────────────────────────────────────────────
   attach-shared:
     name: Mark shared Release
-    needs: classify
-    if: needs.classify.outputs.component == 'shared'
+    needs: resolve
+    if: needs.resolve.outputs.component == 'shared'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -218,12 +274,12 @@ jobs:
       - name: Mark GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ needs.classify.outputs.tag }}
+          tag_name: ${{ needs.resolve.outputs.tag }}
           generate_release_notes: true
           body: |
             Internal release of the shared TypeScript packages
             (`@repoguru/core`, `@repoguru/ui`, `@repoguru/browser-adapter`,
-            `@repoguru/desktop-adapter`) at `${{ github.sha }}`.
+            `@repoguru/desktop-adapter`) at `${{ needs.resolve.outputs.sha }}`.
 
             Consumed in-tree by web/ and desktop/ via pnpm workspace —
             this tag is for changelog/audit purposes only.
