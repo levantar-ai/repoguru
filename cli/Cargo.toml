@@ -30,6 +30,13 @@ tower = "0.5"
 
 [build-dependencies]
 tonic-build = { version = "0.12", features = ["prost"] }
+
+# protobuf-src compiles protobuf 27.x from C++ source via cmake. That's
+# fine on macOS/Linux but fails to link on Windows MSVC (CRT mismatch
+# between Debug and Release variants). Restrict it to non-Windows; on
+# Windows we install precompiled protoc via arduino/setup-protoc and
+# point PROTOC at it (see cli/build.rs + .github/workflows/ci-cli.yml).
+[target.'cfg(not(target_os = "windows"))'.build-dependencies]
 protobuf-src = "2"
 
 [dev-dependencies]
