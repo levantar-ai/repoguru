@@ -189,17 +189,11 @@ export function BusFactorChart({ busFactor, height = 350 }: BusFactorChartProps)
           <span className="h-0.5 w-4 bg-neon inline-block" /> Lorenz Curve
         </span>
         <span className="flex items-center gap-1.5">
-          <span
-            className="h-0.5 w-4 inline-block"
-            style={{ borderTop: '1px dashed #475569' }}
-          />{' '}
+          <span className="h-0.5 w-4 inline-block" style={{ borderTop: '1px dashed #475569' }} />{' '}
           Perfect Equality
         </span>
         <span className="flex items-center gap-1.5">
-          <span
-            className="h-0.5 w-4 inline-block"
-            style={{ borderTop: '1px dashed #fbbf24' }}
-          />{' '}
+          <span className="h-0.5 w-4 inline-block" style={{ borderTop: '1px dashed #fbbf24' }} />{' '}
           50% Threshold
         </span>
       </div>

@@ -1,6 +1,8 @@
 import type { ButtonHTMLAttributes, ReactNode } from 'react';
 
-type CommonProps = ButtonHTMLAttributes<HTMLButtonElement> & { children: ReactNode };
+type CommonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
+  children: ReactNode;
+};
 
 /** Primary action button — solid neon fill, dark text, no glow. The
  *  earlier 15%-tint + neon outline + glow read as a *secondary* button

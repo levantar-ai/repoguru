@@ -43,7 +43,12 @@ export function GitStatsPage() {
     setState({
       step: 'loading',
       message: 'Cloning repository...',
-      progress: { message: 'Cloning repository...', overall: 1, sub: 0, phase: 'starting' },
+      progress: {
+        message: 'Cloning repository...',
+        overall: 1,
+        sub: 0,
+        phase: 'starting',
+      },
       analysis: null,
       error: null,
     });
@@ -52,9 +57,7 @@ export function GitStatsPage() {
         signal: controller.signal,
         onProgress: (p) =>
           setState((prev) =>
-            prev.step === 'loading'
-              ? { ...prev, message: p.message, progress: p }
-              : prev,
+            prev.step === 'loading' ? { ...prev, message: p.message, progress: p } : prev,
           ),
       });
       setState({
@@ -78,7 +81,13 @@ export function GitStatsPage() {
 
   const handleReset = useCallback(() => {
     abortRef.current?.abort();
-    setState({ step: 'idle', message: '', progress: null, analysis: null, error: null });
+    setState({
+      step: 'idle',
+      message: '',
+      progress: null,
+      analysis: null,
+      error: null,
+    });
   }, []);
 
   // Done state: full-width so the section nav rail sits flush against the

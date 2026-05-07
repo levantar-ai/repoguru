@@ -24,12 +24,7 @@ import { ResourceFileMatrix } from './ResourceFileMatrix';
  *  SectionLayout section, each with the relevant filter, so the data
  *  + rendering knowledge stays in one file. Omit to render everything
  *  (legacy / fallback behaviour). */
-export type TechDetectSection =
-  | 'overview'
-  | 'cloud'
-  | 'stack'
-  | 'quality'
-  | 'dependencies';
+export type TechDetectSection = 'overview' | 'cloud' | 'stack' | 'quality' | 'dependencies';
 
 interface Props {
   result: TechDetectResult;
@@ -78,7 +73,12 @@ function ChevronIcon({ open }: { open: boolean }) {
 
 /* ─── Generic Cloud Service Section (reused for AWS, Azure, GCP) ─── */
 interface CloudServiceSectionProps<
-  T extends { service: string; via: string; source: string; sdkPackage?: string },
+  T extends {
+    service: string;
+    via: string;
+    source: string;
+    sdkPackage?: string;
+  },
 > {
   title: string;
   color: string;
@@ -87,7 +87,12 @@ interface CloudServiceSectionProps<
 }
 
 function CloudServiceSection<
-  T extends { service: string; via: string; source: string; sdkPackage?: string },
+  T extends {
+    service: string;
+    via: string;
+    source: string;
+    sdkPackage?: string;
+  },
 >({ title, color, items, icon }: CloudServiceSectionProps<T>) {
   const [selectedService, setSelectedService] = useState<string | null>(null);
   const [showAll, setShowAll] = useState(false);
@@ -126,7 +131,10 @@ function CloudServiceSection<
           <h3 className="text-base font-semibold text-text">{title}</h3>
           <div className="flex items-center gap-2 mt-1 flex-wrap">
             {uniqueVias.map((via) => {
-              const colors = VIA_COLORS[via] || { bg: 'bg-neon/10', text: 'text-neon' };
+              const colors = VIA_COLORS[via] || {
+                bg: 'bg-neon/10',
+                text: 'text-neon',
+              };
               return (
                 <span
                   key={via}
@@ -430,7 +438,10 @@ function ChipGridSection<T extends { name: string; source: string }>({
       list.push(item);
       map.set(key, list);
     }
-    return [...map.entries()].map(([label, groupItems]) => ({ label, items: groupItems }));
+    return [...map.entries()].map(([label, groupItems]) => ({
+      label,
+      items: groupItems,
+    }));
   }, [items, groupBy]);
 
   if (items.length === 0) return null;
@@ -567,10 +578,20 @@ function LibrariesTable({ result }: Props) {
 
   const libraries = useMemo(() => {
     const ecosystems = ['python', 'node', 'go', 'java', 'php', 'rust', 'ruby'] as const;
-    const all: { name: string; version?: string; ecosystem: string; source: string }[] = [];
+    const all: {
+      name: string;
+      version?: string;
+      ecosystem: string;
+      source: string;
+    }[] = [];
     for (const eco of ecosystems) {
       for (const pkg of result[eco]) {
-        all.push({ name: pkg.name, version: pkg.version, ecosystem: eco, source: pkg.source });
+        all.push({
+          name: pkg.name,
+          version: pkg.version,
+          ecosystem: eco,
+          source: pkg.source,
+        });
       }
     }
     return all.sort((a, b) => a.name.localeCompare(b.name));
@@ -719,7 +740,12 @@ export function TechDetectResults({ result, section }: Props) {
     packages: (DetectedPackage | DetectedPythonPackage)[];
     icon: React.ReactNode;
   }[] = [
-    { title: 'Python Packages', color: '#3776AB', packages: result.python, icon: <PythonIcon /> },
+    {
+      title: 'Python Packages',
+      color: '#3776AB',
+      packages: result.python,
+      icon: <PythonIcon />,
+    },
     {
       title: 'Node Packages',
       color: '#339933',

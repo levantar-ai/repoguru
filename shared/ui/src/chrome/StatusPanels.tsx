@@ -14,12 +14,7 @@ export interface LoadingPanelProps {
 /** Spinner + double-progress-bar panel matching the in-browser app's
  *  scan UI. Falls back to spinner-only when no progress numbers are
  *  supplied. */
-export function LoadingPanel({
-  message,
-  subMessage,
-  progress,
-  subProgress,
-}: LoadingPanelProps) {
+export function LoadingPanel({ message, subMessage, progress, subProgress }: LoadingPanelProps) {
   const showBars = typeof progress === 'number';
   if (!showBars) {
     // No numeric % yet → indeterminate progress bar with a sliding
@@ -27,17 +22,10 @@ export function LoadingPanel({
     // strings ("Cloning…", "Scoring CI/CD…", etc.). Visually matches
     // the determinate bars below for consistency across pages.
     return (
-      <div
-        className="max-w-3xl mx-auto py-12"
-        role="status"
-        aria-live="polite"
-        aria-atomic="true"
-      >
+      <div className="max-w-3xl mx-auto py-12" role="status" aria-live="polite" aria-atomic="true">
         <div className="flex items-center justify-between text-sm mb-2">
           <span className="font-medium text-text">{message || 'Working…'}</span>
-          {subMessage && (
-            <span className="text-xs text-text-secondary">{subMessage}</span>
-          )}
+          {subMessage && <span className="text-xs text-text-secondary">{subMessage}</span>}
         </div>
         <div
           className="h-3 bg-surface-alt rounded-full overflow-hidden border border-border relative"
@@ -53,12 +41,7 @@ export function LoadingPanel({
   const overall = Math.max(0, Math.min(100, progress!));
   const sub = Math.max(0, Math.min(100, subProgress ?? 0));
   return (
-    <div
-      className="max-w-3xl mx-auto py-12"
-      role="status"
-      aria-live="polite"
-      aria-atomic="true"
-    >
+    <div className="max-w-3xl mx-auto py-12" role="status" aria-live="polite" aria-atomic="true">
       <div
         className="flex items-center justify-between text-sm mb-2"
         role="progressbar"
@@ -73,7 +56,10 @@ export function LoadingPanel({
       <div className="h-3 bg-surface-alt rounded-full overflow-hidden border border-border">
         <div
           className="h-full bg-gradient-to-r from-primary-500 to-neon rounded-full transition-all duration-300 ease-out"
-          style={{ width: `${overall}%`, boxShadow: '0 0 12px rgba(56,189,248,0.4)' }}
+          style={{
+            width: `${overall}%`,
+            boxShadow: '0 0 12px rgba(56,189,248,0.4)',
+          }}
         />
       </div>
 
@@ -102,9 +88,7 @@ export function LoadingPanel({
         </div>
       )}
 
-      {message && subMessage && (
-        <p className="text-sm text-text-secondary mt-2">{message}</p>
-      )}
+      {message && subMessage && <p className="text-sm text-text-secondary mt-2">{message}</p>}
     </div>
   );
 }
@@ -119,14 +103,7 @@ function Spinner({ small = false }: { small?: boolean }) {
       viewBox="0 0 24 24"
       aria-hidden="true"
     >
-      <circle
-        className="opacity-25"
-        cx="12"
-        cy="12"
-        r="10"
-        stroke="currentColor"
-        strokeWidth="4"
-      />
+      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
       <path
         className="opacity-75"
         fill="currentColor"

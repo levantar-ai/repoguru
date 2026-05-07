@@ -51,7 +51,12 @@ export function PolicyPage({ editorSection }: PolicyPageProps) {
     setState({
       step: 'loading',
       message: 'Scoring repository…',
-      progress: { message: 'Scoring repository…', overall: 1, sub: 0, phase: 'starting' },
+      progress: {
+        message: 'Scoring repository…',
+        overall: 1,
+        sub: 0,
+        phase: 'starting',
+      },
       result: null,
       error: null,
     });
@@ -71,13 +76,24 @@ export function PolicyPage({ editorSection }: PolicyPageProps) {
           ? {
               ...prev,
               message: 'Complete',
-              progress: { message: 'Complete', overall: 100, sub: 100, phase: 'done' },
+              progress: {
+                message: 'Complete',
+                overall: 100,
+                sub: 100,
+                phase: 'done',
+              },
             }
           : prev,
       );
       await new Promise((r) => setTimeout(r, 400));
       if (controller.signal.aborted) return;
-      setState({ step: 'done', message: '', progress: null, result, error: null });
+      setState({
+        step: 'done',
+        message: '',
+        progress: null,
+        result,
+        error: null,
+      });
     } catch (err) {
       if ((err as { name?: string })?.name === 'AbortError') return;
       setState({
@@ -92,7 +108,13 @@ export function PolicyPage({ editorSection }: PolicyPageProps) {
 
   const handleReset = useCallback(() => {
     abortRef.current?.abort();
-    setState({ step: 'idle', message: '', progress: null, result: null, error: null });
+    setState({
+      step: 'idle',
+      message: '',
+      progress: null,
+      result: null,
+      error: null,
+    });
   }, []);
 
   return (
@@ -118,7 +140,10 @@ export function PolicyPage({ editorSection }: PolicyPageProps) {
 
           {presets.length > 0 && (
             <div className="mt-4">
-              <label htmlFor="policy-preset" className="block text-sm font-medium text-text-secondary mb-1.5">
+              <label
+                htmlFor="policy-preset"
+                className="block text-sm font-medium text-text-secondary mb-1.5"
+              >
                 Preset
               </label>
               <select
@@ -130,7 +155,8 @@ export function PolicyPage({ editorSection }: PolicyPageProps) {
               >
                 {presets.map((p) => (
                   <option key={p.id} value={p.id}>
-                    {p.label}{p.description ? ` — ${p.description}` : ''}
+                    {p.label}
+                    {p.description ? ` — ${p.description}` : ''}
                   </option>
                 ))}
               </select>

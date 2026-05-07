@@ -39,7 +39,11 @@ export function FileOperationsChart({ fileOperations }: Props) {
           type: 'pie',
           radius: ['40%', '70%'],
           avoidLabelOverlap: true,
-          itemStyle: { borderRadius: 6, borderColor: '#1e293b', borderWidth: 2 },
+          itemStyle: {
+            borderRadius: 6,
+            borderColor: '#1e293b',
+            borderWidth: 2,
+          },
           label: { color: '#94a3b8', fontSize: 12 },
           data: fileOperations.map((d, i) => ({
             name: d.operation,

@@ -28,7 +28,11 @@ export function TimezoneChart({ timezoneData }: Props) {
           const sign = d.offset >= 0 ? '+' : '';
           return `UTC${sign}${d.offset}`;
         }),
-        axisLabel: { color: '#64748b', fontSize: 11, rotate: sorted.length > 12 ? 45 : 0 },
+        axisLabel: {
+          color: '#64748b',
+          fontSize: 11,
+          rotate: sorted.length > 12 ? 45 : 0,
+        },
       },
       yAxis: {
         type: 'value' as const,

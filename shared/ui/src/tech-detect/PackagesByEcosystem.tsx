@@ -58,7 +58,11 @@ export function PackagesByEcosystem({ node, python, go, java, php, rust, ruby }:
           radius: ['45%', '70%'],
           center: ['50%', '50%'],
           avoidLabelOverlap: true,
-          itemStyle: { borderRadius: 6, borderColor: 'rgba(0,0,0,0.3)', borderWidth: 2 },
+          itemStyle: {
+            borderRadius: 6,
+            borderColor: 'rgba(0,0,0,0.3)',
+            borderWidth: 2,
+          },
           label: {
             color: '#9CA3AF',
             fontSize: 12,

@@ -46,20 +46,46 @@ const metrics: WireMetrics = {
 
 const activity: WireActivity = {
   timeseries: [
-    { period_start: '2024-01-01', commits: 5, insertions: 100, deletions: 20, authors: 2 },
+    {
+      period_start: '2024-01-01',
+      commits: 5,
+      insertions: 100,
+      deletions: 20,
+      authors: 2,
+    },
   ],
   cumulative_files: [['2024-01-01', 42]],
-  file_operations: [['added', 7], ['modified', 19]],
+  file_operations: [
+    ['added', 7],
+    ['modified', 19],
+  ],
   lines_by_ext: [['.ts', 1000, 200]],
   lines_stats_summary: [{ label: 'overall', min: 1, max: 99, avg: 50, median: 50, total: 1000 }],
 };
 
 const contributors: WireContributors = {
   authors: [
-    { author_id: 1, commits: 800, insertions: 50000, deletions: 10000, first_commit: 1640000000, last_commit: 1700000000 },
-    { author_id: 2, commits: 434, insertions: 30000, deletions: 5000, first_commit: 1650000000, last_commit: 1700000000 },
+    {
+      author_id: 1,
+      commits: 800,
+      insertions: 50000,
+      deletions: 10000,
+      first_commit: 1640000000,
+      last_commit: 1700000000,
+    },
+    {
+      author_id: 2,
+      commits: 434,
+      insertions: 30000,
+      deletions: 5000,
+      first_commit: 1650000000,
+      last_commit: 1700000000,
+    },
   ],
-  contributor_network_nodes: [[1, 'Ada Lovelace'], [2, 'Grace Hopper']],
+  contributor_network_nodes: [
+    [1, 'Ada Lovelace'],
+    [2, 'Grace Hopper'],
+  ],
   contributor_network_edges: [{ source: 1, target: 2, weight: 17 }],
 };
 
@@ -73,22 +99,48 @@ const patterns: WirePatterns = {
   commits_by_month: Array(12).fill(10),
   commits_by_year: { '2023': 600, '2024': 634 },
   commits_by_hour: Array(24).fill(5),
-  punch_card: [[1, 9, 10], [3, 14, 25]],
-  commit_size_histogram: [['0-10', 100], ['11-100', 200]],
+  punch_card: [
+    [1, 9, 10],
+    [3, 14, 25],
+  ],
+  commit_size_histogram: [
+    ['0-10', 100],
+    ['11-100', 200],
+  ],
   weekly_activity: [['2024-01-07', 50]],
-  word_frequencies: [['fix', 120], ['feat', 80]],
-  language_breakdown: [{ language: 'TypeScript', percentage: 70, file_count: 200, total_lines: 30000 }],
+  word_frequencies: [
+    ['fix', 120],
+    ['feat', 80],
+  ],
+  language_breakdown: [
+    {
+      language: 'TypeScript',
+      percentage: 70,
+      file_count: 200,
+      total_lines: 30000,
+    },
+  ],
   conventional_commits: { feat: 80, fix: 120, other: 30 },
 };
 
 const health: WireHealth = {
   bus_factor: { factor: 2, lorenz: [0, 0.4, 0.7, 1.0] },
   radar_metrics: [{ label: 'documentation', value: 75 }],
-  tag_history: [{ name: 'v1.0.0', date: '2024-06-01', timestamp: 1717200000, commits_since_prev: 234 }],
+  tag_history: [
+    {
+      name: 'v1.0.0',
+      date: '2024-06-01',
+      timestamp: 1717200000,
+      commits_since_prev: 234,
+    },
+  ],
 };
 
 const timezone: WireTimezone = {
-  timezone_data: [[-480, 50], [60, 200]],
+  timezone_data: [
+    [-480, 50],
+    [60, 200],
+  ],
 };
 
 // ── Mapper checks ───────────────────────────────────────────────────────────
@@ -139,7 +191,14 @@ const stubClient: GrpcSectionClient = {
     return { metrics_json: JSON.stringify(metrics) };
   },
   async getSection(_outPath, name) {
-    const payload = { activity, contributors, codebase, patterns, health, timezone }[name];
+    const payload = {
+      activity,
+      contributors,
+      codebase,
+      patterns,
+      health,
+      timezone,
+    }[name];
     if (!payload) throw new Error(`unknown section ${name}`);
     return { data_json: JSON.stringify(payload) };
   },

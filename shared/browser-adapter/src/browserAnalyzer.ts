@@ -180,9 +180,7 @@ export function mapHealth(a: BrowserGitStatsAnalysis): HealthSection {
     busFactor: {
       factor: a.busFactor.busFactor,
       // Lorenz curve = cumulative percentages on a 0..1 scale.
-      lorenz: a.busFactor.cumulativeContributors.map(
-        (c) => c.cumulativePercentage / 100,
-      ),
+      lorenz: a.busFactor.cumulativeContributors.map((c) => c.cumulativePercentage / 100),
       herfindahlIndex: a.busFactor.herfindahlIndex,
       cumulativeContributors: a.busFactor.cumulativeContributors.map((c) => ({
         contributorId: c.login,
@@ -237,10 +235,7 @@ export class BrowserAnalyzer implements RepoAnalyzer {
     this.runner = runner;
   }
 
-  async *analyze(
-    request: AnalyzeRequest,
-    signal?: AbortSignal,
-  ): AsyncIterable<AnalyzeEvent> {
+  async *analyze(request: AnalyzeRequest, signal?: AbortSignal): AsyncIterable<AnalyzeEvent> {
     const queue: ProgressEvent[] = [];
     let resolveProgress: (() => void) | null = null;
     const onProgress = (event: ProgressEvent): void => {
@@ -261,8 +256,16 @@ export class BrowserAnalyzer implements RepoAnalyzer {
     let runError: unknown = null;
     let done = false;
     analysisPromise.then(
-      (a) => { analysis = a; done = true; resolveProgress?.(); },
-      (e) => { runError = e; done = true; resolveProgress?.(); },
+      (a) => {
+        analysis = a;
+        done = true;
+        resolveProgress?.();
+      },
+      (e) => {
+        runError = e;
+        done = true;
+        resolveProgress?.();
+      },
     );
 
     while (!done || queue.length > 0) {
@@ -271,7 +274,9 @@ export class BrowserAnalyzer implements RepoAnalyzer {
         yield { kind: 'progress', event };
       }
       if (done) break;
-      await new Promise<void>((resolve) => { resolveProgress = resolve; });
+      await new Promise<void>((resolve) => {
+        resolveProgress = resolve;
+      });
     }
 
     if (runError !== null) {
@@ -297,31 +302,52 @@ export class BrowserAnalyzer implements RepoAnalyzer {
 
     if (wanted.has('overview')) {
       aggregate.overview = mapOverview(analysis);
-      yield { kind: 'section', section: { name: 'overview', data: aggregate.overview } };
+      yield {
+        kind: 'section',
+        section: { name: 'overview', data: aggregate.overview },
+      };
     }
     if (wanted.has('activity')) {
       aggregate.activity = mapActivity(analysis);
-      yield { kind: 'section', section: { name: 'activity', data: aggregate.activity } };
+      yield {
+        kind: 'section',
+        section: { name: 'activity', data: aggregate.activity },
+      };
     }
     if (wanted.has('contributors')) {
       aggregate.contributors = mapContributors(analysis);
-      yield { kind: 'section', section: { name: 'contributors', data: aggregate.contributors } };
+      yield {
+        kind: 'section',
+        section: { name: 'contributors', data: aggregate.contributors },
+      };
     }
     if (wanted.has('codebase')) {
       aggregate.codebase = mapCodebase(analysis);
-      yield { kind: 'section', section: { name: 'codebase', data: aggregate.codebase } };
+      yield {
+        kind: 'section',
+        section: { name: 'codebase', data: aggregate.codebase },
+      };
     }
     if (wanted.has('patterns')) {
       aggregate.patterns = mapPatterns(analysis);
-      yield { kind: 'section', section: { name: 'patterns', data: aggregate.patterns } };
+      yield {
+        kind: 'section',
+        section: { name: 'patterns', data: aggregate.patterns },
+      };
     }
     if (wanted.has('health')) {
       aggregate.health = mapHealth(analysis);
-      yield { kind: 'section', section: { name: 'health', data: aggregate.health } };
+      yield {
+        kind: 'section',
+        section: { name: 'health', data: aggregate.health },
+      };
     }
     if (wanted.has('timezone')) {
       aggregate.timezone = mapTimezone(analysis);
-      yield { kind: 'section', section: { name: 'timezone', data: aggregate.timezone } };
+      yield {
+        kind: 'section',
+        section: { name: 'timezone', data: aggregate.timezone },
+      };
     }
 
     yield { kind: 'done', data: aggregate };

@@ -131,7 +131,9 @@ export function SequentialCouplingTable({ sequentialCoupling }: Props) {
                 <div className="h-2 bg-surface-hover rounded-full overflow-hidden">
                   <div
                     className="h-full bg-neon/40 rounded-full"
-                    style={{ width: `${(entry.occurrences / maxOccurrences) * 100}%` }}
+                    style={{
+                      width: `${(entry.occurrences / maxOccurrences) * 100}%`,
+                    }}
                   />
                 </div>
               </td>

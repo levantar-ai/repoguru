@@ -6,10 +6,7 @@ export interface CommitsByYearChartProps {
   height?: string;
 }
 
-export function CommitsByYearChart({
-  commitsByYear,
-  height = '280px',
-}: CommitsByYearChartProps) {
+export function CommitsByYearChart({ commitsByYear, height = '280px' }: CommitsByYearChartProps) {
   const option = useMemo(
     () => ({
       tooltip: {

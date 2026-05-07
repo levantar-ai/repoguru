@@ -59,7 +59,12 @@ export function ReportCardPage({ initialRepo, actions }: ReportCardPageProps) {
       setState({
         step: 'loading',
         message: 'Starting analysis…',
-        progress: { message: 'Starting analysis…', overall: 1, sub: 0, phase: 'starting' },
+        progress: {
+          message: 'Starting analysis…',
+          overall: 1,
+          sub: 0,
+          phase: 'starting',
+        },
         result: null,
         error: null,
       });
@@ -80,13 +85,24 @@ export function ReportCardPage({ initialRepo, actions }: ReportCardPageProps) {
             ? {
                 ...prev,
                 message: 'Complete',
-                progress: { message: 'Complete', overall: 100, sub: 100, phase: 'done' },
+                progress: {
+                  message: 'Complete',
+                  overall: 100,
+                  sub: 100,
+                  phase: 'done',
+                },
               }
             : prev,
         );
         await new Promise((r) => setTimeout(r, 400));
         if (controller.signal.aborted) return;
-        setState({ step: 'done', message: '', progress: null, result, error: null });
+        setState({
+          step: 'done',
+          message: '',
+          progress: null,
+          result,
+          error: null,
+        });
       } catch (err) {
         if ((err as { name?: string })?.name === 'AbortError') return;
         setState({
@@ -103,7 +119,13 @@ export function ReportCardPage({ initialRepo, actions }: ReportCardPageProps) {
 
   const handleReset = useCallback(() => {
     abortRef.current?.abort();
-    setState({ step: 'idle', message: '', progress: null, result: null, error: null });
+    setState({
+      step: 'idle',
+      message: '',
+      progress: null,
+      result: null,
+      error: null,
+    });
   }, []);
 
   // Auto-start on initialRepo, once.
@@ -156,10 +178,7 @@ export function ReportCardPage({ initialRepo, actions }: ReportCardPageProps) {
             onSubmit={() => handleScore()}
           />
           <div className="flex justify-center gap-3 mt-4 mb-6">
-            <PrimaryButton
-              onClick={() => handleScore()}
-              disabled={!input.trim()}
-            >
+            <PrimaryButton onClick={() => handleScore()} disabled={!input.trim()}>
               Score
             </PrimaryButton>
           </div>

@@ -38,13 +38,17 @@ export function SectionLayout({ sections, header, defaultActiveId }: SectionLayo
   useEffect(() => {
     try {
       setCollapsed(localStorage.getItem(COLLAPSE_KEY) === '1');
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   }, []);
 
   useEffect(() => {
     try {
       localStorage.setItem(COLLAPSE_KEY, collapsed ? '1' : '0');
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   }, [collapsed]);
 
   useEffect(() => {
@@ -98,7 +102,9 @@ export function SectionLayout({ sections, header, defaultActiveId }: SectionLayo
                       : 'text-text-secondary hover:text-text hover:bg-surface border border-transparent'
                   } ${collapsed ? 'justify-center' : ''}`}
                 >
-                  <span className="h-5 w-5 shrink-0" aria-hidden="true">{s.icon}</span>
+                  <span className="h-5 w-5 shrink-0" aria-hidden="true">
+                    {s.icon}
+                  </span>
                   <span className={collapsed ? 'sr-only' : 'truncate'}>{s.label}</span>
                 </button>
               </li>

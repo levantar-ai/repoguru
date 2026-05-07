@@ -56,10 +56,7 @@ export function RepoSizerPanel({ sizer }: RepoSizerPanelProps) {
             value={fmtCount(sizer.maxParents)}
             warn={sizer.maxParents > 4}
           />
-          <Stat
-            label="Longest ancestor chain"
-            value={fmtCount(sizer.maxHistoryDepth)}
-          />
+          <Stat label="Longest ancestor chain" value={fmtCount(sizer.maxHistoryDepth)} />
           <Stat
             label="Max tag-of-tag depth"
             value={fmtCount(sizer.maxTagDepth)}
@@ -144,7 +141,10 @@ export function RepoSizerPanel({ sizer }: RepoSizerPanelProps) {
       {sizer.largestBlobs.length > 0 && (
         <Section title={`Largest blobs (top ${sizer.largestBlobs.length})`}>
           <ObjectTable
-            rows={sizer.largestBlobs.map((b) => ({ oid: b.oid, value: fmtBytes(b.size) }))}
+            rows={sizer.largestBlobs.map((b) => ({
+              oid: b.oid,
+              value: fmtBytes(b.size),
+            }))}
             valueLabel="Size"
           />
         </Section>
@@ -179,25 +179,21 @@ function Grid({ children }: { children: React.ReactNode }) {
   return <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">{children}</div>;
 }
 
-function Stat({
-  label,
-  value,
-  warn = false,
-}: {
-  label: string;
-  value: string;
-  warn?: boolean;
-}) {
+function Stat({ label, value, warn = false }: { label: string; value: string; warn?: boolean }) {
   return (
     <div
       className={`rounded-lg border px-3 py-2 ${
         warn ? 'border-grade-c/30 bg-grade-c/5' : 'border-border bg-surface'
       }`}
     >
-      <div className={`text-xs ${warn ? 'text-grade-c' : 'text-text-muted'} uppercase tracking-wider`}>
+      <div
+        className={`text-xs ${warn ? 'text-grade-c' : 'text-text-muted'} uppercase tracking-wider`}
+      >
         {label}
       </div>
-      <div className={`text-base font-semibold tabular-nums ${warn ? 'text-grade-c' : 'text-text'} mt-0.5`}>
+      <div
+        className={`text-base font-semibold tabular-nums ${warn ? 'text-grade-c' : 'text-text'} mt-0.5`}
+      >
         {value}
       </div>
     </div>
@@ -218,17 +214,18 @@ function ExtremeRow({
   return (
     <div className="flex items-baseline justify-between gap-3 px-3 py-2 rounded-md bg-surface border border-border">
       <div className="min-w-0 flex-1">
-        <div className={`text-xs ${warn ? 'text-grade-c' : 'text-text-muted'} uppercase tracking-wider`}>
+        <div
+          className={`text-xs ${warn ? 'text-grade-c' : 'text-text-muted'} uppercase tracking-wider`}
+        >
           {label}
         </div>
-        <div
-          className="text-sm text-text font-mono truncate"
-          title={value}
-        >
+        <div className="text-sm text-text font-mono truncate" title={value}>
           {value || '—'}
         </div>
       </div>
-      <div className={`text-sm font-semibold tabular-nums shrink-0 ${warn ? 'text-grade-c' : 'text-text'}`}>
+      <div
+        className={`text-sm font-semibold tabular-nums shrink-0 ${warn ? 'text-grade-c' : 'text-text'}`}
+      >
         {metric}
       </div>
     </div>

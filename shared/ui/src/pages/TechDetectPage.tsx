@@ -43,7 +43,12 @@ export function TechDetectPage() {
     setState({
       step: 'loading',
       message: 'Scanning repository…',
-      progress: { message: 'Scanning repository…', overall: 1, sub: 0, phase: 'starting' },
+      progress: {
+        message: 'Scanning repository…',
+        overall: 1,
+        sub: 0,
+        phase: 'starting',
+      },
       result: null,
       error: null,
     });
@@ -60,13 +65,24 @@ export function TechDetectPage() {
           ? {
               ...prev,
               message: 'Complete',
-              progress: { message: 'Complete', overall: 100, sub: 100, phase: 'done' },
+              progress: {
+                message: 'Complete',
+                overall: 100,
+                sub: 100,
+                phase: 'done',
+              },
             }
           : prev,
       );
       await new Promise((r) => setTimeout(r, 400));
       if (controller.signal.aborted) return;
-      setState({ step: 'done', message: '', progress: null, result, error: null });
+      setState({
+        step: 'done',
+        message: '',
+        progress: null,
+        result,
+        error: null,
+      });
     } catch (err) {
       if ((err as { name?: string })?.name === 'AbortError') return;
       setState({
@@ -81,7 +97,13 @@ export function TechDetectPage() {
 
   const handleReset = useCallback(() => {
     abortRef.current?.abort();
-    setState({ step: 'idle', message: '', progress: null, result: null, error: null });
+    setState({
+      step: 'idle',
+      message: '',
+      progress: null,
+      result: null,
+      error: null,
+    });
   }, []);
 
   // Done state: render the View flush against the page area's left

@@ -46,7 +46,7 @@ export function CommandPalette({ tools, actions = [] }: CommandPaletteProps) {
   // Open on Cmd/Ctrl+K. Also `/` when focus isn't in a text input.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if ((e.key === 'k' && (e.metaKey || e.ctrlKey))) {
+      if (e.key === 'k' && (e.metaKey || e.ctrlKey)) {
         e.preventDefault();
         setOpen((v) => !v);
         return;
@@ -63,30 +63,38 @@ export function CommandPalette({ tools, actions = [] }: CommandPaletteProps) {
   // Persist the palette's last-was-open state — diagnostic; cmdk's
   // own state is in-memory only.
   useEffect(() => {
-    try { localStorage.setItem(STORAGE_KEY, open ? '1' : '0'); }
-    catch { /* ignore */ }
+    try {
+      localStorage.setItem(STORAGE_KEY, open ? '1' : '0');
+    } catch {
+      /* ignore */
+    }
   }, [open]);
 
   const recentCommands: PaletteCommand[] = useMemo(
-    () => recents.slice(0, 10).map((r) => ({
-      id: `recent:${r.value}`,
-      label: r.label,
-      hint: r.hint,
-      group: 'Recents' as const,
-      icon: r.grade ? <RecentGradeMini grade={r.grade} /> : null,
-      onSelect: () => {
-        // Recents row → fill the active picker via custom event.
-        // Hosting page (Report Card) listens and runs analysis.
-        window.dispatchEvent(
-          new CustomEvent('repoguru:palette-pick-repo', { detail: { value: r.value } }),
-        );
-      },
-    })),
+    () =>
+      recents.slice(0, 10).map((r) => ({
+        id: `recent:${r.value}`,
+        label: r.label,
+        hint: r.hint,
+        group: 'Recents' as const,
+        icon: r.grade ? <RecentGradeMini grade={r.grade} /> : null,
+        onSelect: () => {
+          // Recents row → fill the active picker via custom event.
+          // Hosting page (Report Card) listens and runs analysis.
+          window.dispatchEvent(
+            new CustomEvent('repoguru:palette-pick-repo', {
+              detail: { value: r.value },
+            }),
+          );
+        },
+      })),
     [recents],
   );
 
-  const wrap = (cmd: Omit<PaletteCommand, 'group'>, group: PaletteCommand['group']): PaletteCommand =>
-    ({ ...cmd, group });
+  const wrap = (
+    cmd: Omit<PaletteCommand, 'group'>,
+    group: PaletteCommand['group'],
+  ): PaletteCommand => ({ ...cmd, group });
 
   // Close after every selection — feels like Linear's palette.
   const runAndClose = (cb: () => void) => () => {
@@ -120,14 +128,20 @@ export function CommandPalette({ tools, actions = [] }: CommandPaletteProps) {
           </Command.Empty>
 
           {recentCommands.length > 0 && (
-            <Command.Group heading="Recents" className="text-xs text-text-muted [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-wider">
+            <Command.Group
+              heading="Recents"
+              className="text-xs text-text-muted [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-wider"
+            >
               {recentCommands.map((c) => (
                 <PaletteRow key={c.id} cmd={c} onSelect={runAndClose(c.onSelect)} />
               ))}
             </Command.Group>
           )}
 
-          <Command.Group heading="Tools" className="text-xs text-text-muted [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-wider">
+          <Command.Group
+            heading="Tools"
+            className="text-xs text-text-muted [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-wider"
+          >
             {tools.map((t) => {
               const cmd = wrap(t, 'Tools');
               return <PaletteRow key={cmd.id} cmd={cmd} onSelect={runAndClose(cmd.onSelect)} />;
@@ -135,7 +149,10 @@ export function CommandPalette({ tools, actions = [] }: CommandPaletteProps) {
           </Command.Group>
 
           {actions.length > 0 && (
-            <Command.Group heading="Actions" className="text-xs text-text-muted [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-wider">
+            <Command.Group
+              heading="Actions"
+              className="text-xs text-text-muted [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-wider"
+            >
               {actions.map((a) => {
                 const cmd = wrap(a, 'Actions');
                 return <PaletteRow key={cmd.id} cmd={cmd} onSelect={runAndClose(cmd.onSelect)} />;
@@ -144,8 +161,12 @@ export function CommandPalette({ tools, actions = [] }: CommandPaletteProps) {
           )}
         </Command.List>
         <div className="flex items-center justify-between px-3 py-2 border-t border-border text-[11px] text-text-muted">
-          <span><Kbd>↑</Kbd> <Kbd>↓</Kbd> to navigate · <Kbd>↵</Kbd> select · <Kbd>Esc</Kbd> close</span>
-          <span><Kbd>⌘K</Kbd> toggle</span>
+          <span>
+            <Kbd>↑</Kbd> <Kbd>↓</Kbd> to navigate · <Kbd>↵</Kbd> select · <Kbd>Esc</Kbd> close
+          </span>
+          <span>
+            <Kbd>⌘K</Kbd> toggle
+          </span>
         </div>
       </Command>
     </div>
@@ -159,7 +180,9 @@ function PaletteRow({ cmd, onSelect }: { cmd: PaletteCommand; onSelect: () => vo
       onSelect={onSelect}
       className="flex items-center gap-2.5 px-3 py-2 rounded-md text-sm text-text-secondary cursor-pointer aria-selected:bg-surface-hover aria-selected:text-text"
     >
-      {cmd.icon && <span className="h-4 w-4 shrink-0 inline-flex items-center justify-center">{cmd.icon}</span>}
+      {cmd.icon && (
+        <span className="h-4 w-4 shrink-0 inline-flex items-center justify-center">{cmd.icon}</span>
+      )}
       <span className="flex-1 truncate">{cmd.label}</span>
       {cmd.hint && <span className="text-xs text-text-muted truncate">{cmd.hint}</span>}
       {cmd.shortcut && <Kbd>{cmd.shortcut}</Kbd>}
@@ -184,7 +207,9 @@ function RecentGradeMini({ grade }: { grade: 'A' | 'B' | 'C' | 'D' | 'F' }) {
     F: 'bg-grade-f/15 text-grade-f',
   }[grade];
   return (
-    <span className={`inline-flex items-center justify-center w-4 h-4 rounded text-[9px] font-bold ${colorClass}`}>
+    <span
+      className={`inline-flex items-center justify-center w-4 h-4 rounded text-[9px] font-bold ${colorClass}`}
+    >
       {grade}
     </span>
   );
@@ -193,10 +218,5 @@ function RecentGradeMini({ grade }: { grade: 'A' | 'B' | 'C' | 'D' | 'F' }) {
 function isInTextInput(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false;
   const tag = target.tagName.toLowerCase();
-  return (
-    tag === 'input' ||
-    tag === 'textarea' ||
-    tag === 'select' ||
-    target.isContentEditable
-  );
+  return tag === 'input' || tag === 'textarea' || tag === 'select' || target.isContentEditable;
 }

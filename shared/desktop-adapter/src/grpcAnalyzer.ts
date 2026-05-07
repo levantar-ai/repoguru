@@ -46,11 +46,7 @@ import type {
 
 export interface GrpcSectionClient {
   getReport(outPath: string): Promise<{ metrics_json: string }>;
-  getSection(
-    outPath: string,
-    section: string,
-    repoPath?: string,
-  ): Promise<{ data_json: string }>;
+  getSection(outPath: string, section: string, repoPath?: string): Promise<{ data_json: string }>;
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -86,9 +82,11 @@ export function mapActivity(wire: WireActivity): ActivitySection {
       operation,
       count,
     })),
-    linesByExtension: (wire.lines_by_ext ?? []).map(
-      ([ext, additions, deletions]) => ({ ext, additions, deletions }),
-    ),
+    linesByExtension: (wire.lines_by_ext ?? []).map(([ext, additions, deletions]) => ({
+      ext,
+      additions,
+      deletions,
+    })),
     linesStatsSummary: wire.lines_stats_summary ?? [],
   };
 }
@@ -97,13 +95,9 @@ export function mapContributors(
   wire: WireContributors,
   authorNames: Record<string, string>,
 ): ContributorsSection {
-  const nameOf = (id: number): string =>
-    authorNames[String(id)] ?? `author#${id}`;
+  const nameOf = (id: number): string => authorNames[String(id)] ?? `author#${id}`;
 
-  const totalCommits = (wire.authors ?? []).reduce(
-    (sum, a) => sum + a.commits,
-    0,
-  );
+  const totalCommits = (wire.authors ?? []).reduce((sum, a) => sum + a.commits, 0);
 
   const contributors: Contributor[] = (wire.authors ?? []).map((a) => {
     const name = nameOf(a.author_id);
@@ -115,8 +109,7 @@ export function mapContributors(
       deletions: a.deletions,
       firstCommit: a.first_commit,
       lastCommit: a.last_commit,
-      commitPercentage:
-        totalCommits > 0 ? (a.commits / totalCommits) * 100 : 0,
+      commitPercentage: totalCommits > 0 ? (a.commits / totalCommits) * 100 : 0,
     };
   });
 
@@ -166,9 +159,10 @@ export function mapPatterns(wire: WirePatterns): PatternsSection {
       hour,
       commits,
     })),
-    commitSizeHistogram: (wire.commit_size_histogram ?? []).map(
-      ([label, count]) => ({ label, count }),
-    ),
+    commitSizeHistogram: (wire.commit_size_histogram ?? []).map(([label, count]) => ({
+      label,
+      count,
+    })),
     weeklyActivity: (wire.weekly_activity ?? []).map(([weekStart, total]) => ({
       weekStart,
       total,
@@ -178,8 +172,8 @@ export function mapPatterns(wire: WirePatterns): PatternsSection {
       count,
     })),
     // The shipped binary emits language_breakdown either as an array
-     // of objects (legacy wire shape) or as a `{ Lang: fileCount }` map
-     // (current binary). Normalise both.
+    // of objects (legacy wire shape) or as a `{ Lang: fileCount }` map
+    // (current binary). Normalise both.
     languageBreakdown: Array.isArray(wire.language_breakdown)
       ? wire.language_breakdown.map((l) => ({
           language: l.language,
@@ -188,9 +182,7 @@ export function mapPatterns(wire: WirePatterns): PatternsSection {
           totalLines: l.total_lines,
         }))
       : (() => {
-          const entries = Object.entries(
-            (wire.language_breakdown ?? {}) as Record<string, number>,
-          );
+          const entries = Object.entries((wire.language_breakdown ?? {}) as Record<string, number>);
           const totalFiles = entries.reduce((s, [, n]) => s + (Number(n) || 0), 0);
           return entries.map(([language, fileCount]) => ({
             language,
@@ -248,10 +240,7 @@ export class GrpcAnalyzer implements RepoAnalyzer {
     this.client = client;
   }
 
-  async *analyze(
-    request: AnalyzeRequest,
-    signal?: AbortSignal,
-  ): AsyncIterable<AnalyzeEvent> {
+  async *analyze(request: AnalyzeRequest, signal?: AbortSignal): AsyncIterable<AnalyzeEvent> {
     const { source, outPath, sections } = request;
     if (!outPath) {
       yield {
@@ -282,7 +271,10 @@ export class GrpcAnalyzer implements RepoAnalyzer {
       if (wanted.has('overview')) {
         const overview = mapOverview(metrics);
         aggregate.overview = overview;
-        yield { kind: 'section', section: { name: 'overview', data: overview } };
+        yield {
+          kind: 'section',
+          section: { name: 'overview', data: overview },
+        };
       }
     } catch (err) {
       yield { kind: 'error', error: toAnalyzeError(err, 'getReport failed') };
@@ -290,17 +282,15 @@ export class GrpcAnalyzer implements RepoAnalyzer {
     }
 
     const sectionsToFetch = REMOTE_SECTIONS.filter((s) => wanted.has(s));
-    const fetches = sectionsToFetch.map(
-      async (name): Promise<SectionResult> => {
-        try {
-          const res = await this.client.getSection(outPath, name, source);
-          const parsed = JSON.parse(res.data_json) as unknown;
-          return { ok: true, name, parsed };
-        } catch (err) {
-          return { ok: false, name, error: err };
-        }
-      },
-    );
+    const fetches = sectionsToFetch.map(async (name): Promise<SectionResult> => {
+      try {
+        const res = await this.client.getSection(outPath, name, source);
+        const parsed = JSON.parse(res.data_json) as unknown;
+        return { ok: true, name, parsed };
+      } catch (err) {
+        return { ok: false, name, error: err };
+      }
+    });
 
     for await (const result of settleInOrder(fetches)) {
       throwIfAborted(signal);
@@ -390,12 +380,8 @@ function applySectionToAggregate(
 }
 
 /** Yield each promise's result in completion order. */
-async function* settleInOrder<T>(
-  promises: Promise<T>[],
-): AsyncGenerator<T, void, unknown> {
-  const indexed = promises.map((p, i) =>
-    p.then((value) => ({ i, value })),
-  );
+async function* settleInOrder<T>(promises: Promise<T>[]): AsyncGenerator<T, void, unknown> {
+  const indexed = promises.map((p, i) => p.then((value) => ({ i, value })));
   const remaining = new Map(indexed.map((p, i) => [i, p]));
   while (remaining.size > 0) {
     const { i, value } = await Promise.race(remaining.values());

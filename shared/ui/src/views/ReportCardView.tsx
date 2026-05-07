@@ -1,12 +1,7 @@
 import type { ReactNode } from 'react';
 import { RadarChart } from '../charts/RadarChart.js';
 import { SectionLayout, type SectionDef } from '../chrome/SectionLayout.js';
-import {
-  OverviewIcon,
-  StrengthsIcon,
-  RisksIcon,
-  NextStepsIcon,
-} from '../chrome/SectionIcons.js';
+import { OverviewIcon, StrengthsIcon, RisksIcon, NextStepsIcon } from '../chrome/SectionIcons.js';
 import {
   type ReportCardData,
   type ReportCardCategory,
@@ -84,13 +79,7 @@ export function ReportCardView({ report, actions }: ReportCardViewProps) {
 
 // ───────────────────────── header ─────────────────────────
 
-function ReportCardHeader({
-  report,
-  actions,
-}: {
-  report: ReportCardData;
-  actions?: ReactNode;
-}) {
+function ReportCardHeader({ report, actions }: { report: ReportCardData; actions?: ReactNode }) {
   return (
     <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
       <div>
@@ -109,19 +98,25 @@ function ReportCardHeader({
           {report.repoInfo?.stars !== undefined && (
             <>
               <span>{formatNumber(report.repoInfo.stars)} stars</span>
-              <span className="text-border" aria-hidden="true">|</span>
+              <span className="text-border" aria-hidden="true">
+                |
+              </span>
             </>
           )}
           {report.repoInfo?.forks !== undefined && (
             <>
               <span>{formatNumber(report.repoInfo.forks)} forks</span>
-              <span className="text-border" aria-hidden="true">|</span>
+              <span className="text-border" aria-hidden="true">
+                |
+              </span>
             </>
           )}
           {report.repoInfo?.openIssues !== undefined && (
             <>
               <span>{formatNumber(report.repoInfo.openIssues)} issues</span>
-              <span className="text-border" aria-hidden="true">|</span>
+              <span className="text-border" aria-hidden="true">
+                |
+              </span>
             </>
           )}
           <span>Analyzed {formatDate(report.analyzedAt)}</span>
@@ -154,10 +149,7 @@ function OverviewSection({ report }: { report: ReportCardData }) {
           </div>
           <div className="text-center inline-flex items-center justify-center gap-1.5">
             <GradeStatusBadge grade={report.grade} />
-            <span
-              className="text-sm font-medium"
-              style={{ color: GRADE_COLORS[report.grade] }}
-            >
+            <span className="text-sm font-medium" style={{ color: GRADE_COLORS[report.grade] }}>
               {gradeAdjective(report.grade)}
             </span>
           </div>
@@ -179,13 +171,22 @@ function OverviewSection({ report }: { report: ReportCardData }) {
  *  colour-blindness (Deutan/Protan) can distinguish F from D, A from B
  *  etc. The shapes are also redundantly meaningful for reduced-vision
  *  users where a 12px hue is hard to read. */
-function gradeShape(grade: ReportCardData['grade']): { kind: 'check' | 'warn' | 'cross'; label: string } {
+function gradeShape(grade: ReportCardData['grade']): {
+  kind: 'check' | 'warn' | 'cross';
+  label: string;
+} {
   if (grade === 'A' || grade === 'B') return { kind: 'check', label: 'Healthy' };
   if (grade === 'C') return { kind: 'warn', label: 'Needs attention' };
   return { kind: 'cross', label: 'Critical' };
 }
 
-function GradeStatusBadge({ grade, className = '' }: { grade: ReportCardData['grade']; className?: string }) {
+function GradeStatusBadge({
+  grade,
+  className = '',
+}: {
+  grade: ReportCardData['grade'];
+  className?: string;
+}) {
   const shape = gradeShape(grade);
   const color = GRADE_COLORS[grade];
   return (
@@ -195,17 +196,42 @@ function GradeStatusBadge({ grade, className = '' }: { grade: ReportCardData['gr
       aria-label={shape.label}
     >
       {shape.kind === 'check' && (
-        <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3} aria-hidden="true">
+        <svg
+          className="h-3.5 w-3.5"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+          strokeWidth={3}
+          aria-hidden="true"
+        >
           <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
         </svg>
       )}
       {shape.kind === 'warn' && (
-        <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3} aria-hidden="true">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v4M12 17h.01M4.93 19h14.14a2 2 0 001.74-3l-7.07-12a2 2 0 00-3.48 0l-7.07 12a2 2 0 001.74 3z" />
+        <svg
+          className="h-3.5 w-3.5"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+          strokeWidth={3}
+          aria-hidden="true"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M12 9v4M12 17h.01M4.93 19h14.14a2 2 0 001.74-3l-7.07-12a2 2 0 00-3.48 0l-7.07 12a2 2 0 001.74 3z"
+          />
         </svg>
       )}
       {shape.kind === 'cross' && (
-        <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3} aria-hidden="true">
+        <svg
+          className="h-3.5 w-3.5"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+          strokeWidth={3}
+          aria-hidden="true"
+        >
           <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
         </svg>
       )}
@@ -264,10 +290,7 @@ function LetterGrade({ grade, score }: { grade: ReportCardData['grade']; score: 
         <div className="text-3xl font-bold tabular-nums" style={{ color }}>
           {score}
         </div>
-        <div
-          className="text-lg font-semibold mt-0.5"
-          style={{ color }}
-        >
+        <div className="text-lg font-semibold mt-0.5" style={{ color }}>
           Grade {grade}
         </div>
       </div>
@@ -388,7 +411,12 @@ function XIcon() {
       stroke="currentColor"
       aria-hidden="true"
     >
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2.5}
+        d="M6 18L18 6M6 6l12 12"
+      />
     </svg>
   );
 }

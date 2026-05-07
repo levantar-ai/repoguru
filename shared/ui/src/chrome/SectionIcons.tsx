@@ -14,7 +14,9 @@ const baseProps = {
 };
 
 export const OverviewIcon = () => (
-  <svg {...baseProps}><path d="M3 12l9-9 9 9M5 10v10h5v-6h4v6h5V10" /></svg>
+  <svg {...baseProps}>
+    <path d="M3 12l9-9 9 9M5 10v10h5v-6h4v6h5V10" />
+  </svg>
 );
 
 export const CategoriesIcon = () => (
@@ -48,7 +50,9 @@ export const NextStepsIcon = () => (
 );
 
 export const ActivityIcon = () => (
-  <svg {...baseProps}><path d="M3 12h4l3-9 4 18 3-9h4" /></svg>
+  <svg {...baseProps}>
+    <path d="M3 12h4l3-9 4 18 3-9h4" />
+  </svg>
 );
 
 export const HealthIcon = () => (
@@ -59,7 +63,9 @@ export const HealthIcon = () => (
 );
 
 export const CodeIcon = () => (
-  <svg {...baseProps}><path d="M16 18l6-6-6-6M8 6l-6 6 6 6" /></svg>
+  <svg {...baseProps}>
+    <path d="M16 18l6-6-6-6M8 6l-6 6 6 6" />
+  </svg>
 );
 
 export const ContributorsIcon = () => (

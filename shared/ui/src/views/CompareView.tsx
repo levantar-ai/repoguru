@@ -125,10 +125,7 @@ export function CompareView({
 /** Helper: derive `CompareDelta[]` from two `ReportCardData`s.
  *  Used by the browser host where the pipeline produces two reports
  *  but no pre-baked delta array (the CLI emits its own). */
-export function computeDeltasFromReports(
-  a: ReportCardData,
-  b: ReportCardData,
-): CompareDelta[] {
+export function computeDeltasFromReports(a: ReportCardData, b: ReportCardData): CompareDelta[] {
   const result: CompareDelta[] = [];
   for (const catA of a.categories) {
     const catB = b.categories.find((c) => c.key === catA.key);
@@ -357,13 +354,10 @@ function CategoryRow({
               </div>
             </>
           ) : (
-            <p className="text-sm text-text-muted text-center">
-              No signal differences in {label}.
-            </p>
+            <p className="text-sm text-text-muted text-center">No signal differences in {label}.</p>
           )}
         </div>
       )}
     </div>
   );
 }
-

@@ -19,7 +19,11 @@ export function RepoGrowthTimeline({ repoGrowth }: Props) {
       tooltip: {
         trigger: 'axis' as const,
         formatter: (
-          params: Array<{ seriesName: string; value: number; axisValueLabel: string }>,
+          params: Array<{
+            seriesName: string;
+            value: number;
+            axisValueLabel: string;
+          }>,
         ) => {
           let html = `<b>${params[0].axisValueLabel}</b>`;
           for (const p of params) {

@@ -27,7 +27,13 @@ interface TabsState {
 }
 
 type TabsAction =
-  | { type: 'OPEN_TAB'; kind: string; repo?: string; activate?: boolean; title: string }
+  | {
+      type: 'OPEN_TAB';
+      kind: string;
+      repo?: string;
+      activate?: boolean;
+      title: string;
+    }
   | { type: 'REPLACE_ACTIVE'; kind: string; repo?: string; title: string }
   | { type: 'SET_ACTIVE'; id: string }
   | { type: 'CLOSE'; id: string }
@@ -43,7 +49,12 @@ function makeReducer() {
   return function reducer(state: TabsState, action: TabsAction): TabsState {
     switch (action.type) {
       case 'OPEN_TAB': {
-        const t: Tab = { id: newId(), kind: action.kind, repo: action.repo, title: action.title };
+        const t: Tab = {
+          id: newId(),
+          kind: action.kind,
+          repo: action.repo,
+          title: action.title,
+        };
         return {
           tabs: [...state.tabs, t],
           activeId: action.activate === false ? state.activeId : t.id,
@@ -52,7 +63,12 @@ function makeReducer() {
       case 'REPLACE_ACTIVE': {
         const tabs = state.tabs.map((t) =>
           t.id === state.activeId
-            ? { ...t, kind: action.kind, repo: action.repo, title: action.title }
+            ? {
+                ...t,
+                kind: action.kind,
+                repo: action.repo,
+                title: action.title,
+              }
             : t,
         );
         return { ...state, tabs };
@@ -120,10 +136,18 @@ export interface TabsProviderProps {
   children: ReactNode;
 }
 
-export function TabsProvider({ titleFor, storageKey = 'repoguru:tabs', children }: TabsProviderProps) {
+export function TabsProvider({
+  titleFor,
+  storageKey = 'repoguru:tabs',
+  children,
+}: TabsProviderProps) {
   const reducer = useMemo(makeReducer, []);
   const initial = useMemo<TabsState>(() => {
-    const t: Tab = { id: newId(), kind: 'launcher', title: titleFor('launcher') };
+    const t: Tab = {
+      id: newId(),
+      kind: 'launcher',
+      title: titleFor('launcher'),
+    };
     return { tabs: [t], activeId: t.id };
   }, [titleFor]);
   const [state, dispatch] = useReducer(reducer, initial);
@@ -143,14 +167,18 @@ export function TabsProvider({ titleFor, storageKey = 'repoguru:tabs', children 
       if (valid.length === 0) return;
       const activeId = valid.find((t) => t.id === parsed.activeId)?.id ?? valid[0].id;
       dispatch({ type: 'HYDRATE', state: { tabs: valid, activeId } });
-    } catch { /* drop saved state */ }
+    } catch {
+      /* drop saved state */
+    }
   }, [storageKey, titleFor]);
 
   useEffect(() => {
     if (!hydrated.current) return;
     try {
       localStorage.setItem(storageKey, JSON.stringify(state));
-    } catch { /* ignore quota */ }
+    } catch {
+      /* ignore quota */
+    }
   }, [state, storageKey]);
 
   // ⌘T new tab, ⌘W close active.
@@ -159,7 +187,11 @@ export function TabsProvider({ titleFor, storageKey = 'repoguru:tabs', children 
       if (!(e.metaKey || e.ctrlKey)) return;
       if (e.key === 't' || e.key === 'T') {
         e.preventDefault();
-        dispatch({ type: 'OPEN_TAB', kind: 'launcher', title: titleFor('launcher') });
+        dispatch({
+          type: 'OPEN_TAB',
+          kind: 'launcher',
+          title: titleFor('launcher'),
+        });
       } else if (e.key === 'w' || e.key === 'W') {
         e.preventDefault();
         dispatch({ type: 'CLOSE', id: state.activeId });
@@ -181,7 +213,12 @@ export function TabsProvider({ titleFor, storageKey = 'repoguru:tabs', children 
           title: titleFor(kind, opts?.repo),
         }),
       replaceActive: (kind, repo) =>
-        dispatch({ type: 'REPLACE_ACTIVE', kind, repo, title: titleFor(kind, repo) }),
+        dispatch({
+          type: 'REPLACE_ACTIVE',
+          kind,
+          repo,
+          title: titleFor(kind, repo),
+        }),
       setActive: (id) => dispatch({ type: 'SET_ACTIVE', id }),
       close: (id) => dispatch({ type: 'CLOSE', id }),
       setTitle: (id, title) => dispatch({ type: 'SET_TITLE', id, title }),
@@ -285,7 +322,14 @@ export function TileLauncher({ tiles, subtitle, banner }: TileLauncherProps) {
                   tile.color ?? 'text-text-secondary'
                 }`}
               >
-                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
+                <svg
+                  className="h-5 w-5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={1.5}
+                  aria-hidden="true"
+                >
                   <path strokeLinecap="round" strokeLinejoin="round" d={tile.d} />
                 </svg>
               </div>
@@ -300,7 +344,8 @@ export function TileLauncher({ tiles, subtitle, banner }: TileLauncherProps) {
       <div className="mt-8 text-center text-xs text-text-muted">
         <kbd className="px-1.5 py-0.5 rounded bg-surface border border-border">⌘T</kbd> new tab ·{' '}
         <kbd className="px-1.5 py-0.5 rounded bg-surface border border-border">⌘W</kbd> close tab ·{' '}
-        <kbd className="px-1.5 py-0.5 rounded bg-surface border border-border">⌘K</kbd> command palette
+        <kbd className="px-1.5 py-0.5 rounded bg-surface border border-border">⌘K</kbd> command
+        palette
       </div>
     </div>
   );
@@ -347,7 +392,12 @@ const DEFAULT_WORDMARK: ReactNode = (
   </span>
 );
 
-export function TabBar({ iconForKind, colorForKind, wordmark = DEFAULT_WORDMARK, rightRail }: TabBarProps) {
+export function TabBar({
+  iconForKind,
+  colorForKind,
+  wordmark = DEFAULT_WORDMARK,
+  rightRail,
+}: TabBarProps) {
   const { state, openTab, setActive, close } = useTabs();
   const launcherIcon = 'M12 4v16m8-8H4';
 
@@ -367,7 +417,11 @@ export function TabBar({ iconForKind, colorForKind, wordmark = DEFAULT_WORDMARK,
         {wordmark}
       </button>
 
-      <div role="tablist" aria-label="Open sessions" className="flex-1 flex items-end gap-0.5 overflow-x-auto">
+      <div
+        role="tablist"
+        aria-label="Open sessions"
+        className="flex-1 flex items-end gap-0.5 overflow-x-auto"
+      >
         {state.tabs.map((tab) => {
           const isActive = tab.id === state.activeId;
           const isLauncher = tab.kind === 'launcher';
@@ -418,7 +472,14 @@ export function TabBar({ iconForKind, colorForKind, wordmark = DEFAULT_WORDMARK,
                     isActive ? 'opacity-70' : 'opacity-0 group-hover:opacity-70 focus:opacity-100'
                   }`}
                 >
-                  <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} aria-hidden="true">
+                  <svg
+                    className="h-3 w-3"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth={2.5}
+                    aria-hidden="true"
+                  >
                     <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                   </svg>
                 </button>
@@ -467,7 +528,14 @@ export function TabBar({ iconForKind, colorForKind, wordmark = DEFAULT_WORDMARK,
                   isActive ? 'opacity-70' : 'opacity-0 group-hover:opacity-70 focus:opacity-100'
                 }`}
               >
-                <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden="true">
+                <svg
+                  className="h-3.5 w-3.5"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                  aria-hidden="true"
+                >
                   <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
@@ -481,14 +549,23 @@ export function TabBar({ iconForKind, colorForKind, wordmark = DEFAULT_WORDMARK,
           className="ml-1 mb-1 p-1 rounded-md text-text-muted hover:text-neon hover:bg-surface-hover/50 transition-colors"
           title="New tab (⌘T)"
         >
-          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
+          <svg
+            className="h-4 w-4"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={2}
+            aria-hidden="true"
+          >
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
           </svg>
         </button>
       </div>
 
       {rightRail && (
-        <div className="flex items-center gap-1 pl-2 pb-1 ml-2 border-l border-border">{rightRail}</div>
+        <div className="flex items-center gap-1 pl-2 pb-1 ml-2 border-l border-border">
+          {rightRail}
+        </div>
       )}
     </div>
   );

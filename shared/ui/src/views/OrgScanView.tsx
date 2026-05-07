@@ -1,9 +1,6 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import { GRADE_COLORS, type Grade } from './reportCardTypes.js';
-import {
-  type OrgScanItem,
-  type OrgScanSummary,
-} from './orgScanTypes.js';
+import { type OrgScanItem, type OrgScanSummary } from './orgScanTypes.js';
 
 export interface OrgScanViewProps {
   items: OrgScanItem[];
@@ -39,10 +36,7 @@ export function OrgScanView({ items, summary, onRepoClick, actions }: OrgScanVie
 
   // Derive the category column list from the first item — both apps emit a
   // canonical set, so this is sufficient.
-  const columns = useMemo<OrgScanItem['categories']>(
-    () => items[0]?.categories ?? [],
-    [items],
-  );
+  const columns = useMemo<OrgScanItem['categories']>(() => items[0]?.categories ?? [], [items]);
 
   const sorted = useMemo(() => {
     const arr = [...items];
@@ -183,10 +177,7 @@ export function OrgScanView({ items, summary, onRepoClick, actions }: OrgScanVie
                 <span className="font-semibold text-sm">{item.repo.repo}</span>
               )}
               <div className="flex items-center gap-2">
-                <span
-                  className="text-xl font-bold"
-                  style={{ color: GRADE_COLORS[item.grade] }}
-                >
+                <span className="text-xl font-bold" style={{ color: GRADE_COLORS[item.grade] }}>
                   {item.grade}
                 </span>
                 <span className="text-sm text-text-muted">{item.overallScore}</span>
@@ -218,10 +209,7 @@ function SummaryCards({ summary }: { summary: OrgScanSummary }) {
         <div className="text-xs text-text-muted uppercase tracking-wider">Repositories</div>
       </div>
       <div className="rounded-xl border border-border bg-surface-alt p-4 text-center">
-        <div
-          className="text-2xl font-bold"
-          style={{ color: GRADE_COLORS[summary.averageGrade] }}
-        >
+        <div className="text-2xl font-bold" style={{ color: GRADE_COLORS[summary.averageGrade] }}>
           {summary.averageGrade}
         </div>
         <div className="text-xs text-text-muted uppercase tracking-wider">

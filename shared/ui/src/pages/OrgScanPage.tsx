@@ -52,10 +52,21 @@ export function OrgScanPage() {
     abortRef.current?.abort();
     const controller = new AbortController();
     abortRef.current = controller;
-    setState({ step: 'loading', progress: null, message: 'Starting scan...', result: null, error: null });
+    setState({
+      step: 'loading',
+      progress: null,
+      message: 'Starting scan...',
+      result: null,
+      error: null,
+    });
     try {
       const result = await orgScan.run(
-        { target: target.trim(), skipForks, skipArchived, maxRepos: maxRepos || undefined },
+        {
+          target: target.trim(),
+          skipForks,
+          skipArchived,
+          maxRepos: maxRepos || undefined,
+        },
         {
           signal: controller.signal,
           onProgress: (p) =>
@@ -64,15 +75,22 @@ export function OrgScanPage() {
                 ? {
                     ...prev,
                     progress: p,
-                    message: p.phase === 'listing'
-                      ? 'Listing repositories...'
-                      : `Analyzing ${p.currentRepo || `repo ${p.completed + 1}/${p.total}`}...`,
+                    message:
+                      p.phase === 'listing'
+                        ? 'Listing repositories...'
+                        : `Analyzing ${p.currentRepo || `repo ${p.completed + 1}/${p.total}`}...`,
                   }
                 : prev,
             ),
         },
       );
-      setState({ step: 'done', progress: null, message: '', result, error: null });
+      setState({
+        step: 'done',
+        progress: null,
+        message: '',
+        result,
+        error: null,
+      });
     } catch (err) {
       if ((err as { name?: string })?.name === 'AbortError') return;
       setState({
@@ -87,7 +105,13 @@ export function OrgScanPage() {
 
   const handleReset = useCallback(() => {
     abortRef.current?.abort();
-    setState({ step: 'idle', progress: null, message: '', result: null, error: null });
+    setState({
+      step: 'idle',
+      progress: null,
+      message: '',
+      result: null,
+      error: null,
+    });
   }, []);
 
   return (
@@ -101,7 +125,10 @@ export function OrgScanPage() {
       {state.step === 'idle' && (
         <div className="mb-8 max-w-4xl mx-auto space-y-4">
           <div>
-            <label htmlFor="org-target" className="block text-sm font-medium text-text-secondary mb-1.5">
+            <label
+              htmlFor="org-target"
+              className="block text-sm font-medium text-text-secondary mb-1.5"
+            >
               Organization or Username
             </label>
             <input
@@ -119,7 +146,11 @@ export function OrgScanPage() {
 
           <div className="flex flex-wrap items-center gap-6 text-xs text-text-secondary">
             <label className="flex items-center gap-1.5 cursor-pointer">
-              <input type="checkbox" checked={skipForks} onChange={(e) => setSkipForks(e.target.checked)} />
+              <input
+                type="checkbox"
+                checked={skipForks}
+                onChange={(e) => setSkipForks(e.target.checked)}
+              />
               Skip forks
             </label>
             <label className="flex items-center gap-1.5 cursor-pointer">
@@ -158,7 +189,9 @@ export function OrgScanPage() {
               <div className="h-2 rounded-full bg-surface-alt overflow-hidden border border-border">
                 <div
                   className="h-full bg-neon transition-all duration-300"
-                  style={{ width: `${(state.progress.completed / state.progress.total) * 100}%` }}
+                  style={{
+                    width: `${(state.progress.completed / state.progress.total) * 100}%`,
+                  }}
                 />
               </div>
               <p className="text-xs text-text-muted mt-1.5 text-center">

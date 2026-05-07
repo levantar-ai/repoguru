@@ -30,9 +30,7 @@ export function PolicyView({ result, actions }: PolicyViewProps) {
       {/* Summary card */}
       <div
         className={`rounded-2xl border p-6 sm:p-8 ${
-          result.passed
-            ? 'border-grade-a/40 bg-grade-a/5'
-            : 'border-grade-f/40 bg-grade-f/5'
+          result.passed ? 'border-grade-a/40 bg-grade-a/5' : 'border-grade-f/40 bg-grade-f/5'
         }`}
       >
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -48,9 +46,7 @@ export function PolicyView({ result, actions }: PolicyViewProps) {
             </div>
             <div>
               <h3
-                className={`text-2xl font-bold ${
-                  result.passed ? 'text-grade-a' : 'text-grade-f'
-                }`}
+                className={`text-2xl font-bold ${result.passed ? 'text-grade-a' : 'text-grade-f'}`}
               >
                 {result.passed ? 'POLICY PASSED' : 'POLICY FAILED'}
               </h3>
@@ -124,9 +120,7 @@ function RuleRow({
   const ruleTypeLabel = formatRuleTypeLabel(rule.type, rule.category, categoryLabels);
 
   return (
-    <div
-      className={`px-6 py-4 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 ${rowBg}`}
-    >
+    <div className={`px-6 py-4 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 ${rowBg}`}>
       <div className="shrink-0">
         <ResultBadge passed={result.passed} severity={rule.severity} />
       </div>
@@ -141,17 +135,13 @@ function RuleRow({
             </span>
           )}
         </div>
-        {rule.description && (
-          <p className="text-xs text-text-muted mt-1">{rule.description}</p>
-        )}
+        {rule.description && <p className="text-xs text-text-muted mt-1">{rule.description}</p>}
       </div>
 
       <div className="shrink-0 text-right sm:min-w-[200px]">
         <div className="text-xs text-text-muted">
           Actual:{' '}
-          <span
-            className={`font-semibold ${result.passed ? 'text-grade-a' : 'text-grade-f'}`}
-          >
+          <span className={`font-semibold ${result.passed ? 'text-grade-a' : 'text-grade-f'}`}>
             {result.actual}
           </span>
         </div>
@@ -163,13 +153,7 @@ function RuleRow({
   );
 }
 
-function ResultBadge({
-  passed,
-  severity,
-}: {
-  passed: boolean;
-  severity: PolicySeverity;
-}) {
+function ResultBadge({ passed, severity }: { passed: boolean; severity: PolicySeverity }) {
   if (passed) {
     return (
       <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-grade-a/15 text-grade-a border border-grade-a/25">
@@ -266,7 +250,12 @@ function CheckSmallIcon() {
 function CrossSmallIcon() {
   return (
     <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2.5}
+        d="M6 18L18 6M6 6l12 12"
+      />
     </svg>
   );
 }

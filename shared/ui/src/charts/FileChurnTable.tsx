@@ -143,7 +143,9 @@ export function FileChurnTable({ fileChurn }: Props) {
                   <div className="h-2 bg-surface-hover rounded-full overflow-hidden">
                     <div
                       className="h-full bg-neon/40 rounded-full"
-                      style={{ width: `${(file.changeCount / maxChanges) * 100}%` }}
+                      style={{
+                        width: `${(file.changeCount / maxChanges) * 100}%`,
+                      }}
                     />
                   </div>
                 </td>

@@ -16,10 +16,13 @@ export interface DemoChip {
 }
 
 export const DEMO_REPOS: DemoChip[] = [
-  { slug: 'vercel/next.js',         hint: 'A — large, well-tested SaaS framework' },
-  { slug: 'vitejs/vite',            hint: 'A — battle-tested build tool' },
+  { slug: 'vercel/next.js', hint: 'A — large, well-tested SaaS framework' },
+  { slug: 'vitejs/vite', hint: 'A — battle-tested build tool' },
   { slug: 'tailwindlabs/tailwindcss', hint: 'A — high-quality utility CSS' },
-  { slug: 'octocat/Hello-World',    hint: 'F — see what a failing repo looks like' },
+  {
+    slug: 'octocat/Hello-World',
+    hint: 'F — see what a failing repo looks like',
+  },
 ];
 
 export interface DemoChipsProps {
@@ -32,7 +35,11 @@ export interface DemoChipsProps {
 
 export function DemoChips({ onPick, disabled }: DemoChipsProps) {
   return (
-    <div className="flex flex-col items-center gap-2 mb-3" role="group" aria-label="Try a demo repository">
+    <div
+      className="flex flex-col items-center gap-2 mb-3"
+      role="group"
+      aria-label="Try a demo repository"
+    >
       <span className="text-xs uppercase tracking-wider text-text-muted font-medium">
         Or try one of these
       </span>

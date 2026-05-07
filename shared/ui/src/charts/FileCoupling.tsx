@@ -117,7 +117,9 @@ export function FileCoupling({ fileCoupling }: Props) {
                 <div className="h-2 bg-surface-hover rounded-full overflow-hidden">
                   <div
                     className="h-full bg-neon/40 rounded-full"
-                    style={{ width: `${(entry.cochanges / maxCochanges) * 100}%` }}
+                    style={{
+                      width: `${(entry.cochanges / maxCochanges) * 100}%`,
+                    }}
                   />
                 </div>
               </td>

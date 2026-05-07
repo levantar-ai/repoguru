@@ -6,11 +6,7 @@
 // Views in @repoguru/ui depend ONLY on this interface, never on a concrete
 // implementation. That's what makes them work in both apps unchanged.
 
-import type {
-  GitStatsData,
-  GitStatsSection,
-  GitStatsSectionName,
-} from './gitStats.js';
+import type { GitStatsData, GitStatsSection, GitStatsSectionName } from './gitStats.js';
 
 export interface AnalyzeRequest {
   /**
@@ -74,10 +70,7 @@ export class AnalyzeError extends Error {
  * Implementations should respect AbortSignal for cancellation.
  */
 export interface RepoAnalyzer {
-  analyze(
-    request: AnalyzeRequest,
-    signal?: AbortSignal,
-  ): AsyncIterable<AnalyzeEvent>;
+  analyze(request: AnalyzeRequest, signal?: AbortSignal): AsyncIterable<AnalyzeEvent>;
 }
 
 /**
@@ -94,8 +87,5 @@ export async function runAnalyzer(
     if (event.kind === 'done') return event.data;
     if (event.kind === 'error') throw event.error;
   }
-  throw new AnalyzeError(
-    'no_done_event',
-    'Analyzer iterable ended without emitting a done event',
-  );
+  throw new AnalyzeError('no_done_event', 'Analyzer iterable ended without emitting a done event');
 }

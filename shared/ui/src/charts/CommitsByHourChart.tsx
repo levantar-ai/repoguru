@@ -34,10 +34,7 @@ export interface CommitsByHourChartProps {
   height?: string;
 }
 
-export function CommitsByHourChart({
-  commitsByHour,
-  height = '300px',
-}: CommitsByHourChartProps) {
+export function CommitsByHourChart({ commitsByHour, height = '300px' }: CommitsByHourChartProps) {
   const option = useMemo(
     () => ({
       tooltip: {

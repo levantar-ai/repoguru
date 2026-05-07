@@ -13,9 +13,13 @@ export function PrivacyStrip({ className = '' }: { className?: string }) {
       aria-label="Privacy guarantees"
     >
       <Item>100% client-side</Item>
-      <span aria-hidden="true" className="text-border">·</span>
+      <span aria-hidden="true" className="text-border">
+        ·
+      </span>
       <Item>No code uploaded</Item>
-      <span aria-hidden="true" className="text-border">·</span>
+      <span aria-hidden="true" className="text-border">
+        ·
+      </span>
       <Item>No login required</Item>
     </div>
   );

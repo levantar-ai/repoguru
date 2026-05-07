@@ -53,10 +53,7 @@ export function RepoPicker({
 
   // GitHub state ----------------------------------------------------------
   const hasToken = repoBrowse.hasGitHubToken();
-  const supportsGitHub = !!(
-    repoBrowse.connectGitHub ||
-    repoBrowse.listGitHubRepos
-  );
+  const supportsGitHub = !!(repoBrowse.connectGitHub || repoBrowse.listGitHubRepos);
   // Reference tokenTick so eslint sees it as load-bearing for
   // re-renders that re-evaluate hasGitHubToken.
   void tokenTick;
@@ -176,7 +173,13 @@ export function RepoPicker({
           className="px-4 py-3 rounded-xl bg-surface-alt border border-border text-text-secondary hover:text-neon hover:border-neon/30 transition-all disabled:opacity-40 disabled:cursor-not-allowed inline-flex items-center gap-2 whitespace-nowrap"
           title="Browse"
         >
-          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+          <svg
+            className="h-4 w-4"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            aria-hidden="true"
+          >
             <path
               strokeLinecap="round"
               strokeLinejoin="round"
@@ -188,9 +191,7 @@ export function RepoPicker({
         </button>
       </div>
 
-      {repoBrowse.hint && (
-        <p className="mt-1.5 text-xs text-text-muted">{repoBrowse.hint}</p>
-      )}
+      {repoBrowse.hint && <p className="mt-1.5 text-xs text-text-muted">{repoBrowse.hint}</p>}
 
       {!disabled && recents.length > 0 && (
         <div className="mt-2 flex flex-wrap gap-1.5">
@@ -299,8 +300,19 @@ export function RepoPicker({
       {!hideAuthChrome && supportsGitHub && hasToken && ghLoading && ghRepos.length === 0 && (
         <div className="mt-4 flex items-center gap-2 px-4 py-3 rounded-xl border border-border bg-surface-alt text-sm text-text-muted">
           <svg className="h-4 w-4 text-neon animate-spin shrink-0" viewBox="0 0 24 24" fill="none">
-            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+            <circle
+              className="opacity-25"
+              cx="12"
+              cy="12"
+              r="10"
+              stroke="currentColor"
+              strokeWidth="4"
+            />
+            <path
+              className="opacity-75"
+              fill="currentColor"
+              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+            />
           </svg>
           Loading your repositories…
         </div>
@@ -378,9 +390,7 @@ export function RepoPicker({
                     }`}
                   >
                     <span className="truncate">All repos</span>
-                    <span className="shrink-0 tabular-nums text-text-muted">
-                      {ghRepos.length}
-                    </span>
+                    <span className="shrink-0 tabular-nums text-text-muted">{ghRepos.length}</span>
                   </button>
                   {orgList.map((org) => (
                     <button
@@ -394,9 +404,7 @@ export function RepoPicker({
                       }`}
                     >
                       <span className="truncate">{org.name}</span>
-                      <span className="shrink-0 tabular-nums text-text-muted">
-                        {org.count}
-                      </span>
+                      <span className="shrink-0 tabular-nums text-text-muted">{org.count}</span>
                     </button>
                   ))}
                 </div>
@@ -404,7 +412,9 @@ export function RepoPicker({
 
               <ComboboxOptions static className="flex-1 overflow-y-auto focus:outline-none">
                 {filteredRepos.length === 0 ? (
-                  <div className="px-4 py-6 text-sm text-text-muted text-center">No matching repos</div>
+                  <div className="px-4 py-6 text-sm text-text-muted text-center">
+                    No matching repos
+                  </div>
                 ) : (
                   filteredRepos.map((repo) => (
                     <ComboboxOption
@@ -421,11 +431,15 @@ export function RepoPicker({
                           {repo.repo}
                         </div>
                         {repo.description && (
-                          <div className="text-xs text-text-muted truncate mt-0.5">{repo.description}</div>
+                          <div className="text-xs text-text-muted truncate mt-0.5">
+                            {repo.description}
+                          </div>
                         )}
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
-                        {repo.language && <span className="text-xs text-text-muted">{repo.language}</span>}
+                        {repo.language && (
+                          <span className="text-xs text-text-muted">{repo.language}</span>
+                        )}
                         {typeof repo.stars === 'number' && repo.stars > 0 && (
                           <span className="text-xs text-text-muted flex items-center gap-0.5">
                             <svg className="h-3 w-3" fill="currentColor" viewBox="0 0 24 24">

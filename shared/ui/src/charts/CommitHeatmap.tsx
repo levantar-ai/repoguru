@@ -45,7 +45,12 @@ export function CommitHeatmap({ commitActivity }: Props) {
         bottom: 0,
         pieces: [
           { min: 0, max: 0, color: '#1e293b', label: '0' },
-          { min: 1, max: Math.ceil(maxVal * 0.25), color: '#0c4a6e', label: 'Low' },
+          {
+            min: 1,
+            max: Math.ceil(maxVal * 0.25),
+            color: '#0c4a6e',
+            label: 'Low',
+          },
           {
             min: Math.ceil(maxVal * 0.25) + 1,
             max: Math.ceil(maxVal * 0.5),
@@ -58,7 +63,12 @@ export function CommitHeatmap({ commitActivity }: Props) {
             color: '#38bdf8',
             label: 'High',
           },
-          { min: Math.ceil(maxVal * 0.75) + 1, max: maxVal, color: '#7dd3fc', label: 'Max' },
+          {
+            min: Math.ceil(maxVal * 0.75) + 1,
+            max: maxVal,
+            color: '#7dd3fc',
+            label: 'Max',
+          },
         ],
         textStyle: { color: '#64748b', fontSize: 10 },
       },

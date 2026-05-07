@@ -1,9 +1,5 @@
 import { useState, useMemo } from 'react';
-import type {
-  DetectedAWSService,
-  DetectedAzureService,
-  DetectedGCPService,
-} from '@repoguru/core';
+import type { DetectedAWSService, DetectedAzureService, DetectedGCPService } from '@repoguru/core';
 
 type Provider = 'all' | 'aws' | 'azure' | 'gcp';
 

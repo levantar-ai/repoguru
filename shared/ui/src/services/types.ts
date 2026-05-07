@@ -158,7 +158,10 @@ export interface OrgScanResult {
 }
 
 export interface OrgScanService {
-  run(req: OrgScanRequest, opts?: { signal?: AbortSignal; onProgress?: (p: OrgScanProgress) => void }): Promise<OrgScanResult>;
+  run(
+    req: OrgScanRequest,
+    opts?: { signal?: AbortSignal; onProgress?: (p: OrgScanProgress) => void },
+  ): Promise<OrgScanResult>;
 }
 
 // ─────────────────────────── Git Stats ───────────────────────────────

@@ -189,7 +189,11 @@ export interface BrowserGitStatsAnalysis {
   commitsByMonth: number[];
   commitsByYear: Array<{ year: number; count: number }>;
   commitsByExtension: Array<{ ext: string; count: number }>;
-  linesByExtension: Array<{ ext: string; additions: number; deletions: number }>;
+  linesByExtension: Array<{
+    ext: string;
+    additions: number;
+    deletions: number;
+  }>;
   fileCoupling: Array<{ file1: string; file2: string; cochanges: number }>;
   firstCommitDate: string;
   repoAgeDays: number;

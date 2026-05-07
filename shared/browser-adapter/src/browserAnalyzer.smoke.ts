@@ -70,9 +70,24 @@ const analysis: BrowserGitStatsAnalysis = {
     averageLength: 42,
     medianLength: 35,
     mergeCommitCount: 50,
-    conventionalCommits: { feat: 200, fix: 300, docs: 50, style: 10, refactor: 100, test: 80, chore: 60, ci: 30, perf: 20, build: 10, other: 140 },
+    conventionalCommits: {
+      feat: 200,
+      fix: 300,
+      docs: 50,
+      style: 10,
+      refactor: 100,
+      test: 80,
+      chore: 60,
+      ci: 30,
+      perf: 20,
+      build: 10,
+      other: 140,
+    },
     conventionalPercentage: 86,
-    wordFrequency: [{ word: 'fix', count: 300 }, { word: 'feat', count: 200 }],
+    wordFrequency: [
+      { word: 'fix', count: 300 },
+      { word: 'feat', count: 200 },
+    ],
   },
   commitSizeDistribution: {
     buckets: [
@@ -82,12 +97,15 @@ const analysis: BrowserGitStatsAnalysis = {
     ],
   },
   repoGrowth: [
-    { date: '2024-01-01', cumulativeAdditions: 1000, cumulativeDeletions: 100, netGrowth: 900 },
+    {
+      date: '2024-01-01',
+      cumulativeAdditions: 1000,
+      cumulativeDeletions: 100,
+      netGrowth: 900,
+    },
   ],
   punchCard: [{ day: 1, hour: 9, commits: 25 }],
-  weeklyActivity: [
-    { weekStart: '2024-01-07', total: 50, days: [10, 5, 8, 9, 12, 4, 2] },
-  ],
+  weeklyActivity: [{ weekStart: '2024-01-07', total: 50, days: [10, 5, 8, 9, 12, 4, 2] }],
   languages: [
     { name: 'TypeScript', bytes: 100000, percentage: 70 },
     { name: 'CSS', bytes: 30000, percentage: 30 },
@@ -95,7 +113,10 @@ const analysis: BrowserGitStatsAnalysis = {
   codeFrequency: [[Math.floor(Date.parse('2024-01-07') / 1000), 500, 100]],
   commitsByWeekday: [10, 20, 30, 25, 40, 5, 2],
   commitsByMonth: Array(12).fill(83),
-  commitsByYear: [{ year: 2023, count: 600 }, { year: 2024, count: 400 }],
+  commitsByYear: [
+    { year: 2023, count: 600 },
+    { year: 2024, count: 400 },
+  ],
   commitsByExtension: [{ ext: '.ts', count: 700 }],
   linesByExtension: [{ ext: '.ts', additions: 30000, deletions: 5000 }],
   fileCoupling: [{ file1: 'a.ts', file2: 'b.ts', cochanges: 100 }],
@@ -106,16 +127,38 @@ const analysis: BrowserGitStatsAnalysis = {
   authorOfYear: [{ period: '2024', authorName: 'ada', commits: 400, totalAuthors: 2 }],
   authorOfMonth: [{ period: '2024-01', authorName: 'ada', commits: 50, totalAuthors: 2 }],
   authorTimelines: [{ authorName: 'ada', points: [['2024-01', 50]] }],
-  contributorNodes: [{ id: 'ada', name: 'ada' }, { id: 'grace', name: 'grace' }],
+  contributorNodes: [
+    { id: 'ada', name: 'ada' },
+    { id: 'grace', name: 'grace' },
+  ],
   contributorEdges: [{ source: 'ada', target: 'grace', weight: 30 }],
   codeOwnership: [{ path: 'src/foo.ts', ownerName: 'ada', lines: 800 }],
-  timezoneData: [{ offset: 0, count: 600 }, { offset: 60, count: 400 }],
+  timezoneData: [
+    { offset: 0, count: 600 },
+    { offset: 60, count: 400 },
+  ],
   sequentialCoupling: [],
   linesByExtTime: null,
-  linesStatsSummary: [{ label: 'commit-size', min: 1, max: 999, avg: 50, median: 30, total: 50000 }],
+  linesStatsSummary: [
+    {
+      label: 'commit-size',
+      min: 1,
+      max: 999,
+      avg: 50,
+      median: 30,
+      total: 50000,
+    },
+  ],
   cumulativeFiles: [{ date: '2024-01-01', count: 200 }],
   fileOperations: [{ operation: 'modified', count: 800 }],
-  tagHistory: [{ name: 'v1.0.0', date: '2024-06-01', timestamp: 1717200000, commitsSincePrev: 234 }],
+  tagHistory: [
+    {
+      name: 'v1.0.0',
+      date: '2024-06-01',
+      timestamp: 1717200000,
+      commitsSincePrev: 234,
+    },
+  ],
   locOverTime: [{ date: '2024-01-01', loc: 50000 }],
   radarMetrics: [{ label: 'documentation', value: 75 }],
   hotspots: [{ path: 'src/foo.ts', commits: 50, distinctAuthors: 4, totalChurn: 1000 }],
@@ -139,12 +182,27 @@ assert(
 assert(slice.health?.busFactor.factor === 1, 'busFactor factor renamed');
 assert(slice.health?.busFactor.lorenz.length === 2, 'lorenz derived from cumulativeContributors');
 assert(slice.health?.busFactor.lorenz[0] === 0.6, 'lorenz[0] = 0.6');
-assert(slice.patterns?.languageBreakdown[0]?.language === 'TypeScript', 'language renamed (name → language)');
-assert(slice.patterns?.wordFrequencies[0]?.word === 'fix', 'wordFrequencies surfaced from commitMessages');
+assert(
+  slice.patterns?.languageBreakdown[0]?.language === 'TypeScript',
+  'language renamed (name → language)',
+);
+assert(
+  slice.patterns?.wordFrequencies[0]?.word === 'fix',
+  'wordFrequencies surfaced from commitMessages',
+);
 assert(slice.patterns?.conventionalCommits.feat === 200, 'conventionalCommits flattened');
-assert(slice.patterns?.commitMessages?.conventionalPercentage === 86, 'commitMessages preserved (top fields)');
-assert(slice.activity?.timeseries[0]?.commits === 50, 'timeseries[0].commits = weeklyActivity total');
-assert(slice.activity?.timeseries[0]?.insertions === 500, 'timeseries[0].insertions joined from codeFrequency');
+assert(
+  slice.patterns?.commitMessages?.conventionalPercentage === 86,
+  'commitMessages preserved (top fields)',
+);
+assert(
+  slice.activity?.timeseries[0]?.commits === 50,
+  'timeseries[0].commits = weeklyActivity total',
+);
+assert(
+  slice.activity?.timeseries[0]?.insertions === 500,
+  'timeseries[0].insertions joined from codeFrequency',
+);
 assert(slice.activity?.timeseries[0]?.authors === 0, 'timeseries authors = 0 (browser unknown)');
 assert(slice.timezone?.buckets[1]?.offset === 60, 'timezone passed through');
 
@@ -162,7 +220,9 @@ const analyzer = new BrowserAnalyzer(runner);
 let progressCount = 0;
 let sectionCount = 0;
 let doneData: unknown = null;
-for await (const event of analyzer.analyze({ source: 'levantar-ai/repoguru' })) {
+for await (const event of analyzer.analyze({
+  source: 'levantar-ai/repoguru',
+})) {
   if (event.kind === 'progress') progressCount++;
   if (event.kind === 'section') sectionCount++;
   if (event.kind === 'done') doneData = event.data;
@@ -184,9 +244,17 @@ for (const name of GIT_STATS_SECTIONS) {
 console.log('browserAnalyzer smoke check: OK');
 console.log(`  contributors: ${data.contributors?.contributors.length}`);
 console.log(`  hotspots:     ${data.codebase?.hotspots.length}`);
-console.log(`  timeseries:   ${data.activity?.timeseries.length} pt(s), insertions=${data.activity?.timeseries[0]?.insertions}`);
-console.log(`  bus factor:   ${data.health?.busFactor.factor}, lorenz=[${data.health?.busFactor.lorenz.join(', ')}]`);
+console.log(
+  `  timeseries:   ${data.activity?.timeseries.length} pt(s), insertions=${data.activity?.timeseries[0]?.insertions}`,
+);
+console.log(
+  `  bus factor:   ${data.health?.busFactor.factor}, lorenz=[${data.health?.busFactor.lorenz.join(', ')}]`,
+);
 
 // Silence unused-import lints in case someone tightens noUnusedLocals later.
-void mapContributors; void mapHealth; void mapPatterns; void mapCodebase; void mapActivity;
+void mapContributors;
+void mapHealth;
+void mapPatterns;
+void mapCodebase;
+void mapActivity;
 void ({} as ProgressEvent);

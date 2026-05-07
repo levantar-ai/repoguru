@@ -52,7 +52,12 @@ export function ComparePage() {
     setState({
       step: 'loading',
       message: 'Starting comparison…',
-      progress: { message: 'Starting comparison…', overall: 1, sub: 0, phase: 'starting' },
+      progress: {
+        message: 'Starting comparison…',
+        overall: 1,
+        sub: 0,
+        phase: 'starting',
+      },
       result: null,
       error: null,
     });
@@ -69,13 +74,24 @@ export function ComparePage() {
           ? {
               ...prev,
               message: 'Complete',
-              progress: { message: 'Complete', overall: 100, sub: 100, phase: 'done' },
+              progress: {
+                message: 'Complete',
+                overall: 100,
+                sub: 100,
+                phase: 'done',
+              },
             }
           : prev,
       );
       await new Promise((r) => setTimeout(r, 400));
       if (controller.signal.aborted) return;
-      setState({ step: 'done', message: '', progress: null, result, error: null });
+      setState({
+        step: 'done',
+        message: '',
+        progress: null,
+        result,
+        error: null,
+      });
     } catch (err) {
       if ((err as { name?: string })?.name === 'AbortError') return;
       setState({
@@ -90,7 +106,13 @@ export function ComparePage() {
 
   const handleReset = useCallback(() => {
     abortRef.current?.abort();
-    setState({ step: 'idle', message: '', progress: null, result: null, error: null });
+    setState({
+      step: 'idle',
+      message: '',
+      progress: null,
+      result: null,
+      error: null,
+    });
   }, []);
 
   return (
@@ -122,10 +144,7 @@ export function ComparePage() {
             />
           </div>
           <div className="flex justify-center gap-3">
-            <PrimaryButton
-              onClick={handleCompare}
-              disabled={!inputA.trim() || !inputB.trim()}
-            >
+            <PrimaryButton onClick={handleCompare} disabled={!inputA.trim() || !inputB.trim()}>
               Compare
             </PrimaryButton>
           </div>

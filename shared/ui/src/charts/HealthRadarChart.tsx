@@ -36,10 +36,7 @@ export function HealthRadarChart({ metrics, size = 300 }: HealthRadarChartProps)
         {metrics.map((m) => {
           const pct = Math.round(m.value * 100);
           return (
-            <div
-              key={m.label}
-              className="p-3 rounded-lg border border-border bg-surface-alt"
-            >
+            <div key={m.label} className="p-3 rounded-lg border border-border bg-surface-alt">
               <div className="text-xs text-text-muted font-medium mb-1 truncate">{m.label}</div>
               <div className="text-lg font-bold text-text">{pct}%</div>
               <div className="mt-1.5 h-1.5 rounded-full bg-surface overflow-hidden">

@@ -61,7 +61,10 @@ export interface EChartsWrapperProps {
   /** Optional sr-only table rows — `[header, value]` pairs that get
    *  rendered as a hidden `<table>` so AT users can read the data
    *  even though the canvas is opaque. */
-  dataTable?: { caption?: string; rows: Array<{ label: string; value: string | number }> };
+  dataTable?: {
+    caption?: string;
+    rows: Array<{ label: string; value: string | number }>;
+  };
 }
 
 const FALLBACK_ARIA_LABEL = 'Data visualisation';
@@ -94,7 +97,9 @@ export function EChartsWrapper({
   useEffect(() => {
     if (!containerRef.current) return;
 
-    const chart = echarts.init(containerRef.current, 'repoguru', { renderer: 'canvas' });
+    const chart = echarts.init(containerRef.current, 'repoguru', {
+      renderer: 'canvas',
+    });
     chartRef.current = chart;
     setReady(true);
     if (onReady) onReady(chart);
@@ -117,7 +122,11 @@ export function EChartsWrapper({
       // Inject ECharts a11y options non-destructively. If the consumer
       // already supplies aria settings, theirs win.
       const merged = {
-        aria: { show: true, decal: { show: true }, ...((option.aria as object) ?? {}) },
+        aria: {
+          show: true,
+          decal: { show: true },
+          ...((option.aria as object) ?? {}),
+        },
         ...option,
       };
       chartRef.current.setOption(merged, { notMerge: true });
@@ -127,11 +136,7 @@ export function EChartsWrapper({
   const a11yLabel = ariaLabel || FALLBACK_ARIA_LABEL;
 
   return (
-    <div
-      className={`relative ${className}`}
-      role="img"
-      aria-label={a11yLabel}
-    >
+    <div className={`relative ${className}`} role="img" aria-label={a11yLabel}>
       {!ready && (
         // Content-shaped skeleton instead of a centered spinner.
         // Three pulsing horizontal blocks at decreasing opacity vaguely
@@ -154,11 +159,17 @@ export function EChartsWrapper({
         <table className="sr-only">
           {dataTable.caption && <caption>{dataTable.caption}</caption>}
           <thead>
-            <tr><th scope="col">Label</th><th scope="col">Value</th></tr>
+            <tr>
+              <th scope="col">Label</th>
+              <th scope="col">Value</th>
+            </tr>
           </thead>
           <tbody>
             {dataTable.rows.map((r, i) => (
-              <tr key={i}><th scope="row">{r.label}</th><td>{r.value}</td></tr>
+              <tr key={i}>
+                <th scope="row">{r.label}</th>
+                <td>{r.value}</td>
+              </tr>
             ))}
           </tbody>
         </table>

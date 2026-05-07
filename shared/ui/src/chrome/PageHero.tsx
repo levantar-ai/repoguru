@@ -22,13 +22,10 @@ export function PageHero({ title, highlight, subtitle }: PageHeroProps) {
   return (
     <div className="text-center mb-10">
       <h1 className="text-2xl sm:text-3xl font-semibold text-text tracking-tight">
-        {title}{' '}
-        <span className="text-text">{highlight}</span>
+        {title} <span className="text-text">{highlight}</span>
       </h1>
       {subtitle && (
-        <p className="mt-2 text-sm sm:text-base text-text-secondary max-w-xl mx-auto">
-          {subtitle}
-        </p>
+        <p className="mt-2 text-sm sm:text-base text-text-secondary max-w-xl mx-auto">{subtitle}</p>
       )}
     </div>
   );
