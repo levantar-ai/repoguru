@@ -198,6 +198,20 @@ jobs:
         with: { targets: "${{ matrix.target }}" }
       - uses: Swatinem/rust-cache@v2
         with: { workspaces: cli, key: "${{ matrix.target }}" }
+      # Install precompiled protoc and point PROTOC at it. cli/build.rs
+      # honours PROTOC if set, falling back to building protobuf-src from
+      # source. This skips the slow C++ compile + sidesteps CRT/linker
+      # issues that protobuf-src 2.x hits on the Windows MSVC toolchain.
+      - uses: arduino/setup-protoc@v3
+        with:
+          version: '27.x'
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Set PROTOC env
+        shell: bash
+        run: |
+          PROTOC_BIN=$(which protoc)
+          echo "PROTOC=$PROTOC_BIN" >> "$GITHUB_ENV"
+          "$PROTOC_BIN" --version
       - name: cargo build --release
         working-directory: cli
         run: cargo build --release --bin repoanalyze --target ${{ matrix.target }}
