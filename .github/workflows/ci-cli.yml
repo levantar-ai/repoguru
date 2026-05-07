@@ -96,6 +96,10 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
         with: { workspaces: cli, shared-key: cli-release }
+      - name: Configure git identity (gix reflog needs a committer)
+        run: |
+          git config --global user.email "ci@repoguru.dev"
+          git config --global user.name  "RepoGuru CI"
       - name: cargo test --release
         working-directory: cli
         run: cargo test --release
