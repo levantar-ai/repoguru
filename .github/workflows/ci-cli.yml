@@ -198,20 +198,20 @@ jobs:
         with: { targets: "${{ matrix.target }}" }
       - uses: Swatinem/rust-cache@v2
         with: { workspaces: cli, key: "${{ matrix.target }}" }
-      # Install precompiled protoc and point PROTOC at it. cli/build.rs
-      # honours PROTOC if set, falling back to building protobuf-src from
-      # source. This skips the slow C++ compile + sidesteps CRT/linker
-      # issues that protobuf-src 2.x hits on the Windows MSVC toolchain.
+      # Install precompiled protoc and add it to PATH. prost-build (via
+      # tonic-build) discovers protoc via PATH if PROTOC isn't set.
+      # protobuf-src is excluded from Windows builds in cli/Cargo.toml,
+      # so the build script needs SOME source of protoc — this is it.
+      #
+      # We deliberately don't set PROTOC: setup-protoc returns a Unix-style
+      # path through `which` on Windows-bash (e.g. /c/.../protoc), which
+      # cargo on native Windows can't open.
       - uses: arduino/setup-protoc@v3
         with:
           version: '27.x'
           repo-token: ${{ secrets.GITHUB_TOKEN }}
-      - name: Set PROTOC env
-        shell: bash
-        run: |
-          PROTOC_BIN=$(which protoc)
-          echo "PROTOC=$PROTOC_BIN" >> "$GITHUB_ENV"
-          "$PROTOC_BIN" --version
+      - name: Confirm protoc on PATH
+        run: protoc --version
       - name: cargo build --release
         working-directory: cli
         run: cargo build --release --bin repoanalyze --target ${{ matrix.target }}
