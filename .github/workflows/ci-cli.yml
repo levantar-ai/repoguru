@@ -111,7 +111,9 @@ jobs:
     name: 3 · code security
     needs: guard
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    # cargo install cargo-deny builds from source on a cold cache (~7 min).
+    # 25 min headroom keeps subsequent runs fast and accommodates the first.
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
