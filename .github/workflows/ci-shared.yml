@@ -55,9 +55,9 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - name: Typecheck shared/*
         run: make typecheck-shared
-      - name: Prettier
-        run: pnpm --filter repoguru exec prettier --check '../shared/**/*.{ts,tsx,json,md}' || \
-             pnpm --filter repoguru exec prettier --check 'shared/**/*.{ts,tsx,json,md}'
+      - name: Prettier check on shared/
+        working-directory: web
+        run: pnpm exec prettier --check '../shared/**/*.{ts,tsx,json,md}'
 
   test:
     name: 2 · functional tests

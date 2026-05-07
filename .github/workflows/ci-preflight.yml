@@ -2,10 +2,13 @@ name: CI · preflight
 
 # Cheap, repo-wide checks that fan out on every PR / push:
 #
-#   format     → prettier + rustfmt across the whole tree
-#   secrets    → gitleaks scan of working tree + git history
-#   audit      → pnpm audit + cargo audit (CVEs)
-#   commitlint → Conventional Commit format on PR titles
+#   1 · format         prettier + rustfmt across the whole tree
+#   2 · secrets        gitleaks scan of working tree + git history
+#   3 · dependency     pnpm audit + cargo audit (CVEs)
+#   4 · commitlint     Conventional Commit format on PR titles
+#   5 · CodeQL         JS/TS static analysis (security + quality)
+#   6 · Semgrep        cross-language SAST
+#   7 · dep-review     PR-only license + advisory diff
 #
 # Per-component pipelines live in ci-{shared,cli,web,desktop}.yml — each
 # has its own lint / test / security / quality / build stages.
@@ -21,6 +24,8 @@ concurrency:
 
 permissions:
   contents: read
+  security-events: write   # CodeQL + Semgrep upload SARIF
+  pull-requests: read      # dep-review reads PR file changes
 
 env:
   PNPM_VERSION: 10.28.2
@@ -86,3 +91,56 @@ jobs:
         run: npm install --no-save @commitlint/cli @commitlint/config-conventional
       - name: Lint PR title
         run: echo "${{ github.event.pull_request.title }}" | npx commitlint
+
+  # ─────────────────────────────────────────────────────────────────────
+  # 5 · CodeQL — JS/TS static analysis. Uploads SARIF to the Security tab.
+  # ─────────────────────────────────────────────────────────────────────
+  codeql:
+    name: 5 · CodeQL · ${{ matrix.language }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [javascript-typescript]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+      - uses: github/codeql-action/autobuild@v3
+      - uses: github/codeql-action/analyze@v3
+
+  # ─────────────────────────────────────────────────────────────────────
+  # 6 · Semgrep — cross-language SAST (covers TS + Rust). Advisory: results
+  # ship to the Security tab as SARIF; the run itself doesn't fail CI.
+  # ─────────────────────────────────────────────────────────────────────
+  semgrep:
+    name: 6 · Semgrep
+    runs-on: ubuntu-latest
+    container:
+      image: semgrep/semgrep
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - run: semgrep ci --config auto --sarif --output semgrep.sarif || true
+      - if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: semgrep.sarif
+
+  # ─────────────────────────────────────────────────────────────────────
+  # 7 · Dependency Review — PR-only. Diffs added/removed deps and flags
+  # known-bad licenses or advisories in the diff itself.
+  # ─────────────────────────────────────────────────────────────────────
+  dep-review:
+    name: 7 · Dependency Review
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: high
+          deny-licenses: GPL-3.0, AGPL-3.0, SSPL-1.0
