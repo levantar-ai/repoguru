@@ -14,6 +14,15 @@ importers:
       '@commitlint/config-conventional':
         specifier: ^19.6.0
         version: 19.8.1
+      '@semantic-release/commit-analyzer':
+        specifier: ^13.0.0
+        version: 13.0.1(semantic-release@24.2.9(typescript@5.9.3))
+      '@semantic-release/github':
+        specifier: ^11.0.1
+        version: 11.0.6(semantic-release@24.2.9(typescript@5.9.3))
+      '@semantic-release/release-notes-generator':
+        specifier: ^14.0.3
+        version: 14.1.0(semantic-release@24.2.9(typescript@5.9.3))
       conventional-changelog-conventionalcommits:
         specifier: ^8.0.0
         version: 8.0.0
@@ -23,6 +32,9 @@ importers:
       lint-staged:
         specifier: ^16.2.7
         version: 16.4.0
+      semantic-release:
+        specifier: ^24.2.9
+        version: 24.2.9(typescript@5.9.3)
       semantic-release-monorepo:
         specifier: ^8.0.2
         version: 8.0.2(semantic-release@24.2.9(typescript@5.9.3))

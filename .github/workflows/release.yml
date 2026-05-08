@@ -1,19 +1,13 @@
 name: Release (semantic-release)
 
 # Trunk-based: every push to main runs semantic-release per component.
-# semantic-release scans Conventional Commits since the last tag matching
-# tagFormat (e.g. cli-v*), decides the next version, creates the tag +
-# GitHub Release.
-#
-# Per-component scope filtering — only commits whose scope matches the
-# component count toward its release:
-#   feat(cli):  …  → cli minor bump
-#   fix(web):   …  → web patch bump
-#   feat!(desktop): …  → desktop major bump
+# semantic-release is installed via root devDeps; we run it directly
+# (./node_modules/.bin/semantic-release) from each component's directory
+# so its module resolution walks up and finds the plugins cleanly.
 #
 # After cutting a tag, this workflow ALWAYS dispatches release-attach.yml
 # explicitly. We don't rely on tag-push triggers because GITHUB_TOKEN-pushed
-# tags don't fire downstream workflows. No PAT secret required.
+# tags don't fire downstream workflows.
 on:
   push:
     branches: [main]
@@ -26,10 +20,11 @@ concurrency:
 permissions:
   contents: write
   issues: write
-  actions: write   # for `gh workflow run release-attach.yml`
+  actions: write
 
 env:
   NODE_VERSION: 22
+  PNPM_VERSION: 10.28.2
 
 jobs:
   release-shared:
@@ -38,29 +33,28 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+        with: { fetch-depth: 0 }
       - uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
+        with: { node-version: "${{ env.NODE_VERSION }}" }
       - uses: pnpm/action-setup@v4
-        with: { version: "10.28.2" }
-      - name: pnpm install (semantic-release-monorepo lives in root devDeps)
-        run: pnpm install --frozen-lockfile
+        with: { version: "${{ env.PNPM_VERSION }}" }
+      - run: pnpm install --frozen-lockfile
       - id: semrel
-        uses: cycjimmy/semantic-release-action@v4
-        with:
-          working_directory: shared
+        working-directory: shared
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -o pipefail
+          OUTPUT=$(../node_modules/.bin/semantic-release 2>&1 | tee /dev/stderr || true)
+          TAG=$(echo "$OUTPUT" | grep -oE 'shared-v[0-9.]+' | head -1)
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "Resolved tag: $TAG"
       - name: Dispatch release-attach
-        if: steps.semrel.outputs.new_release_published == 'true'
+        if: steps.semrel.outputs.tag != ''
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAG: ${{ steps.semrel.outputs.new_release_git_tag }}
-        run: |
-          echo "Dispatching release-attach.yml for $TAG"
-          gh workflow run release-attach.yml -f tag="$TAG"
+          TAG: ${{ steps.semrel.outputs.tag }}
+        run: gh workflow run release-attach.yml -f tag="$TAG"
 
   release-cli:
     name: Release · cli
@@ -68,29 +62,28 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+        with: { fetch-depth: 0 }
       - uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
+        with: { node-version: "${{ env.NODE_VERSION }}" }
       - uses: pnpm/action-setup@v4
-        with: { version: "10.28.2" }
-      - name: pnpm install (semantic-release-monorepo lives in root devDeps)
-        run: pnpm install --frozen-lockfile
+        with: { version: "${{ env.PNPM_VERSION }}" }
+      - run: pnpm install --frozen-lockfile
       - id: semrel
-        uses: cycjimmy/semantic-release-action@v4
-        with:
-          working_directory: cli
+        working-directory: cli
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -o pipefail
+          OUTPUT=$(../node_modules/.bin/semantic-release 2>&1 | tee /dev/stderr || true)
+          TAG=$(echo "$OUTPUT" | grep -oE 'cli-v[0-9.]+' | head -1)
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "Resolved tag: $TAG"
       - name: Dispatch release-attach
-        if: steps.semrel.outputs.new_release_published == 'true'
+        if: steps.semrel.outputs.tag != ''
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAG: ${{ steps.semrel.outputs.new_release_git_tag }}
-        run: |
-          echo "Dispatching release-attach.yml for $TAG"
-          gh workflow run release-attach.yml -f tag="$TAG"
+          TAG: ${{ steps.semrel.outputs.tag }}
+        run: gh workflow run release-attach.yml -f tag="$TAG"
 
   release-web:
     name: Release · web
@@ -98,29 +91,28 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+        with: { fetch-depth: 0 }
       - uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
+        with: { node-version: "${{ env.NODE_VERSION }}" }
       - uses: pnpm/action-setup@v4
-        with: { version: "10.28.2" }
-      - name: pnpm install (semantic-release-monorepo lives in root devDeps)
-        run: pnpm install --frozen-lockfile
+        with: { version: "${{ env.PNPM_VERSION }}" }
+      - run: pnpm install --frozen-lockfile
       - id: semrel
-        uses: cycjimmy/semantic-release-action@v4
-        with:
-          working_directory: web
+        working-directory: web
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -o pipefail
+          OUTPUT=$(../node_modules/.bin/semantic-release 2>&1 | tee /dev/stderr || true)
+          TAG=$(echo "$OUTPUT" | grep -oE 'web-v[0-9.]+' | head -1)
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "Resolved tag: $TAG"
       - name: Dispatch release-attach
-        if: steps.semrel.outputs.new_release_published == 'true'
+        if: steps.semrel.outputs.tag != ''
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAG: ${{ steps.semrel.outputs.new_release_git_tag }}
-        run: |
-          echo "Dispatching release-attach.yml for $TAG"
-          gh workflow run release-attach.yml -f tag="$TAG"
+          TAG: ${{ steps.semrel.outputs.tag }}
+        run: gh workflow run release-attach.yml -f tag="$TAG"
 
   release-desktop:
     name: Release · desktop
@@ -128,26 +120,25 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+        with: { fetch-depth: 0 }
       - uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
+        with: { node-version: "${{ env.NODE_VERSION }}" }
       - uses: pnpm/action-setup@v4
-        with: { version: "10.28.2" }
-      - name: pnpm install (semantic-release-monorepo lives in root devDeps)
-        run: pnpm install --frozen-lockfile
+        with: { version: "${{ env.PNPM_VERSION }}" }
+      - run: pnpm install --frozen-lockfile
       - id: semrel
-        uses: cycjimmy/semantic-release-action@v4
-        with:
-          working_directory: desktop
+        working-directory: desktop
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -o pipefail
+          OUTPUT=$(../node_modules/.bin/semantic-release 2>&1 | tee /dev/stderr || true)
+          TAG=$(echo "$OUTPUT" | grep -oE 'desktop-v[0-9.]+' | head -1)
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "Resolved tag: $TAG"
       - name: Dispatch release-attach
-        if: steps.semrel.outputs.new_release_published == 'true'
+        if: steps.semrel.outputs.tag != ''
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAG: ${{ steps.semrel.outputs.new_release_git_tag }}
-        run: |
-          echo "Dispatching release-attach.yml for $TAG"
-          gh workflow run release-attach.yml -f tag="$TAG"
+          TAG: ${{ steps.semrel.outputs.tag }}
+        run: gh workflow run release-attach.yml -f tag="$TAG"
