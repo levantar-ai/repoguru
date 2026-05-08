@@ -173,9 +173,23 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { os: ubuntu-latest,  task: package-desktop-linux, glob: 'desktop/release/*.{AppImage,deb}' }
-          - { os: macos-latest,   task: package-desktop-mac,   glob: 'desktop/release/*.{dmg,zip}'      }
-          - { os: windows-latest, task: package-desktop-win,   glob: 'desktop/release/*.{exe,msi}'      }
+          - os: ubuntu-latest
+            task: package-desktop-linux
+            # actions/upload-artifact uses minimatch — brace expansion isn't
+            # honoured. List the per-extension globs as separate lines.
+            globs: |
+              desktop/release/*.AppImage
+              desktop/release/*.deb
+          - os: macos-latest
+            task: package-desktop-mac
+            globs: |
+              desktop/release/*.dmg
+              desktop/release/*.zip
+          - os: windows-latest
+            task: package-desktop-win
+            globs: |
+              desktop/release/*.exe
+              desktop/release/*.msi
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     steps:
@@ -227,6 +241,6 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: desktop-${{ runner.os }}
-          path: ${{ matrix.glob }}
+          path: ${{ matrix.globs }}
           retention-days: 30
           if-no-files-found: error
