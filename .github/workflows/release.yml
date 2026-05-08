@@ -43,15 +43,14 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-      - name: Pre-install semantic-release-monorepo (cycjimmy install can be flaky)
-        run: npm install -g semantic-release-monorepo conventional-changelog-conventionalcommits
+      - uses: pnpm/action-setup@v4
+        with: { version: "10.28.2" }
+      - name: pnpm install (semantic-release-monorepo lives in root devDeps)
+        run: pnpm install --frozen-lockfile
       - id: semrel
         uses: cycjimmy/semantic-release-action@v4
         with:
           working_directory: shared
-          extra_plugins: |
-            conventional-changelog-conventionalcommits
-            semantic-release-monorepo
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Dispatch release-attach
@@ -74,15 +73,14 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-      - name: Pre-install semantic-release-monorepo (cycjimmy install can be flaky)
-        run: npm install -g semantic-release-monorepo conventional-changelog-conventionalcommits
+      - uses: pnpm/action-setup@v4
+        with: { version: "10.28.2" }
+      - name: pnpm install (semantic-release-monorepo lives in root devDeps)
+        run: pnpm install --frozen-lockfile
       - id: semrel
         uses: cycjimmy/semantic-release-action@v4
         with:
           working_directory: cli
-          extra_plugins: |
-            conventional-changelog-conventionalcommits
-            semantic-release-monorepo
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Dispatch release-attach
@@ -105,15 +103,14 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-      - name: Pre-install semantic-release-monorepo (cycjimmy install can be flaky)
-        run: npm install -g semantic-release-monorepo conventional-changelog-conventionalcommits
+      - uses: pnpm/action-setup@v4
+        with: { version: "10.28.2" }
+      - name: pnpm install (semantic-release-monorepo lives in root devDeps)
+        run: pnpm install --frozen-lockfile
       - id: semrel
         uses: cycjimmy/semantic-release-action@v4
         with:
           working_directory: web
-          extra_plugins: |
-            conventional-changelog-conventionalcommits
-            semantic-release-monorepo
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Dispatch release-attach
@@ -136,15 +133,14 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-      - name: Pre-install semantic-release-monorepo (cycjimmy install can be flaky)
-        run: npm install -g semantic-release-monorepo conventional-changelog-conventionalcommits
+      - uses: pnpm/action-setup@v4
+        with: { version: "10.28.2" }
+      - name: pnpm install (semantic-release-monorepo lives in root devDeps)
+        run: pnpm install --frozen-lockfile
       - id: semrel
         uses: cycjimmy/semantic-release-action@v4
         with:
           working_directory: desktop
-          extra_plugins: |
-            conventional-changelog-conventionalcommits
-            semantic-release-monorepo
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Dispatch release-attach
