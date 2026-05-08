@@ -7,29 +7,22 @@
       {
         "preset": "conventionalcommits",
         "releaseRules": [
+          { "breaking": true, "scope": "cli", "release": "major" },
           { "type": "feat", "scope": "cli", "release": "minor" },
           { "type": "fix", "scope": "cli", "release": "patch" },
           { "type": "perf", "scope": "cli", "release": "patch" },
           { "type": "refactor", "scope": "cli", "release": "patch" },
-          { "breaking": true, "scope": "cli", "release": "major" },
-          { "scope": "cli", "release": false },
-          { "scope": "*", "release": false }
+          { "release": false }
         ]
       }
     ],
     [
       "@semantic-release/release-notes-generator",
-      {
-        "preset": "conventionalcommits"
-      }
+      { "preset": "conventionalcommits" }
     ],
     [
       "@semantic-release/github",
-      {
-        "successComment": false,
-        "failComment": false,
-        "releasedLabels": false
-      }
+      { "successComment": false, "failComment": false, "releasedLabels": false }
     ]
   ]
 }

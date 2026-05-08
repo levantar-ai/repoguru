@@ -7,13 +7,12 @@
       {
         "preset": "conventionalcommits",
         "releaseRules": [
+          { "breaking": true, "scope": "shared", "release": "major" },
           { "type": "feat", "scope": "shared", "release": "minor" },
           { "type": "fix", "scope": "shared", "release": "patch" },
           { "type": "perf", "scope": "shared", "release": "patch" },
           { "type": "refactor", "scope": "shared", "release": "patch" },
-          { "breaking": true, "scope": "shared", "release": "major" },
-          { "scope": "shared", "release": false },
-          { "scope": "*", "release": false }
+          { "release": false }
         ]
       }
     ],

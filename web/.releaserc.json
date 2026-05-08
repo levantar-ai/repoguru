@@ -7,33 +7,23 @@
       {
         "preset": "conventionalcommits",
         "releaseRules": [
+          { "breaking": true, "scope": "web", "release": "major" },
+          { "breaking": true, "scope": "ui", "release": "major" },
           { "type": "feat", "scope": "web", "release": "minor" },
           { "type": "fix", "scope": "web", "release": "patch" },
           { "type": "perf", "scope": "web", "release": "patch" },
           { "type": "refactor", "scope": "web", "release": "patch" },
           { "type": "feat", "scope": "ui", "release": "minor" },
           { "type": "fix", "scope": "ui", "release": "patch" },
-          { "breaking": true, "scope": "web", "release": "major" },
-          { "breaking": true, "scope": "ui", "release": "major" },
-          { "scope": "web", "release": false },
-          { "scope": "ui", "release": false },
-          { "scope": "*", "release": false }
+          { "type": "perf", "scope": "ui", "release": "patch" },
+          { "release": false }
         ]
       }
     ],
-    [
-      "@semantic-release/release-notes-generator",
-      {
-        "preset": "conventionalcommits"
-      }
-    ],
+    ["@semantic-release/release-notes-generator", { "preset": "conventionalcommits" }],
     [
       "@semantic-release/github",
-      {
-        "successComment": false,
-        "failComment": false,
-        "releasedLabels": false
-      }
+      { "successComment": false, "failComment": false, "releasedLabels": false }
     ]
   ]
 }
