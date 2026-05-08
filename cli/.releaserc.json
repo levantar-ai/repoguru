@@ -1,20 +1,11 @@
 {
+  "extends": "semantic-release-monorepo",
   "branches": ["main"],
   "tagFormat": "cli-v${version}",
   "plugins": [
     [
       "@semantic-release/commit-analyzer",
-      {
-        "preset": "conventionalcommits",
-        "releaseRules": [
-          { "breaking": true, "scope": "cli", "release": "major" },
-          { "type": "feat", "scope": "cli", "release": "minor" },
-          { "type": "fix", "scope": "cli", "release": "patch" },
-          { "type": "perf", "scope": "cli", "release": "patch" },
-          { "type": "refactor", "scope": "cli", "release": "patch" },
-          { "release": false }
-        ]
-      }
+      { "preset": "conventionalcommits" }
     ],
     [
       "@semantic-release/release-notes-generator",

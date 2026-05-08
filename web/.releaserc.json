@@ -1,25 +1,9 @@
 {
+  "extends": "semantic-release-monorepo",
   "branches": ["main"],
   "tagFormat": "web-v${version}",
   "plugins": [
-    [
-      "@semantic-release/commit-analyzer",
-      {
-        "preset": "conventionalcommits",
-        "releaseRules": [
-          { "breaking": true, "scope": "web", "release": "major" },
-          { "breaking": true, "scope": "ui", "release": "major" },
-          { "type": "feat", "scope": "web", "release": "minor" },
-          { "type": "fix", "scope": "web", "release": "patch" },
-          { "type": "perf", "scope": "web", "release": "patch" },
-          { "type": "refactor", "scope": "web", "release": "patch" },
-          { "type": "feat", "scope": "ui", "release": "minor" },
-          { "type": "fix", "scope": "ui", "release": "patch" },
-          { "type": "perf", "scope": "ui", "release": "patch" },
-          { "release": false }
-        ]
-      }
-    ],
+    ["@semantic-release/commit-analyzer", { "preset": "conventionalcommits" }],
     ["@semantic-release/release-notes-generator", { "preset": "conventionalcommits" }],
     [
       "@semantic-release/github",

@@ -49,6 +49,7 @@ jobs:
           working_directory: shared
           extra_plugins: |
             conventional-changelog-conventionalcommits
+            semantic-release-monorepo
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Dispatch release-attach
@@ -77,6 +78,7 @@ jobs:
           working_directory: cli
           extra_plugins: |
             conventional-changelog-conventionalcommits
+            semantic-release-monorepo
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Dispatch release-attach
@@ -105,6 +107,7 @@ jobs:
           working_directory: web
           extra_plugins: |
             conventional-changelog-conventionalcommits
+            semantic-release-monorepo
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Dispatch release-attach
@@ -133,6 +136,7 @@ jobs:
           working_directory: desktop
           extra_plugins: |
             conventional-changelog-conventionalcommits
+            semantic-release-monorepo
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Dispatch release-attach

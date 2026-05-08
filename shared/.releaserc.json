@@ -1,21 +1,9 @@
 {
+  "extends": "semantic-release-monorepo",
   "branches": ["main"],
   "tagFormat": "shared-v${version}",
   "plugins": [
-    [
-      "@semantic-release/commit-analyzer",
-      {
-        "preset": "conventionalcommits",
-        "releaseRules": [
-          { "breaking": true, "scope": "shared", "release": "major" },
-          { "type": "feat", "scope": "shared", "release": "minor" },
-          { "type": "fix", "scope": "shared", "release": "patch" },
-          { "type": "perf", "scope": "shared", "release": "patch" },
-          { "type": "refactor", "scope": "shared", "release": "patch" },
-          { "release": false }
-        ]
-      }
-    ],
+    ["@semantic-release/commit-analyzer", { "preset": "conventionalcommits" }],
     ["@semantic-release/release-notes-generator", { "preset": "conventionalcommits" }],
     [
       "@semantic-release/github",
