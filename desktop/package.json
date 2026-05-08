@@ -44,7 +44,10 @@
     "vite-plugin-electron": "^0.29.0",
     "vite-plugin-electron-renderer": "^0.14.6"
   },
-  "author": "RepoGuru",
+  "author": {
+    "name": "RepoGuru",
+    "email": "noreply@levantar.ai"
+  },
   "license": "MIT",
   "homepage": "https://github.com/levantar-ai/repoguru-unified"
 }
