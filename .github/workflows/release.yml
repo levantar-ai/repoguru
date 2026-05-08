@@ -43,6 +43,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
+      - name: Pre-install semantic-release-monorepo (cycjimmy install can be flaky)
+        run: npm install -g semantic-release-monorepo conventional-changelog-conventionalcommits
       - id: semrel
         uses: cycjimmy/semantic-release-action@v4
         with:
@@ -72,6 +74,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
+      - name: Pre-install semantic-release-monorepo (cycjimmy install can be flaky)
+        run: npm install -g semantic-release-monorepo conventional-changelog-conventionalcommits
       - id: semrel
         uses: cycjimmy/semantic-release-action@v4
         with:
@@ -101,6 +105,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
+      - name: Pre-install semantic-release-monorepo (cycjimmy install can be flaky)
+        run: npm install -g semantic-release-monorepo conventional-changelog-conventionalcommits
       - id: semrel
         uses: cycjimmy/semantic-release-action@v4
         with:
@@ -130,6 +136,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
+      - name: Pre-install semantic-release-monorepo (cycjimmy install can be flaky)
+        run: npm install -g semantic-release-monorepo conventional-changelog-conventionalcommits
       - id: semrel
         uses: cycjimmy/semantic-release-action@v4
         with:
