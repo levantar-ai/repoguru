@@ -157,6 +157,12 @@ export interface LightAnalysisReport {
   techStack: TechStackItem[];
   treeEntryCount: number;
   analyzedAt: string;
+  /** Populated by the FULL analysis engine (runAnalysis) when file
+   *  contents are available post-clone. Light tree-only path leaves
+   *  these undefined and the view derives summary insights itself. */
+  strengths?: string[];
+  risks?: string[];
+  nextSteps?: string[];
 }
 
 // ── Contributor Friendliness ──

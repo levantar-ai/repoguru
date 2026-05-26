@@ -8,49 +8,55 @@ import {
   gradeAdjective,
 } from './reportCardTypes.js';
 
-/** Derive Strengths / Risks / Next Steps from the per-category data when
- *  the upstream service hasn't supplied a hand-curated narrative. The
- *  category breakdown already has everything we need — failing to surface
- *  it left three empty panels on what should be the most useful view. */
-function deriveInsights(report: ReportCardData) {
-  const strengths: string[] = [...report.strengths];
-  const risks: string[] = [...report.risks];
-  const nextSteps: string[] = [...report.nextSteps];
+interface StrengthCard {
+  category: ReportCardCategory;
+  passedSignals: string[];
+}
+interface RiskCard {
+  category: ReportCardCategory;
+  missingSignals: string[];
+}
+interface NextStepCard {
+  signal: string;
+  category: ReportCardCategory;
+}
 
-  if (strengths.length === 0) {
-    for (const cat of report.categories) {
-      if (cat.score >= 80) {
-        const wins = cat.signals.filter((s) => s.found).length;
-        const total = cat.signals.length;
-        strengths.push(`${cat.label} — strong (${cat.score}/100, ${wins}/${total} signals).`);
-      }
+/** Derive structured insight cards from the per-category data. Each card
+ *  carries category context + evidence so the view can render polished
+ *  cards (icon, score pill, chips) instead of opaque text lines. */
+function deriveInsights(report: ReportCardData): {
+  strengths: StrengthCard[];
+  risks: RiskCard[];
+  nextSteps: NextStepCard[];
+} {
+  const strengths: StrengthCard[] = [];
+  const risks: RiskCard[] = [];
+  const nextSteps: NextStepCard[] = [];
+
+  for (const cat of report.categories) {
+    if (cat.score >= 80) {
+      strengths.push({
+        category: cat,
+        passedSignals: cat.signals.filter((s) => s.found).map((s) => s.name),
+      });
+    } else if (cat.score < 50) {
+      risks.push({
+        category: cat,
+        missingSignals: cat.signals.filter((s) => !s.found).map((s) => s.name),
+      });
     }
   }
 
-  if (risks.length === 0) {
-    for (const cat of report.categories) {
-      if (cat.score < 50) {
-        const missing = cat.signals.filter((s) => !s.found).map((s) => s.name);
-        const missingPreview = missing.slice(0, 3).join(', ');
-        const more = missing.length > 3 ? `, +${missing.length - 3} more` : '';
-        risks.push(`${cat.label} — weak (${cat.score}/100). Missing: ${missingPreview}${more}.`);
-      }
-    }
-  }
-
-  if (nextSteps.length === 0) {
-    // Pick the highest-weight category that scored < 80, and propose
-    // its first three missing signals as concrete next steps. Repeat
-    // until we have ~6 suggestions or run out.
-    const sorted = [...report.categories]
-      .filter((c) => c.score < 80)
-      .sort((a, b) => b.weight - a.weight);
-    outer: for (const cat of sorted) {
-      for (const sig of cat.signals) {
-        if (!sig.found) {
-          nextSteps.push(`Add ${sig.name} (${cat.label}).`);
-          if (nextSteps.length >= 6) break outer;
-        }
+  // Next steps: top-weight failing category first, take its missing
+  // signals as TODOs. Stop at 8 to keep the card scannable.
+  const failing = [...report.categories]
+    .filter((c) => c.score < 80)
+    .sort((a, b) => b.weight - a.weight);
+  outer: for (const cat of failing) {
+    for (const sig of cat.signals) {
+      if (!sig.found) {
+        nextSteps.push({ signal: sig.name, category: cat });
+        if (nextSteps.length >= 8) break outer;
       }
     }
   }
@@ -124,24 +130,36 @@ export function ReportCardView({ report, actions }: ReportCardViewProps) {
           </div>
         </div>
         <div className="min-w-0 grid gap-4 grid-cols-1 xl:grid-cols-3">
-          <InsightsBlock
+          <InsightsColumn
             title="Strengths"
-            items={insights.strengths}
             variant="green"
-            emptyLabel="No strong categories yet."
-          />
-          <InsightsBlock
+            count={insights.strengths.length}
+            emptyLabel="No categories scored ≥80 yet."
+          >
+            {insights.strengths.map((s) => (
+              <StrengthCardEl key={s.category.key} card={s} />
+            ))}
+          </InsightsColumn>
+          <InsightsColumn
             title="Risks"
-            items={insights.risks}
             variant="yellow"
-            emptyLabel="No critical risks — well done."
-          />
-          <InsightsBlock
+            count={insights.risks.length}
+            emptyLabel="No categories scored <50. Well done."
+          >
+            {insights.risks.map((r) => (
+              <RiskCardEl key={r.category.key} card={r} />
+            ))}
+          </InsightsColumn>
+          <InsightsColumn
             title="Next steps"
-            items={insights.nextSteps}
             variant="blue"
-            emptyLabel="Nothing obvious left to add."
-          />
+            count={insights.nextSteps.length}
+            emptyLabel="Nothing obvious to add."
+          >
+            {insights.nextSteps.map((n, i) => (
+              <NextStepCardEl key={`${n.category.key}-${i}`} card={n} index={i + 1} />
+            ))}
+          </InsightsColumn>
         </div>
       </section>
 
@@ -398,45 +416,165 @@ function CategoryScores({ categories }: { categories: ReportCardCategory[] }) {
   );
 }
 
-function InsightsBlock({
+// ─────────────────────────── insight cards ───────────────────────────
+
+const COLUMN_STYLES = {
+  green: {
+    header: 'text-grade-a',
+    dot: 'bg-grade-a',
+    panel: 'border-grade-a/20 bg-grade-a/[0.04]',
+  },
+  yellow: {
+    header: 'text-grade-c',
+    dot: 'bg-grade-c',
+    panel: 'border-grade-c/20 bg-grade-c/[0.04]',
+  },
+  blue: {
+    header: 'text-neon',
+    dot: 'bg-neon',
+    panel: 'border-neon/20 bg-neon/[0.04]',
+  },
+} as const;
+
+function InsightsColumn({
   title,
-  items,
   variant,
+  count,
   emptyLabel,
+  children,
 }: {
   title: string;
-  items: string[];
-  variant: 'green' | 'yellow' | 'blue';
+  variant: keyof typeof COLUMN_STYLES;
+  count: number;
   emptyLabel: string;
+  children: ReactNode;
 }) {
-  const colorClass = {
-    green: 'text-grade-a border-grade-a/25 bg-grade-a/10',
-    yellow: 'text-grade-c border-grade-c/25 bg-grade-c/10',
-    blue: 'text-neon border-neon/25 bg-neon/10',
-  }[variant];
-
+  const s = COLUMN_STYLES[variant];
   return (
-    <section className={`rounded-xl border p-4 ${colorClass}`}>
-      <h3 className="text-xs font-semibold uppercase tracking-wider mb-2 opacity-80">
-        {title}
-        {items.length > 0 && (
-          <span className="ml-1.5 opacity-60 tabular-nums" aria-label={`${items.length} items`}>
-            ({items.length})
-          </span>
-        )}
-      </h3>
-      {items.length === 0 ? (
-        <p className="text-sm text-text-muted">{emptyLabel}</p>
+    <section
+      className={`rounded-xl border ${s.panel} p-4 flex flex-col gap-3 min-h-[140px]`}
+      aria-label={`${title} (${count})`}
+    >
+      <header className="flex items-center justify-between">
+        <h3
+          className={`text-xs font-semibold uppercase tracking-wider inline-flex items-center gap-2 ${s.header}`}
+        >
+          <span className={`inline-block h-1.5 w-1.5 rounded-full ${s.dot}`} aria-hidden="true" />
+          {title}
+        </h3>
+        <span className={`text-xs font-semibold tabular-nums ${s.header}/70`} aria-hidden="true">
+          {count}
+        </span>
+      </header>
+      {count === 0 ? (
+        <p className="text-sm text-text-muted italic">{emptyLabel}</p>
       ) : (
-        <ul className="space-y-1.5 text-sm text-text-secondary list-none p-0 m-0">
-          {items.map((item, i) => (
-            <li key={i} className="leading-snug">
-              {item}
-            </li>
-          ))}
-        </ul>
+        <div className="space-y-2">{children}</div>
       )}
     </section>
+  );
+}
+
+function StrengthCardEl({ card }: { card: StrengthCard }) {
+  return (
+    <article className="rounded-lg bg-surface/40 border border-grade-a/15 p-3">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="text-sm font-semibold text-text truncate">{card.category.label}</div>
+          <div className="text-[11px] text-text-muted mt-0.5">
+            {card.passedSignals.length}/{card.category.signals.length} signals pass
+          </div>
+        </div>
+        <ScorePill score={card.category.score} />
+      </div>
+      {card.passedSignals.length > 0 && (
+        <ul
+          className="mt-2.5 flex flex-wrap gap-1 list-none p-0 m-0"
+          aria-label={`Passing checks in ${card.category.label}`}
+        >
+          {card.passedSignals.slice(0, 4).map((name) => (
+            <li
+              key={name}
+              className="text-[11px] px-1.5 py-0.5 rounded bg-grade-a/15 text-grade-a/90 border border-grade-a/20"
+            >
+              ✓ {name}
+            </li>
+          ))}
+          {card.passedSignals.length > 4 && (
+            <li className="text-[11px] px-1.5 py-0.5 text-text-muted">
+              +{card.passedSignals.length - 4} more
+            </li>
+          )}
+        </ul>
+      )}
+    </article>
+  );
+}
+
+function RiskCardEl({ card }: { card: RiskCard }) {
+  return (
+    <article className="rounded-lg bg-surface/40 border border-grade-c/15 p-3">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="text-sm font-semibold text-text truncate">{card.category.label}</div>
+          <div className="text-[11px] text-text-muted mt-0.5">
+            {card.missingSignals.length} of {card.category.signals.length} checks missing
+          </div>
+        </div>
+        <ScorePill score={card.category.score} />
+      </div>
+      {card.missingSignals.length > 0 && (
+        <ul
+          className="mt-2.5 flex flex-wrap gap-1 list-none p-0 m-0"
+          aria-label={`Missing checks in ${card.category.label}`}
+        >
+          {card.missingSignals.slice(0, 4).map((name) => (
+            <li
+              key={name}
+              className="text-[11px] px-1.5 py-0.5 rounded bg-grade-c/10 text-grade-c/90 border border-grade-c/20"
+            >
+              ✗ {name}
+            </li>
+          ))}
+          {card.missingSignals.length > 4 && (
+            <li className="text-[11px] px-1.5 py-0.5 text-text-muted">
+              +{card.missingSignals.length - 4} more
+            </li>
+          )}
+        </ul>
+      )}
+    </article>
+  );
+}
+
+function NextStepCardEl({ card, index }: { card: NextStepCard; index: number }) {
+  return (
+    <article className="rounded-lg bg-surface/40 border border-neon/15 p-3 flex items-start gap-3">
+      <span
+        className="shrink-0 inline-flex items-center justify-center h-6 w-6 rounded-full bg-neon/15 text-neon text-xs font-semibold tabular-nums"
+        aria-hidden="true"
+      >
+        {index}
+      </span>
+      <div className="min-w-0">
+        <div className="text-sm text-text">Add {card.signal}</div>
+        <div className="text-[11px] text-text-muted mt-0.5">{card.category.label}</div>
+      </div>
+    </article>
+  );
+}
+
+function ScorePill({ score }: { score: number }) {
+  const grade = scoreToGrade(score);
+  const color = GRADE_COLORS[grade];
+  return (
+    <span
+      className="shrink-0 inline-flex items-center justify-center h-6 px-2 rounded-full border text-xs font-bold tabular-nums"
+      style={{ color, borderColor: `${color}55`, backgroundColor: `${color}12` }}
+      aria-label={`Score ${score} out of 100, grade ${grade}`}
+    >
+      {score}
+    </span>
   );
 }
 

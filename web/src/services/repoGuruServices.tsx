@@ -33,6 +33,7 @@ import type { GitHubRepoSummary as SharedGitHubRepoSummary, AnalysisProgress } f
 import { parseRepoUrl } from '../services/github/parser';
 import { githubFetch } from '../services/github/client';
 import { runLightAnalysis } from '../services/analysis/lightEngine';
+import { runAnalysis } from '../services/analysis/engine';
 import { ensureCloned } from '../services/git/cloneService';
 import { computeLanguages } from '../services/git/extractors';
 import {
@@ -51,7 +52,14 @@ import {
   detectCicd,
   detectTesting,
 } from '../services/analysis/techDetectEngine';
-import type { RepoInfo, TreeEntry, LightAnalysisReport, TechStackItem, RecentRepo } from '../types';
+import type {
+  RepoInfo,
+  TreeEntry,
+  FileContent,
+  LightAnalysisReport,
+  TechStackItem,
+  RecentRepo,
+} from '../types';
 import type { GitHubRepoResponse, GitHubTreeResponse } from '../services/github/types';
 import { formatNumber } from '../utils/formatters';
 
@@ -69,9 +77,9 @@ function lightReportToReportCardData(r: LightAnalysisReport): ReportCardData {
       weight: c.weight,
       signals: c.signals.map((s) => ({ name: s.name, found: s.found, details: s.details })),
     })),
-    strengths: [],
-    risks: [],
-    nextSteps: [],
+    strengths: r.strengths ?? [],
+    risks: r.risks ?? [],
+    nextSteps: r.nextSteps ?? [],
     analyzedAt: r.analyzedAt,
     repoInfo: {
       description: r.repoInfo.description,
@@ -125,6 +133,7 @@ async function analyzeOneForCompare(
   );
   const repoInfo = mapGitHubRepo(rawRepo);
   let tree: TreeEntry[];
+  let files: FileContent[] | null = null;
   try {
     onProgress?.({ message: `Cloning ${label}…`, overall: 5, sub: 0, phase: 'cloning' });
     const cached = await ensureCloned(parsed.owner, parsed.repo, (step, percent, subPercent, m) => {
@@ -138,6 +147,7 @@ async function analyzeOneForCompare(
       });
     });
     tree = cached.tree;
+    files = cached.files;
   } catch (cloneErr) {
     if (token) {
       const branch = parsed.branch || repoInfo.defaultBranch;
@@ -163,6 +173,33 @@ async function analyzeOneForCompare(
     }
   }
   onProgress?.({ message: `Analysing ${label}…`, overall: 92, sub: 80, phase: 'analysing' });
+  // Prefer the FULL engine when file contents are available (post-clone)
+  // — it reads YAML/JSON/Markdown content rather than guessing from path
+  // names, so signals like "Token permissions", "Pinned dependencies",
+  // "SBOM generation" actually evaluate instead of returning the
+  // misleading "Requires file content (full analysis)" placeholder.
+  // Falls back to light when only the bare tree is available
+  // (e.g. clone failed and we used the GitHub trees API).
+  if (files) {
+    const full = runAnalysis(parsed, repoInfo, tree, files);
+    // Project AnalysisReport → LightAnalysisReport. The shared subset is
+    // identical; AnalysisReport just carries extra browser-only fields
+    // (mermaid diagram, contributor stats) that the report card view
+    // doesn't consume.
+    return {
+      repo: parsed,
+      repoInfo: full.repoInfo,
+      overallScore: full.overallScore,
+      grade: full.grade,
+      categories: full.categories,
+      strengths: full.strengths,
+      risks: full.risks,
+      nextSteps: full.nextSteps,
+      techStack: full.techStack,
+      analyzedAt: full.analyzedAt,
+      treeEntryCount: full.treeEntryCount,
+    };
+  }
   return runLightAnalysis(parsed, repoInfo, tree);
 }
 
