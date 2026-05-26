@@ -137,7 +137,19 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: "${{ env.NODE_VERSION }}", cache: pnpm }
       - run: pnpm install --frozen-lockfile
-      - run: make build-web
+      # vite reads VITE_* env vars at build time and bakes them into the
+      # bundle. Without them the OAuth flow stays unconfigured (Connect
+      # to GitHub button is greyed out) and the CORS proxy falls back to
+      # its default. Secrets live on the repo; surface them only here so
+      # PR/preview builds get an unauth'd app (safer).
+      - name: Build (with OAuth env)
+        env:
+          VITE_GITHUB_CLIENT_ID: ${{ secrets.VITE_GITHUB_CLIENT_ID }}
+          # GitHub App slug is public (it's literally in the OAuth URL).
+          # Hardcoded to match the legacy levantar-ai/repoguru workflow.
+          VITE_GITHUB_APP_SLUG: gitrepoguru
+          VITE_CORS_PROXY_URL:  ${{ secrets.VITE_CORS_PROXY_URL }}
+        run: make build-web
       - uses: actions/upload-artifact@v4
         with:
           name: web-dist

@@ -297,7 +297,27 @@ function AppContent() {
         Skip to main content
       </a>
       <CommandPalette tools={paletteTools} actions={paletteActions} />
-      <TabBar iconForKind={iconForKind} colorForKind={colorForKind} rightRail={rightRail} />
+      <TabBar
+        iconForKind={iconForKind}
+        colorForKind={colorForKind}
+        rightRail={rightRail}
+        wordmark={
+          <button
+            type="button"
+            onClick={() => replaceActive('home')}
+            className="inline-flex items-center gap-2 -mx-1 px-1 rounded hover:opacity-90"
+            aria-label="Repo Guru — home"
+          >
+            <img
+              src="/logo.png"
+              alt=""
+              className="h-7 w-7 object-contain shrink-0"
+              aria-hidden="true"
+            />
+            <span className="hidden sm:inline font-semibold tracking-tight">RepoGuru</span>
+          </button>
+        }
+      />
       <main id="main-content" className="flex-1 overflow-y-auto" tabIndex={-1}>
         {tabsState.tabs.map((tab) => (
           <TabContent
