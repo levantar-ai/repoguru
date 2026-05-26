@@ -123,7 +123,7 @@ jobs:
           find staging -type f -exec cp {} out/ \;
           ls -la out/
       - name: Attach to Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ needs.resolve.outputs.tag }}
           files: out/*
@@ -179,7 +179,7 @@ jobs:
           find staging -type f -exec cp {} out/ \;
           ls -la out/
       - name: Attach to Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ needs.resolve.outputs.tag }}
           files: out/*
@@ -266,7 +266,7 @@ jobs:
         # and repo.guru keeps serving the previous prod build.
         run: wrangler pages deploy web/dist --project-name=repoguru --branch=main
       - name: Mark GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ needs.resolve.outputs.tag }}
           generate_release_notes: true
@@ -287,7 +287,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Mark GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ needs.resolve.outputs.tag }}
           generate_release_notes: true
