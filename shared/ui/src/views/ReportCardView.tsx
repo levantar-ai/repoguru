@@ -1,7 +1,5 @@
 import { useMemo, type ReactNode } from 'react';
 import { RadarChart } from '../charts/RadarChart.js';
-import { SectionLayout, type SectionDef } from '../chrome/SectionLayout.js';
-import { OverviewIcon, StrengthsIcon, RisksIcon, NextStepsIcon } from '../chrome/SectionIcons.js';
 import {
   type ReportCardData,
   type ReportCardCategory,
@@ -71,63 +69,88 @@ export interface ReportCardViewProps {
  * the browser app passes its AnalysisReport projected into ReportCardData;
  * the desktop app projects its gRPC ScoreResponse the same way.
  *
- * Header (repo name, stats, action bar) stays visible always; the body
- * is split into Overview / Strengths / Risks / Next Steps and switched
- * via the section nav rather than scrolled.
+ * Single scrollable page (no tabs). Read top-to-bottom:
+ *   1. Header — repo identity + grade
+ *   2. Insights — Strengths / Risks / Next Steps (derived from category data)
+ *   3. Detail — per-category breakdown with signals
+ *
+ * The previous tabbed layout (Overview / Strengths / Risks / Next Steps)
+ * was modal noise — all four panes summarised the same source data, so
+ * forcing users to click between them to assemble the story was busywork.
  */
 export function ReportCardView({ report, actions }: ReportCardViewProps) {
   const insights = useMemo(() => deriveInsights(report), [report]);
-
-  const sections: SectionDef[] = [
-    {
-      id: 'overview',
-      label: 'Overview',
-      icon: <OverviewIcon />,
-      content: <OverviewSection report={report} />,
-    },
-    {
-      id: 'strengths',
-      label: 'Strengths',
-      badge: insights.strengths.length || undefined,
-      icon: <StrengthsIcon />,
-      content: <InsightsList title="Strengths" items={insights.strengths} variant="green" />,
-    },
-    {
-      id: 'risks',
-      label: 'Risks',
-      badge: insights.risks.length || undefined,
-      icon: <RisksIcon />,
-      content: <InsightsList title="Risks" items={insights.risks} variant="yellow" />,
-    },
-    {
-      id: 'next-steps',
-      label: 'Next Steps',
-      badge: insights.nextSteps.length || undefined,
-      icon: <NextStepsIcon />,
-      content: <InsightsList title="Next Steps" items={insights.nextSteps} variant="blue" />,
-    },
-  ];
+  const radarData = report.categories.map((c) => ({
+    label: c.label,
+    value: c.score,
+    max: 100,
+  }));
 
   return (
     <article
-      className="w-full"
+      className="w-full max-w-6xl mx-auto px-6 lg:px-10 py-8"
       aria-label={`Report card for ${report.repo.owner}/${report.repo.repo}`}
     >
-      <SectionLayout
-        sections={sections}
-        header={
-          <>
-            <ReportCardHeader report={report} actions={actions} />
-            {report.repoInfo?.archived && (
-              <div className="mt-4 text-sm">
-                <span className="text-grade-c font-semibold" role="alert">
-                  This repository is archived.
-                </span>
-              </div>
-            )}
-          </>
-        }
-      />
+      <ReportCardHeader report={report} actions={actions} />
+      {report.repoInfo?.archived && (
+        <div className="mt-4 text-sm">
+          <span className="text-grade-c font-semibold" role="alert">
+            This repository is archived.
+          </span>
+        </div>
+      )}
+
+      {/* ── Hero: grade + insights ── */}
+      <section
+        aria-label="Summary"
+        className="mt-8 grid grid-cols-1 lg:grid-cols-[220px_1fr] gap-8 lg:gap-10"
+      >
+        <div className="flex flex-col items-center gap-4">
+          <LetterGrade grade={report.grade} score={report.overallScore} />
+          <div className="text-center inline-flex items-center justify-center gap-1.5">
+            <GradeStatusBadge grade={report.grade} />
+            <span className="text-sm font-medium" style={{ color: GRADE_COLORS[report.grade] }}>
+              {gradeAdjective(report.grade)}
+            </span>
+          </div>
+          <div className="hidden lg:block">
+            <RadarChart data={radarData} size={200} />
+          </div>
+        </div>
+        <div className="min-w-0 space-y-4">
+          <InsightsBlock
+            title="Strengths"
+            items={insights.strengths}
+            variant="green"
+            emptyLabel="No strong categories yet."
+          />
+          <InsightsBlock
+            title="Risks"
+            items={insights.risks}
+            variant="yellow"
+            emptyLabel="No critical risks — well done."
+          />
+          <InsightsBlock
+            title="Next steps"
+            items={insights.nextSteps}
+            variant="blue"
+            emptyLabel="Nothing obvious left to add."
+          />
+        </div>
+      </section>
+
+      {/* Mobile-only radar (hidden alongside grade on lg+) */}
+      <div className="lg:hidden flex justify-center mt-8">
+        <RadarChart data={radarData} size={260} />
+      </div>
+
+      {/* ── Detail: per-category breakdown ── */}
+      <section aria-labelledby="detail-heading" className="mt-12">
+        <h2 id="detail-heading" className="text-lg font-semibold text-text mb-5">
+          Category breakdown
+        </h2>
+        <CategoryScores categories={report.categories} />
+      </section>
     </article>
   );
 }
@@ -179,44 +202,6 @@ function ReportCardHeader({ report, actions }: { report: ReportCardData; actions
       </div>
       {actions}
     </div>
-  );
-}
-
-// ───────────────────────── overview section ─────────────────────────
-
-function OverviewSection({ report }: { report: ReportCardData }) {
-  const radarData = report.categories.map((c) => ({
-    label: c.label,
-    value: c.score,
-    max: 100,
-  }));
-
-  return (
-    <section aria-labelledby="scores-heading">
-      <h2 id="scores-heading" className="sr-only">
-        Overall Score and Category Breakdown
-      </h2>
-      <div className="grid grid-cols-1 lg:grid-cols-[220px_1fr] gap-10">
-        <div className="flex flex-col items-center gap-6 lg:pt-2">
-          <LetterGrade grade={report.grade} score={report.overallScore} />
-          <div className="hidden lg:block">
-            <RadarChart data={radarData} size={220} />
-          </div>
-          <div className="text-center inline-flex items-center justify-center gap-1.5">
-            <GradeStatusBadge grade={report.grade} />
-            <span className="text-sm font-medium" style={{ color: GRADE_COLORS[report.grade] }}>
-              {gradeAdjective(report.grade)}
-            </span>
-          </div>
-        </div>
-        <div className="min-w-0">
-          <CategoryScores categories={report.categories} />
-        </div>
-      </div>
-      <div className="lg:hidden flex justify-center mt-10">
-        <RadarChart data={radarData} size={280} />
-      </div>
-    </section>
   );
 }
 
@@ -407,14 +392,16 @@ function CategoryScores({ categories }: { categories: ReportCardCategory[] }) {
   );
 }
 
-function InsightsList({
+function InsightsBlock({
   title,
   items,
   variant,
+  emptyLabel,
 }: {
   title: string;
   items: string[];
   variant: 'green' | 'yellow' | 'blue';
+  emptyLabel: string;
 }) {
   const colorClass = {
     green: 'text-grade-a border-grade-a/25 bg-grade-a/10',
@@ -422,23 +409,27 @@ function InsightsList({
     blue: 'text-neon border-neon/25 bg-neon/10',
   }[variant];
 
-  if (items.length === 0) {
-    return (
-      <section className={`rounded-xl border p-5 ${colorClass}`}>
-        <h3 className="text-sm font-semibold uppercase tracking-wider mb-3">{title}</h3>
-        <p className="text-sm text-text-muted">No items.</p>
-      </section>
-    );
-  }
-
   return (
-    <section className={`rounded-xl border p-5 ${colorClass}`}>
-      <h3 className="text-sm font-semibold uppercase tracking-wider mb-3">{title}</h3>
-      <ul className="space-y-2 text-sm text-text-secondary">
-        {items.map((item, i) => (
-          <li key={i}>{item}</li>
-        ))}
-      </ul>
+    <section className={`rounded-xl border p-4 ${colorClass}`}>
+      <h3 className="text-xs font-semibold uppercase tracking-wider mb-2 opacity-80">
+        {title}
+        {items.length > 0 && (
+          <span className="ml-1.5 opacity-60 tabular-nums" aria-label={`${items.length} items`}>
+            ({items.length})
+          </span>
+        )}
+      </h3>
+      {items.length === 0 ? (
+        <p className="text-sm text-text-muted">{emptyLabel}</p>
+      ) : (
+        <ul className="space-y-1.5 text-sm text-text-secondary list-none p-0 m-0">
+          {items.map((item, i) => (
+            <li key={i} className="leading-snug">
+              {item}
+            </li>
+          ))}
+        </ul>
+      )}
     </section>
   );
 }
