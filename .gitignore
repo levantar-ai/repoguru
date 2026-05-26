@@ -52,4 +52,6 @@ resources/bin/repoanalyze-*
 *.png
 !web/public/*.png
 !web/public/**/*.png
+!desktop/public/*.png
+!desktop/public/**/*.png
 probe-*.mjs
