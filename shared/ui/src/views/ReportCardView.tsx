@@ -88,7 +88,7 @@ export function ReportCardView({ report, actions }: ReportCardViewProps) {
 
   return (
     <article
-      className="w-full max-w-6xl mx-auto px-6 lg:px-10 py-8"
+      className="w-full px-6 lg:px-10 2xl:px-16 py-8"
       aria-label={`Report card for ${report.repo.owner}/${report.repo.repo}`}
     >
       <ReportCardHeader report={report} actions={actions} />
@@ -100,10 +100,16 @@ export function ReportCardView({ report, actions }: ReportCardViewProps) {
         </div>
       )}
 
-      {/* ── Hero: grade + insights ── */}
+      {/* ── Hero: grade + insights ──
+       *  Layout responds to viewport width:
+       *    mobile  → stacked: grade, then insights stacked.
+       *    lg      → grade column left, insights stacked right.
+       *    xl+     → grade column left, insights as 3 columns
+       *              side-by-side — uses the full landscape.
+       */}
       <section
         aria-label="Summary"
-        className="mt-8 grid grid-cols-1 lg:grid-cols-[220px_1fr] gap-8 lg:gap-10"
+        className="mt-8 grid grid-cols-1 lg:grid-cols-[240px_1fr] gap-8 lg:gap-10"
       >
         <div className="flex flex-col items-center gap-4">
           <LetterGrade grade={report.grade} score={report.overallScore} />
@@ -114,10 +120,10 @@ export function ReportCardView({ report, actions }: ReportCardViewProps) {
             </span>
           </div>
           <div className="hidden lg:block">
-            <RadarChart data={radarData} size={200} />
+            <RadarChart data={radarData} size={220} />
           </div>
         </div>
-        <div className="min-w-0 space-y-4">
+        <div className="min-w-0 grid gap-4 grid-cols-1 xl:grid-cols-3">
           <InsightsBlock
             title="Strengths"
             items={insights.strengths}
@@ -372,7 +378,7 @@ function CategoryScores({ categories }: { categories: ReportCardCategory[] }) {
                 aria-hidden="true"
               />
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1.5 ml-1">
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-x-6 gap-y-1.5 ml-1">
               {cat.signals.map((signal) => (
                 <div key={signal.name} className="flex items-center gap-2 text-sm">
                   {signal.found ? <CheckIcon /> : <XIcon />}
