@@ -260,7 +260,11 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        run: wrangler pages deploy web/dist --project-name=repoguru
+        # --branch=main forces a PRODUCTION deploy. Without it, wrangler
+        # reads the local git ref — and we're checked out at a tag
+        # (detached HEAD) — so it defaults to a preview branch (`head`)
+        # and repo.guru keeps serving the previous prod build.
+        run: wrangler pages deploy web/dist --project-name=repoguru --branch=main
       - name: Mark GitHub Release
         uses: softprops/action-gh-release@v2
         with:
