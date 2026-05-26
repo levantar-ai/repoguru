@@ -468,7 +468,10 @@ export function TabBar({
                     close(tab.id);
                   }}
                   aria-label="Close new tab"
-                  className={`shrink-0 p-0.5 rounded-full hover:bg-surface-hover hover:text-text transition-colors ${
+                  // WCAG 2.5.5 Target Size (AAA) wants ≥24×24 CSS px for
+                  // pointer targets. inline-flex + h-6 w-6 gives us 24×24
+                  // without bloating the visible glyph.
+                  className={`shrink-0 inline-flex items-center justify-center h-6 w-6 rounded-full hover:bg-surface-hover hover:text-text transition-colors ${
                     isActive ? 'opacity-70' : 'opacity-0 group-hover:opacity-70 focus:opacity-100'
                   }`}
                 >
@@ -524,7 +527,9 @@ export function TabBar({
                   close(tab.id);
                 }}
                 aria-label={`Close ${tab.title}`}
-                className={`shrink-0 p-0.5 rounded hover:bg-surface-hover hover:text-text transition-colors ${
+                // WCAG 2.5.5 Target Size (AAA) — see note on the new-tab
+                // close button above. inline-flex + h-6 w-6 = 24×24 hit area.
+                className={`shrink-0 inline-flex items-center justify-center h-6 w-6 rounded hover:bg-surface-hover hover:text-text transition-colors ${
                   isActive ? 'opacity-70' : 'opacity-0 group-hover:opacity-70 focus:opacity-100'
                 }`}
               >

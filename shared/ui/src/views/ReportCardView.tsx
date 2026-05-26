@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useMemo, type ReactNode } from 'react';
 import { RadarChart } from '../charts/RadarChart.js';
 import { SectionLayout, type SectionDef } from '../chrome/SectionLayout.js';
 import { OverviewIcon, StrengthsIcon, RisksIcon, NextStepsIcon } from '../chrome/SectionIcons.js';
@@ -9,6 +9,56 @@ import {
   scoreToGrade,
   gradeAdjective,
 } from './reportCardTypes.js';
+
+/** Derive Strengths / Risks / Next Steps from the per-category data when
+ *  the upstream service hasn't supplied a hand-curated narrative. The
+ *  category breakdown already has everything we need — failing to surface
+ *  it left three empty panels on what should be the most useful view. */
+function deriveInsights(report: ReportCardData) {
+  const strengths: string[] = [...report.strengths];
+  const risks: string[] = [...report.risks];
+  const nextSteps: string[] = [...report.nextSteps];
+
+  if (strengths.length === 0) {
+    for (const cat of report.categories) {
+      if (cat.score >= 80) {
+        const wins = cat.signals.filter((s) => s.found).length;
+        const total = cat.signals.length;
+        strengths.push(`${cat.label} — strong (${cat.score}/100, ${wins}/${total} signals).`);
+      }
+    }
+  }
+
+  if (risks.length === 0) {
+    for (const cat of report.categories) {
+      if (cat.score < 50) {
+        const missing = cat.signals.filter((s) => !s.found).map((s) => s.name);
+        const missingPreview = missing.slice(0, 3).join(', ');
+        const more = missing.length > 3 ? `, +${missing.length - 3} more` : '';
+        risks.push(`${cat.label} — weak (${cat.score}/100). Missing: ${missingPreview}${more}.`);
+      }
+    }
+  }
+
+  if (nextSteps.length === 0) {
+    // Pick the highest-weight category that scored < 80, and propose
+    // its first three missing signals as concrete next steps. Repeat
+    // until we have ~6 suggestions or run out.
+    const sorted = [...report.categories]
+      .filter((c) => c.score < 80)
+      .sort((a, b) => b.weight - a.weight);
+    outer: for (const cat of sorted) {
+      for (const sig of cat.signals) {
+        if (!sig.found) {
+          nextSteps.push(`Add ${sig.name} (${cat.label}).`);
+          if (nextSteps.length >= 6) break outer;
+        }
+      }
+    }
+  }
+
+  return { strengths, risks, nextSteps };
+}
 
 export interface ReportCardViewProps {
   report: ReportCardData;
@@ -26,6 +76,8 @@ export interface ReportCardViewProps {
  * via the section nav rather than scrolled.
  */
 export function ReportCardView({ report, actions }: ReportCardViewProps) {
+  const insights = useMemo(() => deriveInsights(report), [report]);
+
   const sections: SectionDef[] = [
     {
       id: 'overview',
@@ -36,20 +88,23 @@ export function ReportCardView({ report, actions }: ReportCardViewProps) {
     {
       id: 'strengths',
       label: 'Strengths',
+      badge: insights.strengths.length || undefined,
       icon: <StrengthsIcon />,
-      content: <InsightsList title="Strengths" items={report.strengths} variant="green" />,
+      content: <InsightsList title="Strengths" items={insights.strengths} variant="green" />,
     },
     {
       id: 'risks',
       label: 'Risks',
+      badge: insights.risks.length || undefined,
       icon: <RisksIcon />,
-      content: <InsightsList title="Risks" items={report.risks} variant="yellow" />,
+      content: <InsightsList title="Risks" items={insights.risks} variant="yellow" />,
     },
     {
       id: 'next-steps',
       label: 'Next Steps',
+      badge: insights.nextSteps.length || undefined,
       icon: <NextStepsIcon />,
-      content: <InsightsList title="Next Steps" items={report.nextSteps} variant="blue" />,
+      content: <InsightsList title="Next Steps" items={insights.nextSteps} variant="blue" />,
     },
   ];
 

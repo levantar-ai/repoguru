@@ -105,14 +105,17 @@ const WEB_TILES: TileDef[] = [
     description: 'Find repositories by topic, language, or stars.',
     d: 'M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z',
   },
-  {
-    kind: 'docs',
-    title: 'Help',
-    color: 'text-text-muted',
-    description: 'How RepoGuru works, what each metric means.',
-    d: 'M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253',
-  },
+  // Help intentionally NOT in the launcher tiles — Help isn't a
+  // session you'd open in a tab. It lives as a corner-icon in the
+  // top-right rail (next to Settings), but the 'docs' kind + title
+  // is still registered below so the route + command palette still
+  // open the Help tab when invoked.
 ];
+
+// Help still needs a kind/title mapping so the docs tab + command
+// palette continue to work; it's just not in the launcher grid.
+const DOCS_ICON_D =
+  'M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253';
 
 const WEB_TITLE_FOR_KIND: Record<string, string> = {
   launcher: 'New Tab',
@@ -127,12 +130,16 @@ const WEB_TITLE_FOR_KIND: Record<string, string> = {
   docs: 'Help',
 };
 
-const ICON_BY_KIND: Record<string, string> = Object.fromEntries(
-  WEB_TILES.map((t) => [t.kind, t.d]),
-);
-const COLOR_BY_KIND: Record<string, string | undefined> = Object.fromEntries(
-  WEB_TILES.map((t) => [t.kind, t.color]),
-);
+const ICON_BY_KIND: Record<string, string> = {
+  ...Object.fromEntries(WEB_TILES.map((t) => [t.kind, t.d])),
+  // docs/Help isn't in WEB_TILES (removed from launcher grid) but
+  // still needs an icon for the tab strip.
+  docs: DOCS_ICON_D,
+};
+const COLOR_BY_KIND: Record<string, string | undefined> = {
+  ...Object.fromEntries(WEB_TILES.map((t) => [t.kind, t.color])),
+  docs: 'text-text-muted',
+};
 
 function webTitleFor(kind: string, repo?: string): string {
   const base = WEB_TITLE_FOR_KIND[kind] ?? 'New Tab';
@@ -231,7 +238,34 @@ function AppContent() {
     return () => window.removeEventListener('repoguru:palette-pick-repo', onPick);
   }, [openTab]);
 
-  const rightRail = appState.githubUser ? (
+  const helpButton = (
+    <button
+      type="button"
+      onClick={() => openTab('docs')}
+      className="inline-flex items-center justify-center h-8 w-8 rounded-md text-text-secondary hover:text-neon hover:bg-surface-hover/50 transition-colors"
+      aria-label="Open Help"
+      title="Help"
+    >
+      <svg
+        className="h-4 w-4"
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke="currentColor"
+        strokeWidth={1.8}
+        aria-hidden="true"
+      >
+        <circle cx="12" cy="12" r="9" />
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          d="M9.5 9a2.5 2.5 0 1 1 4.5 1.5c-.7.6-1.5.9-2 2v.5"
+        />
+        <circle cx="12" cy="17" r="0.5" fill="currentColor" />
+      </svg>
+    </button>
+  );
+
+  const accountButton = appState.githubUser ? (
     <button
       type="button"
       onClick={() => dispatch({ type: 'TOGGLE_SETTINGS' })}
@@ -289,6 +323,13 @@ function AppContent() {
       </svg>
       <span className="hidden sm:inline">Settings</span>
     </button>
+  );
+
+  const rightRail = (
+    <div className="flex items-center gap-1">
+      {helpButton}
+      {accountButton}
+    </div>
   );
 
   return (

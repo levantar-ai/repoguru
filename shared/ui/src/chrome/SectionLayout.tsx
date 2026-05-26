@@ -5,6 +5,10 @@ export interface SectionDef {
   label: string;
   icon: ReactNode;
   content: ReactNode;
+  /** Optional count rendered as a pill next to the label (e.g. number of
+   *  strengths, risks). When undefined or 0 nothing is rendered, so empty
+   *  sections don't add visual noise. */
+  badge?: number;
 }
 
 export interface SectionLayoutProps {
@@ -105,7 +109,19 @@ export function SectionLayout({ sections, header, defaultActiveId }: SectionLayo
                   <span className="h-5 w-5 shrink-0" aria-hidden="true">
                     {s.icon}
                   </span>
-                  <span className={collapsed ? 'sr-only' : 'truncate'}>{s.label}</span>
+                  <span className={collapsed ? 'sr-only' : 'truncate flex-1'}>{s.label}</span>
+                  {!collapsed && s.badge !== undefined && s.badge > 0 && (
+                    <span
+                      className={`text-[10px] font-semibold tabular-nums px-1.5 py-0.5 rounded-full border ${
+                        isActive
+                          ? 'border-neon/40 text-neon bg-neon/10'
+                          : 'border-border text-text-muted bg-surface'
+                      }`}
+                      aria-label={`${s.badge} items`}
+                    >
+                      {s.badge}
+                    </span>
+                  )}
                 </button>
               </li>
             );
