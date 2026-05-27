@@ -24,8 +24,15 @@ on:
         required: true
         type: string
 
+# Scope concurrency by TAG, not by the workflow-dispatch branch.
+# Why: semantic-release pushes web/cli/shared/desktop tags in quick
+# succession, each firing this workflow. The old `github.ref`-based
+# group resolved to `refs/heads/main` for every dispatch — so the
+# second tag's run cancelled the first, and `repo.guru` stayed on
+# the previous web build. Per-tag groups mean each release attaches
+# independently.
 concurrency:
-  group: release-attach-${{ github.ref }}
+  group: release-attach-${{ github.event.inputs.tag || github.ref_name }}
   cancel-in-progress: false
 
 permissions:
