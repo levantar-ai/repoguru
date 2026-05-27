@@ -106,6 +106,33 @@ export function ReportCardView({ report, actions }: ReportCardViewProps) {
           </span>
         </div>
       )}
+      {report.treeOnly && (
+        <div
+          role="status"
+          className="mt-4 flex items-start gap-3 rounded-lg border border-grade-c/30 bg-grade-c/5 p-3 text-sm"
+        >
+          <svg
+            className="h-4 w-4 mt-0.5 shrink-0 text-grade-c"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={2}
+            aria-hidden="true"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M12 9v4m0 4h.01M4.93 19h14.14a2 2 0 001.74-3l-7.07-12a2 2 0 00-3.48 0l-7.07 12a2 2 0 001.74 3z"
+            />
+          </svg>
+          <div className="text-text-secondary">
+            <span className="text-text font-semibold">Partial analysis.</span> The in-browser clone
+            failed for this repository — likely too large or a network timeout. Some checks that
+            need to read file contents (workflows, manifests) are skipped and marked below. Re-run
+            the analysis to retry the clone.
+          </div>
+        </div>
+      )}
 
       {/* ── Hero: grade + insights ──
        *  Layout responds to viewport width:

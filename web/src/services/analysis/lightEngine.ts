@@ -96,6 +96,7 @@ export function runLightAnalysis(
     techStack,
     treeEntryCount: tree.length,
     analyzedAt: new Date().toISOString(),
+    treeOnly: true,
   };
 }
 
@@ -580,21 +581,21 @@ function analyzeOpenssfLight(
   signals.push({
     name: 'Token permissions',
     found: false,
-    details: 'Requires file content (full analysis)',
+    details: 'Skipped — clone failed, only tree paths available',
   });
 
   // Pinned dependencies — cannot detect without file content in light mode
   signals.push({
     name: 'Pinned dependencies',
     found: false,
-    details: 'Requires file content (full analysis)',
+    details: 'Skipped — clone failed, only tree paths available',
   });
 
   // Dangerous workflow patterns — cannot detect without file content
   signals.push({
     name: 'No dangerous workflow patterns',
     found: true,
-    details: 'Cannot verify without file content; assumed safe',
+    details: 'Couldn’t scan workflows — clone failed, assumed safe',
   });
 
   // No binary artifacts — CAN detect from tree
@@ -626,7 +627,7 @@ function analyzeOpenssfLight(
   signals.push({
     name: 'SBOM generation',
     found: false,
-    details: 'Requires file content (full analysis)',
+    details: 'Skipped — clone failed, only tree paths available',
   });
 
   // Dependency update tool — Dependabot or Renovate config

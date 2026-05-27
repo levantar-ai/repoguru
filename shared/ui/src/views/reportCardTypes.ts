@@ -38,6 +38,10 @@ export interface ReportCardData {
   /** ISO timestamp the report was produced. */
   analyzedAt: string;
   repoInfo?: ReportCardRepoInfo;
+  /** True when the report came from the tree-only fallback engine
+   *  (clone failed, no file contents). View shows a banner explaining
+   *  why some signals are skipped. */
+  treeOnly?: boolean;
 }
 
 export const GRADE_COLORS: Record<Grade, string> = {

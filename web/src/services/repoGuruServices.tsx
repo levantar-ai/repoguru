@@ -81,6 +81,7 @@ function lightReportToReportCardData(r: LightAnalysisReport): ReportCardData {
     risks: r.risks ?? [],
     nextSteps: r.nextSteps ?? [],
     analyzedAt: r.analyzedAt,
+    treeOnly: r.treeOnly,
     repoInfo: {
       description: r.repoInfo.description,
       stars: r.repoInfo.stars,

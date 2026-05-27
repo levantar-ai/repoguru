@@ -163,6 +163,10 @@ export interface LightAnalysisReport {
   strengths?: string[];
   risks?: string[];
   nextSteps?: string[];
+  /** True when this report was produced from the light engine (clone
+   *  failed → fallback to GitHub trees API). View renders a banner so
+   *  users understand why some signals say "Skipped". */
+  treeOnly?: boolean;
 }
 
 // ── Contributor Friendliness ──
