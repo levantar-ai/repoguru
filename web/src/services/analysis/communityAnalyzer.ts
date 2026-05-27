@@ -1,85 +1,89 @@
 import type { CategoryResult, FileContent, TreeEntry, Signal } from '../../types';
-import { ISSUE_TEMPLATE_DIR, PR_TEMPLATE, PR_TEMPLATE_ALT } from '../../utils/constants';
+import { detectFunding } from './detectors/funding';
 
-/** Case-insensitive check if any candidate path exists in a Set of paths. */
-function ciHasPath(paths: Set<string>, ...candidates: string[]): boolean {
-  for (const c of candidates) {
-    if (paths.has(c)) return true;
-  }
-  const lowerSet = new Set(candidates.map((c) => c.toLowerCase()));
+/** Case-insensitive lookup across a Set of paths. */
+function hasPathInsensitive(paths: Set<string>, ...candidates: string[]): boolean {
+  const lower = new Set(candidates.map((c) => c.toLowerCase()));
   for (const p of paths) {
-    if (lowerSet.has(p.toLowerCase())) return true;
-  }
-  return false;
-}
-
-/** Case-insensitive check if any candidate exists in a file map. */
-function ciHasFile(fileMap: Map<string, unknown>, ...candidates: string[]): boolean {
-  for (const c of candidates) {
-    if (fileMap.has(c)) return true;
-  }
-  const lowerSet = new Set(candidates.map((c) => c.toLowerCase()));
-  for (const p of fileMap.keys()) {
-    if (lowerSet.has(p.toLowerCase())) return true;
+    if (lower.has(p.toLowerCase())) return true;
   }
   return false;
 }
 
 export function analyzeCommunity(files: FileContent[], tree: TreeEntry[]): CategoryResult {
   const signals: Signal[] = [];
-  const fileMap = new Map(files.map((f) => [f.path, f]));
-  const treePaths = new Set(tree.map((e) => e.path));
+  const treePaths = new Set(tree.filter((e) => e.type === 'blob').map((e) => e.path));
+  const input = { files, tree, treePaths };
 
-  // Issue templates (case-insensitive on directory prefix)
-  const issueTemplateDirLower = ISSUE_TEMPLATE_DIR.toLowerCase();
+  // Issue templates — GitHub uses .github/ISSUE_TEMPLATE/, GitLab uses
+  // .gitlab/issue_templates/, Gitea uses .gitea/ISSUE_TEMPLATE/.
   const issueTemplates = tree.filter(
-    (e) => e.type === 'blob' && e.path.toLowerCase().startsWith(issueTemplateDirLower),
+    (e) =>
+      e.type === 'blob' &&
+      (e.path.toLowerCase().startsWith('.github/issue_template/') ||
+        e.path.toLowerCase().startsWith('.gitlab/issue_templates/') ||
+        e.path.toLowerCase().startsWith('.gitea/issue_template/')),
   );
   signals.push({
     name: 'Issue templates',
     found: issueTemplates.length > 0,
-    details: `${issueTemplates.length} template(s)`,
+    details: issueTemplates.length > 0 ? `${issueTemplates.length} template(s)` : undefined,
   });
 
-  // PR template (case-insensitive)
-  const hasPRTemplate = ciHasPath(
+  // Merge/PR template — same outcome across forges.
+  const hasMRTemplate = hasPathInsensitive(
     treePaths,
-    PR_TEMPLATE,
-    PR_TEMPLATE_ALT,
     '.github/PULL_REQUEST_TEMPLATE.md',
     'PULL_REQUEST_TEMPLATE.md',
+    'docs/PULL_REQUEST_TEMPLATE.md',
+    '.gitlab/merge_request_templates/Default.md',
+    '.gitea/PULL_REQUEST_TEMPLATE.md',
   );
-  signals.push({ name: 'PR template', found: hasPRTemplate });
+  signals.push({ name: 'Change-request template', found: hasMRTemplate });
 
-  // Code of Conduct (case-insensitive)
-  const hasCOC =
-    ciHasFile(fileMap, 'CODE_OF_CONDUCT.md', '.github/CODE_OF_CONDUCT.md') ||
-    ciHasPath(treePaths, 'CODE_OF_CONDUCT.md', '.github/CODE_OF_CONDUCT.md');
+  const hasCOC = hasPathInsensitive(
+    treePaths,
+    'CODE_OF_CONDUCT.md',
+    '.github/CODE_OF_CONDUCT.md',
+    'docs/CODE_OF_CONDUCT.md',
+  );
   signals.push({ name: 'Code of Conduct', found: hasCOC });
 
-  // CONTRIBUTING.md (case-insensitive)
-  const hasContributing =
-    ciHasFile(fileMap, 'CONTRIBUTING.md') || ciHasPath(treePaths, 'CONTRIBUTING.md');
-  signals.push({ name: 'CONTRIBUTING.md', found: hasContributing });
+  const hasContributing = hasPathInsensitive(
+    treePaths,
+    'CONTRIBUTING.md',
+    '.github/CONTRIBUTING.md',
+    'docs/CONTRIBUTING.md',
+  );
+  signals.push({ name: 'Contributing guide', found: hasContributing });
 
-  // FUNDING
-  const hasFunding =
-    ciHasFile(fileMap, '.github/FUNDING.yml') || ciHasPath(treePaths, '.github/FUNDING.yml');
-  signals.push({ name: 'Funding configuration', found: hasFunding });
+  const funding = detectFunding(input);
+  signals.push({
+    name: 'Funding info',
+    found: funding.found,
+    details: funding.found ? funding.tools.join(', ') : undefined,
+  });
 
-  // SUPPORT.md (case-insensitive)
-  const hasSupport =
-    ciHasFile(fileMap, '.github/SUPPORT.md', 'SUPPORT.md') ||
-    ciHasPath(treePaths, '.github/SUPPORT.md', 'SUPPORT.md');
-  signals.push({ name: 'SUPPORT.md', found: hasSupport });
+  const hasSupport = hasPathInsensitive(
+    treePaths,
+    '.github/SUPPORT.md',
+    'SUPPORT.md',
+    'docs/SUPPORT.md',
+  );
+  signals.push({ name: 'Support channels', found: hasSupport });
 
+  const weights: Record<string, number> = {
+    'Issue templates': 20,
+    'Change-request template': 20,
+    'Code of Conduct': 20,
+    'Contributing guide': 20,
+    'Funding info': 10,
+    'Support channels': 10,
+  };
   let score = 0;
-  if (issueTemplates.length > 0) score += 20;
-  if (hasPRTemplate) score += 20;
-  if (hasCOC) score += 20;
-  if (hasContributing) score += 20;
-  if (hasFunding) score += 10;
-  if (hasSupport) score += 10;
+  for (const sig of signals) {
+    if (sig.found) score += weights[sig.name] ?? 0;
+  }
 
   return {
     key: 'community',

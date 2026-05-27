@@ -1,52 +1,45 @@
 import type { CategoryResult, FileContent, TreeEntry, Signal } from '../../types';
 import { CATEGORY_WEIGHTS } from '../../utils/constants';
+import { detectCodeOwnership } from './detectors/codeOwnership';
+import { detectDependencyUpdates } from './detectors/dependencyUpdates';
+import { detectSAST } from './detectors/sast';
 
 export function analyzeSecurity(files: FileContent[], tree: TreeEntry[]): CategoryResult {
   const signals: Signal[] = [];
-  const fileMap = new Map(files.map((f) => [f.path, f]));
-  const treePaths = new Set(tree.map((e) => e.path));
+  const treePaths = new Set(tree.filter((e) => e.type === 'blob').map((e) => e.path));
+  const input = { files, tree, treePaths };
 
-  // SECURITY.md
   signals.push({
-    name: 'SECURITY.md',
-    found: fileMap.has('SECURITY.md') || treePaths.has('SECURITY.md'),
+    name: 'Security policy',
+    found: treePaths.has('SECURITY.md') || treePaths.has('.github/SECURITY.md'),
   });
 
-  // CODEOWNERS
-  const hasCODEOWNERS =
-    fileMap.has('CODEOWNERS') ||
-    fileMap.has('.github/CODEOWNERS') ||
-    treePaths.has('CODEOWNERS') ||
-    treePaths.has('.github/CODEOWNERS');
-  signals.push({ name: 'CODEOWNERS', found: hasCODEOWNERS });
+  const owners = detectCodeOwnership(input);
+  signals.push({
+    name: 'Code ownership',
+    found: owners.found,
+    details: owners.found ? owners.tools.join(', ') : undefined,
+  });
 
-  // Dependabot config
-  const hasDependabot =
-    fileMap.has('.github/dependabot.yml') || fileMap.has('.github/dependabot.yaml');
-  signals.push({ name: 'Dependabot configured', found: hasDependabot });
+  const depUpdates = detectDependencyUpdates(input);
+  signals.push({
+    name: 'Automated dependency updates',
+    found: depUpdates.found,
+    details: depUpdates.found ? depUpdates.tools.join(', ') : undefined,
+  });
 
-  // CodeQL / security scanning
-  const hasCodeQL = files.some(
-    (f) =>
-      f.path.includes('codeql') ||
-      f.content.includes('codeql-analysis') ||
-      f.content.includes('CodeQL'),
-  );
-  signals.push({ name: 'CodeQL / security scanning', found: hasCodeQL });
+  const sast = detectSAST(input);
+  signals.push({
+    name: 'Static security analysis',
+    found: sast.found,
+    details: sast.found ? sast.tools.join(', ') : undefined,
+  });
 
-  // Branch protection signals (presence of workflows with PR triggers)
-  const hasPRWorkflow = files.some(
-    (f) =>
-      f.path.startsWith('.github/workflows/') &&
-      (f.content.includes('pull_request') || f.content.includes('pull-request')),
-  );
-  signals.push({ name: 'PR-triggered workflows', found: hasPRWorkflow });
+  signals.push({
+    name: 'Source-control ignore file',
+    found: treePaths.has('.gitignore') || treePaths.has('.hgignore'),
+  });
 
-  // Secret scanning (check for .gitignore patterns)
-  const gitignore = tree.some((e) => e.path === '.gitignore');
-  signals.push({ name: '.gitignore present', found: gitignore });
-
-  // No obvious secrets in repo (check for common secret file patterns)
   const suspiciousFiles = tree.some(
     (e) =>
       e.type === 'blob' &&
@@ -54,14 +47,18 @@ export function analyzeSecurity(files: FileContent[], tree: TreeEntry[]): Catego
   );
   signals.push({ name: 'No exposed secret files', found: !suspiciousFiles });
 
+  const weights: Record<string, number> = {
+    'Security policy': 20,
+    'Code ownership': 15,
+    'Automated dependency updates': 25,
+    'Static security analysis': 20,
+    'Source-control ignore file': 10,
+    'No exposed secret files': 10,
+  };
   let score = 0;
-  if (fileMap.has('SECURITY.md') || treePaths.has('SECURITY.md')) score += 20;
-  if (hasCODEOWNERS) score += 15;
-  if (hasDependabot) score += 20;
-  if (hasCodeQL) score += 15;
-  if (hasPRWorkflow) score += 10;
-  if (gitignore) score += 10;
-  if (!suspiciousFiles) score += 10;
+  for (const sig of signals) {
+    if (sig.found) score += weights[sig.name] ?? 0;
+  }
 
   return {
     key: 'security',

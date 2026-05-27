@@ -1,39 +1,35 @@
 import type { CategoryResult, FileContent, TreeEntry, Signal } from '../../types';
-import { WORKFLOW_DIR } from '../../utils/constants';
 import { detectProjectType, naReasonFor } from './projectType';
+import { detectCI, detectDeployAutomation, detectsPRTriggeredCI } from './detectors/ci';
 
 export function analyzeCicd(files: FileContent[], tree: TreeEntry[]): CategoryResult {
   const signals: Signal[] = [];
   const { type } = detectProjectType(files, tree);
+  const treePaths = new Set(tree.filter((e) => e.type === 'blob').map((e) => e.path));
+  const input = { files, tree, treePaths };
 
   // ── Universal CI/CD signals (apply to every project type) ──
 
-  const workflows = files.filter((f) => f.path.startsWith(WORKFLOW_DIR));
-  const workflowPaths = tree.filter((e) => e.type === 'blob' && e.path.startsWith(WORKFLOW_DIR));
+  const ci = detectCI(input);
   signals.push({
-    name: 'GitHub Actions workflows',
-    found: workflowPaths.length > 0,
-    details: `${workflowPaths.length} workflow file(s)`,
+    name: 'Continuous integration',
+    found: ci.found,
+    details: ci.found ? ci.tools.join(', ') : undefined,
   });
 
-  const hasCi = workflows.some(
-    (f) =>
-      (f.content.includes('push') || f.content.includes('pull_request')) &&
-      (f.content.includes('test') || f.content.includes('build') || f.content.includes('ci')),
-  );
-  signals.push({ name: 'CI workflow (test/build)', found: hasCi });
+  const deploy = detectDeployAutomation(input);
+  signals.push({
+    name: 'Deployment automation',
+    found: deploy.found,
+    details: deploy.found ? deploy.tools.join(', ') : undefined,
+  });
 
-  const hasDeploy = workflows.some(
-    (f) =>
-      f.path.toLowerCase().includes('deploy') ||
-      f.path.toLowerCase().includes('release') ||
-      f.content.includes('deploy') ||
-      f.content.includes('publish'),
-  );
-  signals.push({ name: 'Deploy / release workflow', found: hasDeploy });
-
-  const hasPRTrigger = workflows.some((f) => f.content.includes('pull_request'));
-  signals.push({ name: 'PR-triggered checks', found: hasPRTrigger });
+  const prChecks = detectsPRTriggeredCI(input);
+  signals.push({
+    name: 'Pre-merge checks',
+    found: prChecks.found,
+    details: prChecks.found ? prChecks.tools.join(', ') : undefined,
+  });
 
   // ── Project-type-aware signals ──
   // Dockerfile / Docker Compose are deployment-environment concerns, not
@@ -48,7 +44,7 @@ export function analyzeCicd(files: FileContent[], tree: TreeEntry[]): CategoryRe
     (e) => e.type === 'blob' && (e.path === 'Dockerfile' || e.path.endsWith('/Dockerfile')),
   );
   signals.push({
-    name: 'Dockerfile',
+    name: 'Container image build',
     found: hasDocker,
     notApplicable: !dockerApplicable,
     notApplicableReason: dockerApplicable
@@ -61,7 +57,7 @@ export function analyzeCicd(files: FileContent[], tree: TreeEntry[]): CategoryRe
       e.type === 'blob' && (e.path === 'docker-compose.yml' || e.path === 'docker-compose.yaml'),
   );
   signals.push({
-    name: 'Docker Compose',
+    name: 'Multi-service local dev',
     found: hasCompose,
     notApplicable: !dockerApplicable,
     notApplicableReason: dockerApplicable
@@ -69,26 +65,29 @@ export function analyzeCicd(files: FileContent[], tree: TreeEntry[]): CategoryRe
       : naReasonFor(type, `compose orchestrates multi-service local dev`),
   });
 
-  // Makefile — universal "nice to have" for cross-language builds. Keep
-  // shown for everyone (very low weight); some languages (Go, C/C++)
-  // genuinely benefit, but we don't autodetect that yet.
-  const hasMakefile = tree.some((e) => e.type === 'blob' && e.path === 'Makefile');
-  signals.push({ name: 'Makefile', found: hasMakefile });
+  // Build script / task runner. Generic "nice to have" — Make is one
+  // option, but `package.json` scripts, `Taskfile.yml`, `just`, etc.
+  // count too. Low weight on every project.
+  const hasBuildScript =
+    treePaths.has('Makefile') ||
+    treePaths.has('Taskfile.yml') ||
+    treePaths.has('Taskfile.yaml') ||
+    treePaths.has('justfile') ||
+    treePaths.has('Justfile') ||
+    treePaths.has('mage.go');
+  signals.push({
+    name: 'Build / task runner',
+    found: hasBuildScript,
+  });
 
   // ── Scoring (re-normalised over APPLICABLE signals only) ──
-  // Each signal's weight is fixed; if a signal is N/A its weight is
-  // dropped and the achieved score is rescaled against the remaining
-  // applicable budget. Net effect: a library missing Dockerfile gets
-  // the same score it would have got if Dockerfile didn't exist as a
-  // signal — instead of a 10-point penalty.
   const weights: Record<string, number> = {
-    'GitHub Actions workflows': 25,
-    'CI workflow (test/build)': 25,
-    'Deploy / release workflow': 15,
-    'PR-triggered checks': 15,
-    Dockerfile: 10,
-    'Docker Compose': 5,
-    Makefile: 5,
+    'Continuous integration': 35,
+    'Deployment automation': 20,
+    'Pre-merge checks': 20,
+    'Container image build': 10,
+    'Multi-service local dev': 5,
+    'Build / task runner': 10,
   };
   let achieved = 0;
   let applicable = 0;

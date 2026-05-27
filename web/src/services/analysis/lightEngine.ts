@@ -7,16 +7,14 @@ import type {
   Signal,
   TechStackItem,
 } from '../../types';
-import {
-  CATEGORY_WEIGHTS,
-  CATEGORY_LABELS,
-  WORKFLOW_DIR,
-  ISSUE_TEMPLATE_DIR,
-  PR_TEMPLATE,
-  PR_TEMPLATE_ALT,
-} from '../../utils/constants';
+import { CATEGORY_WEIGHTS, CATEGORY_LABELS } from '../../utils/constants';
 import { scoreToGrade } from '../../utils/formatters';
 import { detectProjectTypeLight, naReasonFor } from './projectType';
+import { detectCI, detectDeployAutomation } from './detectors/ci';
+import { detectCodeOwnership } from './detectors/codeOwnership';
+import { detectDependencyUpdates } from './detectors/dependencyUpdates';
+import { detectSAST } from './detectors/sast';
+import { detectFunding } from './detectors/funding';
 
 /** Case-insensitive path lookup: checks if any of the candidates exist in the tree (case-insensitive). */
 function ciHas(lowerToOriginal: Map<string, string>, ...candidates: string[]): boolean {
@@ -159,28 +157,40 @@ function analyzeSecurityLight(
   lowerMap: Map<string, string>,
 ): CategoryResult {
   const signals: Signal[] = [];
+  const input = { files: [], tree, treePaths };
 
-  const hasSecurity = ciHas(lowerMap, 'SECURITY.md');
-  const securityCasing = hasSecurity ? casingNote(lowerMap, 'SECURITY.md') : undefined;
-  signals.push({ name: 'SECURITY.md', found: hasSecurity, details: securityCasing || undefined });
+  signals.push({
+    name: 'Security policy',
+    found: ciHas(lowerMap, 'SECURITY.md', '.github/SECURITY.md'),
+  });
 
-  const hasCodeowners = ciHas(lowerMap, 'CODEOWNERS', '.github/CODEOWNERS');
-  signals.push({ name: 'CODEOWNERS', found: hasCodeowners });
+  const owners = detectCodeOwnership(input);
+  signals.push({
+    name: 'Code ownership',
+    found: owners.found,
+    details: owners.found ? owners.tools.join(', ') : undefined,
+  });
 
-  const hasDependabot =
-    treePaths.has('.github/dependabot.yml') || treePaths.has('.github/dependabot.yaml');
-  signals.push({ name: 'Dependabot configured', found: hasDependabot });
+  const depUpdates = detectDependencyUpdates(input);
+  signals.push({
+    name: 'Automated dependency updates',
+    found: depUpdates.found,
+    details: depUpdates.found ? depUpdates.tools.join(', ') : undefined,
+  });
 
-  const hasCodeQL = tree.some(
-    (e) =>
-      e.type === 'blob' &&
-      e.path.startsWith(WORKFLOW_DIR) &&
-      e.path.toLowerCase().includes('codeql'),
-  );
-  signals.push({ name: 'CodeQL / security scanning', found: hasCodeQL });
+  // SAST detection in light mode is limited to config-file presence
+  // (no workflow-content matching). detectSAST handles that already.
+  const sast = detectSAST(input);
+  signals.push({
+    name: 'Static security analysis',
+    found: sast.found,
+    details: sast.found ? sast.tools.join(', ') : undefined,
+  });
 
-  const hasGitignore = treePaths.has('.gitignore');
-  signals.push({ name: '.gitignore present', found: hasGitignore });
+  signals.push({
+    name: 'Source-control ignore file',
+    found: treePaths.has('.gitignore') || treePaths.has('.hgignore'),
+  });
 
   const suspiciousFiles = tree.some(
     (e) =>
@@ -189,13 +199,18 @@ function analyzeSecurityLight(
   );
   signals.push({ name: 'No exposed secret files', found: !suspiciousFiles });
 
+  const weights: Record<string, number> = {
+    'Security policy': 20,
+    'Code ownership': 15,
+    'Automated dependency updates': 25,
+    'Static security analysis': 20,
+    'Source-control ignore file': 10,
+    'No exposed secret files': 10,
+  };
   let score = 0;
-  if (hasSecurity) score += 20;
-  if (hasCodeowners) score += 15;
-  if (hasDependabot) score += 20;
-  if (hasCodeQL) score += 15;
-  if (hasGitignore) score += 15;
-  if (!suspiciousFiles) score += 15;
+  for (const sig of signals) {
+    if (sig.found) score += weights[sig.name] ?? 0;
+  }
 
   return {
     key: 'security',
@@ -212,19 +227,35 @@ function analyzeCicdLight(treePaths: Set<string>, tree: TreeEntry[]): CategoryRe
   const signals: Signal[] = [];
   const { type } = detectProjectTypeLight(treePaths, tree);
   const dockerApplicable = type === 'server' || type === 'unknown';
+  const input = { files: [], tree, treePaths };
 
-  const workflowFiles = tree.filter((e) => e.type === 'blob' && e.path.startsWith(WORKFLOW_DIR));
+  const ci = detectCI(input);
   signals.push({
-    name: 'GitHub Actions workflows',
-    found: workflowFiles.length > 0,
-    details: `${workflowFiles.length} workflow file(s)`,
+    name: 'Continuous integration',
+    found: ci.found,
+    details: ci.found ? ci.tools.join(', ') : undefined,
+  });
+
+  const deploy = detectDeployAutomation(input);
+  signals.push({
+    name: 'Deployment automation',
+    found: deploy.found,
+    details: deploy.found ? deploy.tools.join(', ') : undefined,
+  });
+
+  // Pre-merge checks needs workflow content to verify; without it we
+  // can't honestly score, so skip rather than guess.
+  signals.push({
+    name: 'Pre-merge checks',
+    found: false,
+    details: 'Needs file contents — skipped (clone failed)',
   });
 
   const hasDocker = tree.some(
     (e) => e.type === 'blob' && (e.path === 'Dockerfile' || e.path.endsWith('/Dockerfile')),
   );
   signals.push({
-    name: 'Dockerfile',
+    name: 'Container image build',
     found: hasDocker,
     notApplicable: !dockerApplicable,
     notApplicableReason: dockerApplicable
@@ -234,7 +265,7 @@ function analyzeCicdLight(treePaths: Set<string>, tree: TreeEntry[]): CategoryRe
 
   const hasCompose = treePaths.has('docker-compose.yml') || treePaths.has('docker-compose.yaml');
   signals.push({
-    name: 'Docker Compose',
+    name: 'Multi-service local dev',
     found: hasCompose,
     notApplicable: !dockerApplicable,
     notApplicableReason: dockerApplicable
@@ -242,31 +273,22 @@ function analyzeCicdLight(treePaths: Set<string>, tree: TreeEntry[]): CategoryRe
       : naReasonFor(type, `compose orchestrates multi-service local dev`),
   });
 
-  const hasMakefile = treePaths.has('Makefile');
-  signals.push({ name: 'Makefile', found: hasMakefile });
+  const hasBuildScript =
+    treePaths.has('Makefile') ||
+    treePaths.has('Taskfile.yml') ||
+    treePaths.has('Taskfile.yaml') ||
+    treePaths.has('justfile') ||
+    treePaths.has('Justfile') ||
+    treePaths.has('mage.go');
+  signals.push({ name: 'Build / task runner', found: hasBuildScript });
 
-  // In light mode we can't inspect file content, so we check for CI-like filenames
-  const hasCiFile = workflowFiles.some(
-    (e) =>
-      e.path.toLowerCase().includes('ci') ||
-      e.path.toLowerCase().includes('test') ||
-      e.path.toLowerCase().includes('build'),
-  );
-  signals.push({ name: 'CI workflow (test/build)', found: hasCiFile });
-
-  const hasDeployFile = workflowFiles.some(
-    (e) => e.path.toLowerCase().includes('deploy') || e.path.toLowerCase().includes('release'),
-  );
-  signals.push({ name: 'Deploy / release workflow', found: hasDeployFile });
-
-  // Re-normalised scoring over applicable weights only.
   const weights: Record<string, number> = {
-    'GitHub Actions workflows': 25,
-    'CI workflow (test/build)': 25,
-    'Deploy / release workflow': 15,
-    Dockerfile: 15,
-    'Docker Compose': 10,
-    Makefile: 10,
+    'Continuous integration': 35,
+    'Deployment automation': 20,
+    'Pre-merge checks': 20,
+    'Container image build': 10,
+    'Multi-service local dev': 5,
+    'Build / task runner': 10,
   };
   let achieved = 0;
   let applicable = 0;
@@ -546,44 +568,74 @@ function analyzeLicenseLight(
 // ── Community (tree-only) ──
 
 function analyzeCommunityLight(
-  _treePaths: Set<string>,
+  treePaths: Set<string>,
   tree: TreeEntry[],
   lowerMap: Map<string, string>,
 ): CategoryResult {
   const signals: Signal[] = [];
+  const input = { files: [], tree, treePaths };
 
-  const issueTemplateDirLower = ISSUE_TEMPLATE_DIR.toLowerCase();
   const issueTemplates = tree.filter(
-    (e) => e.type === 'blob' && e.path.toLowerCase().startsWith(issueTemplateDirLower),
+    (e) =>
+      e.type === 'blob' &&
+      (e.path.toLowerCase().startsWith('.github/issue_template/') ||
+        e.path.toLowerCase().startsWith('.gitlab/issue_templates/') ||
+        e.path.toLowerCase().startsWith('.gitea/issue_template/')),
   );
   signals.push({
     name: 'Issue templates',
     found: issueTemplates.length > 0,
-    details: `${issueTemplates.length} template(s)`,
+    details: issueTemplates.length > 0 ? `${issueTemplates.length} template(s)` : undefined,
   });
 
-  const hasPRTemplate = ciHas(lowerMap, PR_TEMPLATE, PR_TEMPLATE_ALT, 'PULL_REQUEST_TEMPLATE.md');
-  signals.push({ name: 'PR template', found: hasPRTemplate });
+  const hasMRTemplate = ciHas(
+    lowerMap,
+    '.github/PULL_REQUEST_TEMPLATE.md',
+    'PULL_REQUEST_TEMPLATE.md',
+    'docs/PULL_REQUEST_TEMPLATE.md',
+    '.gitlab/merge_request_templates/Default.md',
+    '.gitea/PULL_REQUEST_TEMPLATE.md',
+  );
+  signals.push({ name: 'Change-request template', found: hasMRTemplate });
 
-  const hasCOC = ciHas(lowerMap, 'CODE_OF_CONDUCT.md', '.github/CODE_OF_CONDUCT.md');
+  const hasCOC = ciHas(
+    lowerMap,
+    'CODE_OF_CONDUCT.md',
+    '.github/CODE_OF_CONDUCT.md',
+    'docs/CODE_OF_CONDUCT.md',
+  );
   signals.push({ name: 'Code of Conduct', found: hasCOC });
 
-  const hasContributing = ciHas(lowerMap, 'CONTRIBUTING.md');
-  signals.push({ name: 'CONTRIBUTING.md', found: hasContributing });
+  const hasContributing = ciHas(
+    lowerMap,
+    'CONTRIBUTING.md',
+    '.github/CONTRIBUTING.md',
+    'docs/CONTRIBUTING.md',
+  );
+  signals.push({ name: 'Contributing guide', found: hasContributing });
 
-  const hasFunding = ciHas(lowerMap, '.github/FUNDING.yml');
-  signals.push({ name: 'Funding configuration', found: hasFunding });
+  const funding = detectFunding(input);
+  signals.push({
+    name: 'Funding info',
+    found: funding.found,
+    details: funding.found ? funding.tools.join(', ') : undefined,
+  });
 
-  const hasSupport = ciHas(lowerMap, '.github/SUPPORT.md', 'SUPPORT.md');
-  signals.push({ name: 'SUPPORT.md', found: hasSupport });
+  const hasSupport = ciHas(lowerMap, '.github/SUPPORT.md', 'SUPPORT.md', 'docs/SUPPORT.md');
+  signals.push({ name: 'Support channels', found: hasSupport });
 
+  const weights: Record<string, number> = {
+    'Issue templates': 20,
+    'Change-request template': 20,
+    'Code of Conduct': 20,
+    'Contributing guide': 20,
+    'Funding info': 10,
+    'Support channels': 10,
+  };
   let score = 0;
-  if (issueTemplates.length > 0) score += 20;
-  if (hasPRTemplate) score += 20;
-  if (hasCOC) score += 20;
-  if (hasContributing) score += 20;
-  if (hasFunding) score += 10;
-  if (hasSupport) score += 10;
+  for (const sig of signals) {
+    if (sig.found) score += weights[sig.name] ?? 0;
+  }
 
   return {
     key: 'community',
@@ -604,94 +656,124 @@ function analyzeOpenssfLight(
   lowerMap: Map<string, string>,
 ): CategoryResult {
   const signals: Signal[] = [];
+  const input = { files: [], tree, treePaths };
 
-  // Token permissions — cannot detect without file content in light mode
+  // GitHub-Actions-specific hardening signals can't be verified without
+  // workflow contents. Detect GHA presence; if present, mark these as
+  // "skipped" (can't tell); if absent, mark N/A entirely.
+  const ci = detectCI(input);
+  const usesGHA = ci.tools.includes('GitHub Actions');
+  const ghaNAReason = usesGHA
+    ? undefined
+    : 'These hardening checks apply to GitHub Actions; this repo uses a different CI tool';
+
   signals.push({
-    name: 'Token permissions',
+    name: 'Hardened CI permissions',
     found: false,
-    details: 'Skipped — clone failed, only tree paths available',
+    details: usesGHA ? 'Needs file contents — skipped (clone failed)' : undefined,
+    notApplicable: !usesGHA,
+    notApplicableReason: ghaNAReason,
   });
-
-  // Pinned dependencies — cannot detect without file content in light mode
   signals.push({
-    name: 'Pinned dependencies',
+    name: 'Pinned CI dependencies',
     found: false,
-    details: 'Skipped — clone failed, only tree paths available',
+    details: usesGHA ? 'Needs file contents — skipped (clone failed)' : undefined,
+    notApplicable: !usesGHA,
+    notApplicableReason: ghaNAReason,
   });
-
-  // Dangerous workflow patterns — cannot detect without file content
   signals.push({
-    name: 'No dangerous workflow patterns',
+    name: 'No untrusted-PR-checkout patterns',
     found: true,
-    details: 'Couldn’t scan workflows — clone failed, assumed safe',
+    details: usesGHA ? 'Couldn’t scan workflows — assumed safe' : undefined,
+    notApplicable: !usesGHA,
+    notApplicableReason: ghaNAReason,
   });
 
-  // No binary artifacts — CAN detect from tree
   const hasBinaryArtifacts = tree.some(
     (e) =>
       e.type === 'blob' &&
       BINARY_EXTENSIONS_LIGHT.has(e.path.slice(e.path.lastIndexOf('.')).toLowerCase()),
   );
-  signals.push({ name: 'No binary artifacts', found: !hasBinaryArtifacts });
+  signals.push({ name: 'No binary artifacts in tree', found: !hasBinaryArtifacts });
 
-  // SLSA / signed releases — check workflow filenames for scorecard/slsa patterns
-  const hasSlsaWorkflow = tree.some(
-    (e) =>
-      e.type === 'blob' &&
-      e.path.startsWith(WORKFLOW_DIR) &&
-      (e.path.toLowerCase().includes('slsa') ||
-        e.path.toLowerCase().includes('provenance') ||
-        e.path.toLowerCase().includes('scorecard')),
-  );
-  signals.push({ name: 'SLSA / signed releases', found: hasSlsaWorkflow });
-
-  // Fuzzing — detect fuzz dirs/files from tree
-  const hasFuzzing = tree.some(
-    (e) => e.path.toLowerCase().includes('fuzz') || e.path.toLowerCase().includes('oss-fuzz'),
-  );
-  signals.push({ name: 'Fuzzing', found: hasFuzzing });
-
-  // SBOM generation — cannot fully detect without content
+  // Signed releases — light mode can only spot config-file hints.
+  const signedReleaseTools: string[] = [];
+  if (
+    tree.some(
+      (e) =>
+        e.type === 'blob' &&
+        /(slsa|provenance|scorecard)/i.test(e.path) &&
+        e.path.includes('workflows'),
+    )
+  ) {
+    signedReleaseTools.push('SLSA/Scorecard workflow');
+  }
+  if (treePaths.has('.cosign.yaml') || treePaths.has('cosign.pub')) {
+    signedReleaseTools.push('cosign');
+  }
   signals.push({
-    name: 'SBOM generation',
+    name: 'Signed releases',
+    found: signedReleaseTools.length > 0,
+    details: signedReleaseTools.length > 0 ? signedReleaseTools.join(', ') : undefined,
+  });
+
+  const fuzzTools: string[] = [];
+  if (tree.some((e) => e.path.toLowerCase().includes('oss-fuzz'))) fuzzTools.push('OSS-Fuzz');
+  if (
+    tree.some((e) => e.type === 'blob' && (e.path.startsWith('fuzz/') || e.path.includes('/fuzz/')))
+  ) {
+    fuzzTools.push('language-native fuzzing');
+  }
+  signals.push({
+    name: 'Fuzzing',
+    found: fuzzTools.length > 0,
+    details: fuzzTools.length > 0 ? fuzzTools.join(', ') : undefined,
+  });
+
+  signals.push({
+    name: 'Software bill of materials',
     found: false,
-    details: 'Skipped — clone failed, only tree paths available',
+    details: 'Needs file contents — skipped (clone failed)',
   });
 
-  // Dependency update tool — Dependabot or Renovate config
-  const hasDependabot =
-    treePaths.has('.github/dependabot.yml') || treePaths.has('.github/dependabot.yaml');
-  const hasRenovate =
-    treePaths.has('.renovaterc') ||
-    treePaths.has('.renovaterc.json') ||
-    treePaths.has('renovate.json');
-  const hasDepUpdateTool = hasDependabot || hasRenovate;
+  const depUpdates = detectDependencyUpdates(input);
   signals.push({
-    name: 'Dependency update tool',
-    found: hasDepUpdateTool,
-    details: hasDependabot ? 'Dependabot' : hasRenovate ? 'Renovate' : undefined,
+    name: 'Automated dependency updates',
+    found: depUpdates.found,
+    details: depUpdates.found ? depUpdates.tools.join(', ') : undefined,
   });
 
-  // Security policy
-  const hasSecurityPolicy = ciHas(lowerMap, 'SECURITY.md');
-  signals.push({ name: 'Security policy', found: hasSecurityPolicy });
+  signals.push({
+    name: 'Security policy',
+    found: ciHas(lowerMap, 'SECURITY.md', '.github/SECURITY.md'),
+  });
 
-  // License detected
-  const hasLicense = ciHas(lowerMap, 'LICENSE', 'LICENSE.md', 'LICENSE.txt', 'LICENCE', 'COPYING');
-  signals.push({ name: 'License detected', found: hasLicense });
+  signals.push({
+    name: 'License declared',
+    found: ciHas(lowerMap, 'LICENSE', 'LICENSE.md', 'LICENSE.txt', 'LICENCE', 'COPYING'),
+  });
 
-  // Scoring — only count what we can actually detect
-  let score = 0;
-  // Token permissions: 0 (can't detect)
-  // Pinned deps: 0 (can't detect)
-  score += 10; // No dangerous patterns assumed safe in light mode
-  if (!hasBinaryArtifacts) score += 10; // No binary artifacts
-  if (hasSlsaWorkflow) score += 10;
-  if (hasFuzzing) score += 10;
-  // SBOM: 0 (can't detect)
-  if (hasDepUpdateTool) score += 10;
-  if (hasSecurityPolicy) score += 5;
-  if (hasLicense) score += 5;
+  const weights: Record<string, number> = {
+    'Hardened CI permissions': 15,
+    'Pinned CI dependencies': 15,
+    'No untrusted-PR-checkout patterns': 10,
+    'No binary artifacts in tree': 10,
+    'Signed releases': 10,
+    Fuzzing: 10,
+    'Software bill of materials': 10,
+    'Automated dependency updates': 10,
+    'Security policy': 5,
+    'License declared': 5,
+  };
+  let achieved = 0;
+  let applicable = 0;
+  for (const sig of signals) {
+    if (sig.notApplicable) continue;
+    const w = weights[sig.name] ?? 0;
+    applicable += w;
+    if (sig.found) achieved += w;
+  }
+  const score = applicable === 0 ? 0 : Math.round((achieved / applicable) * 100);
 
   return {
     key: 'openssf',

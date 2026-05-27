@@ -21,8 +21,8 @@ describe('SIGNAL_EDUCATION', () => {
   });
 
   it('contains security category signals', () => {
-    expect(SIGNAL_EDUCATION['SECURITY.md']).toBeDefined();
-    expect(SIGNAL_EDUCATION['SECURITY.md'].category).toBe('security');
+    expect(SIGNAL_EDUCATION['Security policy']).toBeDefined();
+    expect(SIGNAL_EDUCATION['Security policy'].category).toBe('security');
   });
 });
 
@@ -35,9 +35,9 @@ describe('getFixUrl', () => {
     expect(url).toContain('main');
   });
 
-  it('returns undefined for unknown signal name', () => {
+  it('returns null for unknown signal name', () => {
     const url = getFixUrl('o', 'r', 'b', 'nonexistent-signal');
-    expect(url).toBeUndefined();
+    expect(url).toBeNull();
   });
 
   it('returns undefined for signal without fixUrl', () => {
@@ -45,7 +45,7 @@ describe('getFixUrl', () => {
     const noFixUrl = Object.entries(SIGNAL_EDUCATION).find(([, e]) => !e.fixUrl);
     if (noFixUrl) {
       const url = getFixUrl('o', 'r', 'b', noFixUrl[0]);
-      expect(url).toBeUndefined();
+      expect(url).toBeNull();
     }
   });
 
