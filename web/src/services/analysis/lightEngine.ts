@@ -16,6 +16,7 @@ import {
   PR_TEMPLATE_ALT,
 } from '../../utils/constants';
 import { scoreToGrade } from '../../utils/formatters';
+import { detectProjectTypeLight, naReasonFor } from './projectType';
 
 /** Case-insensitive path lookup: checks if any of the candidates exist in the tree (case-insensitive). */
 function ciHas(lowerToOriginal: Map<string, string>, ...candidates: string[]): boolean {
@@ -209,6 +210,8 @@ function analyzeSecurityLight(
 
 function analyzeCicdLight(treePaths: Set<string>, tree: TreeEntry[]): CategoryResult {
   const signals: Signal[] = [];
+  const { type } = detectProjectTypeLight(treePaths, tree);
+  const dockerApplicable = type === 'server' || type === 'unknown';
 
   const workflowFiles = tree.filter((e) => e.type === 'blob' && e.path.startsWith(WORKFLOW_DIR));
   signals.push({
@@ -220,10 +223,24 @@ function analyzeCicdLight(treePaths: Set<string>, tree: TreeEntry[]): CategoryRe
   const hasDocker = tree.some(
     (e) => e.type === 'blob' && (e.path === 'Dockerfile' || e.path.endsWith('/Dockerfile')),
   );
-  signals.push({ name: 'Dockerfile', found: hasDocker });
+  signals.push({
+    name: 'Dockerfile',
+    found: hasDocker,
+    notApplicable: !dockerApplicable,
+    notApplicableReason: dockerApplicable
+      ? undefined
+      : naReasonFor(type, `containerisation only matters for server apps`),
+  });
 
   const hasCompose = treePaths.has('docker-compose.yml') || treePaths.has('docker-compose.yaml');
-  signals.push({ name: 'Docker Compose', found: hasCompose });
+  signals.push({
+    name: 'Docker Compose',
+    found: hasCompose,
+    notApplicable: !dockerApplicable,
+    notApplicableReason: dockerApplicable
+      ? undefined
+      : naReasonFor(type, `compose orchestrates multi-service local dev`),
+  });
 
   const hasMakefile = treePaths.has('Makefile');
   signals.push({ name: 'Makefile', found: hasMakefile });
@@ -242,13 +259,24 @@ function analyzeCicdLight(treePaths: Set<string>, tree: TreeEntry[]): CategoryRe
   );
   signals.push({ name: 'Deploy / release workflow', found: hasDeployFile });
 
-  let score = 0;
-  if (workflowFiles.length > 0) score += 25;
-  if (hasCiFile) score += 25;
-  if (hasDeployFile) score += 15;
-  if (hasDocker) score += 15;
-  if (hasCompose) score += 10;
-  if (hasMakefile) score += 10;
+  // Re-normalised scoring over applicable weights only.
+  const weights: Record<string, number> = {
+    'GitHub Actions workflows': 25,
+    'CI workflow (test/build)': 25,
+    'Deploy / release workflow': 15,
+    Dockerfile: 15,
+    'Docker Compose': 10,
+    Makefile: 10,
+  };
+  let achieved = 0;
+  let applicable = 0;
+  for (const sig of signals) {
+    if (sig.notApplicable) continue;
+    const w = weights[sig.name] ?? 0;
+    applicable += w;
+    if (sig.found) achieved += w;
+  }
+  const score = applicable === 0 ? 0 : Math.round((achieved / applicable) * 100);
 
   return {
     key: 'cicd',

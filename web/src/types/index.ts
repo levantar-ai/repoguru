@@ -68,6 +68,14 @@ export interface Signal {
   name: string;
   found: boolean;
   details?: string;
+  /** Mark when a signal doesn't apply to this kind of project — e.g.
+   *  Dockerfile on a CSS library, or `Type system` on a Rust crate (it's
+   *  always typed). View hides N/A signals; scoring re-normalises so
+   *  their absence isn't penalised. */
+  notApplicable?: boolean;
+  /** Short user-facing reason for N/A (e.g. "Library — no deployment").
+   *  Optional; surfaced in info-icon docs. */
+  notApplicableReason?: string;
 }
 
 export type LetterGrade = 'A' | 'B' | 'C' | 'D' | 'F';

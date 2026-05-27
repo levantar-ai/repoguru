@@ -35,27 +35,28 @@ function deriveInsights(report: ReportCardData): {
   const nextSteps: NextStepCard[] = [];
 
   for (const cat of report.categories) {
+    const applicableSignals = cat.signals.filter((s) => !s.notApplicable);
     if (cat.score >= 80) {
       strengths.push({
         category: cat,
-        passedSignals: cat.signals.filter((s) => s.found).map((s) => s.name),
+        passedSignals: applicableSignals.filter((s) => s.found).map((s) => s.name),
       });
     } else if (cat.score < 50) {
       risks.push({
         category: cat,
-        missingSignals: cat.signals.filter((s) => !s.found).map((s) => s.name),
+        missingSignals: applicableSignals.filter((s) => !s.found).map((s) => s.name),
       });
     }
   }
 
   // Next steps: top-weight failing category first, take its missing
-  // signals as TODOs. Stop at 8 to keep the card scannable.
+  // (and applicable) signals as TODOs. Stop at 8 to keep it scannable.
   const failing = [...report.categories]
     .filter((c) => c.score < 80)
     .sort((a, b) => b.weight - a.weight);
   outer: for (const cat of failing) {
     for (const sig of cat.signals) {
-      if (!sig.found) {
+      if (!sig.found && !sig.notApplicable) {
         nextSteps.push({ signal: sig.name, category: cat });
         if (nextSteps.length >= 8) break outer;
       }
@@ -428,20 +429,34 @@ function CategoryScores({ categories }: { categories: ReportCardCategory[] }) {
               />
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-x-6 gap-y-1.5 ml-1">
-              {cat.signals.map((signal) => (
-                <div key={signal.name} className="flex items-start gap-2 text-sm">
-                  <span className="shrink-0 mt-0.5">
-                    {signal.found ? <CheckIcon /> : <XIcon />}
-                  </span>
-                  <span className={signal.found ? 'text-text-secondary' : 'text-text-muted'}>
-                    {signal.name}
-                    {signal.details && (
-                      <span className="text-text-muted ml-1">— {signal.details}</span>
-                    )}
-                    <InfoIcon signalName={signal.name} />
-                  </span>
+              {cat.signals
+                .filter((s) => !s.notApplicable)
+                .map((signal) => (
+                  <div key={signal.name} className="flex items-start gap-2 text-sm">
+                    <span className="shrink-0 mt-0.5">
+                      {signal.found ? <CheckIcon /> : <XIcon />}
+                    </span>
+                    <span className={signal.found ? 'text-text-secondary' : 'text-text-muted'}>
+                      {signal.name}
+                      {signal.details && (
+                        <span className="text-text-muted ml-1">— {signal.details}</span>
+                      )}
+                      <InfoIcon signalName={signal.name} />
+                    </span>
+                  </div>
+                ))}
+              {cat.signals.some((s) => s.notApplicable) && (
+                <div
+                  className="text-[11px] text-text-muted italic col-span-full mt-1"
+                  title={cat.signals
+                    .filter((s) => s.notApplicable)
+                    .map((s) => `${s.name}: ${s.notApplicableReason ?? 'N/A'}`)
+                    .join('\n')}
+                >
+                  {cat.signals.filter((s) => s.notApplicable).length} signal(s) not applicable for
+                  this project type
                 </div>
-              ))}
+              )}
             </div>
           </li>
         );
@@ -516,7 +531,8 @@ function StrengthCardEl({ card }: { card: StrengthCard }) {
         <div className="min-w-0">
           <div className="text-sm font-semibold text-text truncate">{card.category.label}</div>
           <div className="text-[11px] text-text-muted mt-0.5">
-            {card.passedSignals.length}/{card.category.signals.length} signals pass
+            {card.passedSignals.length}/
+            {card.category.signals.filter((s) => !s.notApplicable).length} signals pass
           </div>
         </div>
         <ScorePill score={card.category.score} />
@@ -549,7 +565,8 @@ function RiskCardEl({ card }: { card: RiskCard }) {
         <div className="min-w-0">
           <div className="text-sm font-semibold text-text truncate">{card.category.label}</div>
           <div className="text-[11px] text-text-muted mt-0.5">
-            {card.missingSignals.length} of {card.category.signals.length} checks missing
+            {card.missingSignals.length} of{' '}
+            {card.category.signals.filter((s) => !s.notApplicable).length} checks missing
           </div>
         </div>
         <ScorePill score={card.category.score} />

@@ -8,6 +8,11 @@ export interface ReportCardSignal {
   name: string;
   found: boolean;
   details?: string;
+  /** Mark when a signal doesn't apply to this kind of project (e.g.
+   *  Dockerfile on a CSS library). View hides N/A signals; scoring
+   *  re-normalises so their absence isn't penalised. */
+  notApplicable?: boolean;
+  notApplicableReason?: string;
 }
 
 export interface ReportCardCategory {
