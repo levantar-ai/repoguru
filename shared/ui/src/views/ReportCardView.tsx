@@ -1,5 +1,6 @@
 import { useMemo, type ReactNode } from 'react';
 import { RadarChart } from '../charts/RadarChart.js';
+import { InfoIcon } from '../chrome/SignalDocs.js';
 import {
   type ReportCardData,
   type ReportCardCategory,
@@ -163,9 +164,12 @@ export function ReportCardView({ report, actions }: ReportCardViewProps) {
         </div>
       </section>
 
-      {/* Mobile-only radar (hidden alongside grade on lg+) */}
-      <div className="lg:hidden flex justify-center mt-8">
-        <RadarChart data={radarData} size={260} />
+      {/* Mobile-only radar — kept compact + centered so the polar
+          labels don't overflow at 320–390px viewport widths. The
+          chart's own labels sit ~25-30px outside its radius, so the
+          containing block needs at least size+60 of room. */}
+      <div className="lg:hidden flex justify-center mt-8 overflow-hidden">
+        <RadarChart data={radarData} size={220} />
       </div>
 
       {/* ── Detail: per-category breakdown ── */}
@@ -398,13 +402,16 @@ function CategoryScores({ categories }: { categories: ReportCardCategory[] }) {
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-x-6 gap-y-1.5 ml-1">
               {cat.signals.map((signal) => (
-                <div key={signal.name} className="flex items-center gap-2 text-sm">
-                  {signal.found ? <CheckIcon /> : <XIcon />}
+                <div key={signal.name} className="flex items-start gap-2 text-sm">
+                  <span className="shrink-0 mt-0.5">
+                    {signal.found ? <CheckIcon /> : <XIcon />}
+                  </span>
                   <span className={signal.found ? 'text-text-secondary' : 'text-text-muted'}>
                     {signal.name}
                     {signal.details && (
                       <span className="text-text-muted ml-1">— {signal.details}</span>
                     )}
+                    <InfoIcon signalName={signal.name} />
                   </span>
                 </div>
               ))}
@@ -493,11 +500,8 @@ function StrengthCardEl({ card }: { card: StrengthCard }) {
           aria-label={`Passing checks in ${card.category.label}`}
         >
           {card.passedSignals.slice(0, 4).map((name) => (
-            <li
-              key={name}
-              className="text-[11px] px-1.5 py-0.5 rounded bg-grade-a/15 text-grade-a/90 border border-grade-a/20"
-            >
-              ✓ {name}
+            <li key={name}>
+              <SignalChip name={name} variant="green" found />
             </li>
           ))}
           {card.passedSignals.length > 4 && (
@@ -529,11 +533,8 @@ function RiskCardEl({ card }: { card: RiskCard }) {
           aria-label={`Missing checks in ${card.category.label}`}
         >
           {card.missingSignals.slice(0, 4).map((name) => (
-            <li
-              key={name}
-              className="text-[11px] px-1.5 py-0.5 rounded bg-grade-c/10 text-grade-c/90 border border-grade-c/20"
-            >
-              ✗ {name}
+            <li key={name}>
+              <SignalChip name={name} variant="yellow" found={false} />
             </li>
           ))}
           {card.missingSignals.length > 4 && (
@@ -556,11 +557,40 @@ function NextStepCardEl({ card, index }: { card: NextStepCard; index: number }) 
       >
         {index}
       </span>
-      <div className="min-w-0">
-        <div className="text-sm text-text">Add {card.signal}</div>
+      <div className="min-w-0 flex-1">
+        <div className="text-sm text-text inline-flex items-center gap-1.5">
+          Add {card.signal}
+          <InfoIcon signalName={card.signal} />
+        </div>
         <div className="text-[11px] text-text-muted mt-0.5">{card.category.label}</div>
       </div>
     </article>
+  );
+}
+
+/** Compact chip showing a signal check + its docs trigger. Whole chip is
+ *  clickable when docs exist (info icon hugs the end inside the chip). */
+function SignalChip({
+  name,
+  variant,
+  found,
+}: {
+  name: string;
+  variant: 'green' | 'yellow';
+  found: boolean;
+}) {
+  const cls =
+    variant === 'green'
+      ? 'bg-grade-a/15 text-grade-a/90 border-grade-a/20'
+      : 'bg-grade-c/10 text-grade-c/90 border-grade-c/20';
+  return (
+    <span
+      className={`inline-flex items-center gap-1 text-[11px] px-1.5 py-0.5 rounded border ${cls}`}
+    >
+      <span aria-hidden="true">{found ? '✓' : '✗'}</span>
+      {name}
+      <InfoIcon signalName={name} />
+    </span>
   );
 }
 

@@ -15,10 +15,13 @@ import {
   TabBar,
   TileLauncher,
   PrivacyStrip,
+  SignalDocsProvider,
   type Tab,
   type TileDef,
   type PaletteCommand,
+  type SignalDoc,
 } from '@repoguru/ui';
+import { SIGNAL_EDUCATION } from './services/analysis/signalEducation';
 import { trackEvent } from './utils/analytics';
 import {
   handleOAuthCallback,
@@ -152,6 +155,22 @@ function iconForKind(kind: string): string {
 
 function colorForKind(kind: string): string | undefined {
   return COLOR_BY_KIND[kind];
+}
+
+/** Project a SignalEducation entry into the shared SignalDoc shape. The
+ *  shared/ui drawer doesn't care about CategoryKey enums — it just shows
+ *  the category label as a string heading. */
+function lookupSignalDoc(name: string): SignalDoc | null {
+  const e = SIGNAL_EDUCATION[name];
+  if (!e) return null;
+  return {
+    name: e.name,
+    category: e.category,
+    why: e.why,
+    howToFix: e.howToFix,
+    fixUrl: e.fixUrl,
+    learnMoreUrl: e.learnMoreUrl,
+  };
 }
 
 function AppContent() {
@@ -485,17 +504,19 @@ export default function App() {
       <AnalysisProvider>
         <BrowserServicesProvider>
           <TooltipProvider>
-            <TabsProvider titleFor={webTitleFor} storageKey="repoguru:tabs">
-              <AppContent />
-              <SettingsPanel />
-              <Toaster
-                position="top-center"
-                theme="dark"
-                closeButton
-                richColors
-                toastOptions={{ className: 'tabular-nums' }}
-              />
-            </TabsProvider>
+            <SignalDocsProvider lookup={lookupSignalDoc}>
+              <TabsProvider titleFor={webTitleFor} storageKey="repoguru:tabs">
+                <AppContent />
+                <SettingsPanel />
+                <Toaster
+                  position="top-center"
+                  theme="dark"
+                  closeButton
+                  richColors
+                  toastOptions={{ className: 'tabular-nums' }}
+                />
+              </TabsProvider>
+            </SignalDocsProvider>
           </TooltipProvider>
         </BrowserServicesProvider>
       </AnalysisProvider>

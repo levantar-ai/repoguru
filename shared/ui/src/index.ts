@@ -70,6 +70,8 @@ export { DemoChips, DEMO_REPOS } from './chrome/DemoChips.js';
 export type { DemoChip, DemoChipsProps } from './chrome/DemoChips.js';
 export { Skeleton } from './chrome/Skeleton.js';
 export { Tooltip, TooltipProvider } from './chrome/Tooltip.js';
+export { SignalDocsProvider, InfoIcon, useSignalDocs } from './chrome/SignalDocs.js';
+export type { SignalDoc } from './chrome/SignalDocs.js';
 export type { TooltipProps } from './chrome/Tooltip.js';
 export { CommandPalette } from './chrome/CommandPalette.js';
 export type { CommandPaletteProps, PaletteCommand } from './chrome/CommandPalette.js';
