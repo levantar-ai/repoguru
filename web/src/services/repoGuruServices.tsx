@@ -137,16 +137,26 @@ async function analyzeOneForCompare(
   let files: FileContent[] | null = null;
   try {
     onProgress?.({ message: `Cloning ${label}…`, overall: 5, sub: 0, phase: 'cloning' });
-    const cached = await ensureCloned(parsed.owner, parsed.repo, (step, percent, subPercent, m) => {
-      // Map clone progress (0–100 of clone) to overall 5–80.
-      const overall = 5 + Math.max(0, Math.min(100, percent)) * 0.75;
-      onProgress?.({
-        message: `${label}: ${m}`,
-        overall,
-        sub: Math.max(0, Math.min(100, subPercent)),
-        phase: step || 'cloning',
-      });
-    });
+    // Pass the OAuth token through to isomorphic-git so private repos
+    // (which need HTTP basic auth via the cors-proxy) can be cloned.
+    // Without it the clone silently fails on anything non-public and
+    // we drop to the tree-only fallback — exactly the bug the user hit
+    // on levantar-ai/repoguru-unified.
+    const cached = await ensureCloned(
+      parsed.owner,
+      parsed.repo,
+      (step, percent, subPercent, m) => {
+        // Map clone progress (0–100 of clone) to overall 5–80.
+        const overall = 5 + Math.max(0, Math.min(100, percent)) * 0.75;
+        onProgress?.({
+          message: `${label}: ${m}`,
+          overall,
+          sub: Math.max(0, Math.min(100, subPercent)),
+          phase: step || 'cloning',
+        });
+      },
+      token || undefined,
+    );
     tree = cached.tree;
     files = cached.files;
   } catch (cloneErr) {
