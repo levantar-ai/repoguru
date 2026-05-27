@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Combobox, ComboboxInput, ComboboxOption, ComboboxOptions } from '@headlessui/react';
 import { useRepoGuru } from '../services/Provider.js';
 import { Tooltip } from './Tooltip.js';
@@ -23,6 +23,27 @@ import type { GitHubRepoSummary, RepoPickerProps } from '../services/types.js';
  *  responsible for cloning the repo locally before invoking the CLI;
  *  the picker UI itself doesn't care which host receives the value.
  */
+/** Parse a pasted GitHub URL into an `owner/repo` slug, or return null
+ *  if it doesn't look like one. Accepts:
+ *    https://github.com/owner/repo
+ *    https://github.com/owner/repo.git
+ *    https://github.com/owner/repo/tree/branch/...
+ *    git@github.com:owner/repo.git
+ *    github.com/owner/repo
+ *  Strips trailing slash, .git, and any path beyond owner/repo. */
+function parseGitHubUrl(raw: string): string | null {
+  const s = raw.trim();
+  // SSH form
+  const ssh = s.match(/^git@github\.com:([^/]+)\/([^/]+?)(?:\.git)?$/);
+  if (ssh) return `${ssh[1]}/${ssh[2]}`;
+  // HTTPS / scheme-less
+  const http = s.match(
+    /^(?:https?:\/\/)?(?:www\.)?github\.com\/([^/\s]+)\/([^/\s?#]+?)(?:\.git)?(?:[/?#].*)?$/,
+  );
+  if (http) return `${http[1]}/${http[2]}`;
+  return null;
+}
+
 export function RepoPicker({
   label,
   value,
@@ -32,6 +53,7 @@ export function RepoPicker({
   inputId,
   placeholder = 'owner/repo or /path/to/repo',
   hideAuthChrome = false,
+  autoFocus = false,
 }: RepoPickerProps) {
   const { repoBrowse } = useRepoGuru();
   const [browsing, setBrowsing] = useState(false);
@@ -50,6 +72,13 @@ export function RepoPicker({
 
   const recents = repoBrowse.recents();
   const id = inputId ?? `repo-${label.replace(/\s+/g, '-').toLowerCase()}`;
+  const inputRef = useRef<HTMLInputElement>(null);
+  // Focus on mount when requested. Each ReportCard tab gets a fresh
+  // mount, so this is the right hook — no need to listen for tab
+  // activation separately.
+  useEffect(() => {
+    if (autoFocus && !disabled) inputRef.current?.focus();
+  }, [autoFocus, disabled]);
 
   // GitHub state ----------------------------------------------------------
   const hasToken = repoBrowse.hasGitHubToken();
@@ -155,6 +184,7 @@ export function RepoPicker({
       </label>
       <div className="flex gap-2">
         <input
+          ref={inputRef}
           id={id}
           type="text"
           value={value}
@@ -163,6 +193,18 @@ export function RepoPicker({
           disabled={disabled}
           onKeyDown={(e) => {
             if (e.key === 'Enter' && onSubmit) onSubmit();
+          }}
+          onPaste={(e) => {
+            // Smart paste: if the clipboard holds a GitHub URL, normalise
+            // to owner/repo and submit immediately. Pasting "facebook/react"
+            // (already a slug) falls through to the default paste handler.
+            const text = e.clipboardData.getData('text');
+            const slug = parseGitHubUrl(text);
+            if (slug) {
+              e.preventDefault();
+              onChange(slug);
+              onSubmit?.(slug);
+            }
           }}
           className="flex-1 min-w-0 px-4 py-3 rounded-xl bg-surface-alt border border-border text-text placeholder-text-muted focus:outline-none focus:border-border-bright focus:ring-1 focus:ring-border-bright transition-colors disabled:opacity-50"
         />
@@ -199,7 +241,13 @@ export function RepoPicker({
             <Tooltip key={s.value} content={s.hint ?? s.value}>
               <button
                 type="button"
-                onClick={() => onChange(s.value)}
+                onClick={() => {
+                  // Recents are one-click rescans, not prefills. Pass the
+                  // value through to onSubmit so the parent doesn't race
+                  // against the async setState (input + score in one go).
+                  onChange(s.value);
+                  onSubmit?.(s.value);
+                }}
                 className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs bg-surface-alt border border-border text-text-secondary hover:text-neon hover:border-neon/30 transition-all max-w-[260px]"
               >
                 {s.grade && <RecentGradePill grade={s.grade} />}

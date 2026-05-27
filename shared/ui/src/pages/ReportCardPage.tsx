@@ -34,9 +34,13 @@ export interface ReportCardPageProps {
   /** Optional action element rendered next to the Rescore button after a
    *  scoring run completes (export buttons, share links, …). */
   actions?: ReactNode;
+  /** Fired with the slug ("owner/repo") whenever a scoring run finishes
+   *  successfully. Hosts use this to push a URL like `/?repo=owner/repo`
+   *  so the report is bookmarkable / shareable / survives a refresh. */
+  onScored?: (slug: string) => void;
 }
 
-export function ReportCardPage({ initialRepo, actions }: ReportCardPageProps) {
+export function ReportCardPage({ initialRepo, actions, onScored }: ReportCardPageProps) {
   const { score } = useRepoGuru();
   const [input, setInput] = useState(initialRepo ?? '');
   const [state, setState] = useState<State>({
@@ -103,6 +107,14 @@ export function ReportCardPage({ initialRepo, actions }: ReportCardPageProps) {
           result,
           error: null,
         });
+        // Notify the host *after* the success state lands so URL/title
+        // updates can't be undone by a stale render. The slug uses the
+        // canonical owner/repo from the result, not the raw input — so
+        // a paste of `https://github.com/foo/bar.git` resolves to
+        // `foo/bar` in the URL.
+        const repoMeta = result.report?.repo;
+        const slug = repoMeta ? `${repoMeta.owner}/${repoMeta.repo}` : repo;
+        onScored?.(slug);
       } catch (err) {
         if ((err as { name?: string })?.name === 'AbortError') return;
         setState({
@@ -114,7 +126,7 @@ export function ReportCardPage({ initialRepo, actions }: ReportCardPageProps) {
         });
       }
     },
-    [input, score],
+    [input, score, onScored],
   );
 
   const handleReset = useCallback(() => {
@@ -175,7 +187,11 @@ export function ReportCardPage({ initialRepo, actions }: ReportCardPageProps) {
             label="Repository"
             value={input}
             onChange={setInput}
-            onSubmit={() => handleScore()}
+            // Threading the optional value through so chips/paste can
+            // submit immediately without waiting for the React setState
+            // round-trip — handleScore prefers repoOverride when set.
+            onSubmit={(v) => handleScore(v)}
+            autoFocus
           />
           <div className="flex justify-center gap-3 mt-4 mb-6">
             <PrimaryButton onClick={() => handleScore()} disabled={!input.trim()}>

@@ -278,8 +278,11 @@ export type RepoPickerProps = {
   label: string;
   value: string;
   onChange: (next: string) => void;
-  /** Submit on Enter. */
-  onSubmit?: () => void;
+  /** Submit on Enter, on recents-chip click, or on a smart-paste of a
+   *  GitHub URL. When a value is passed, the caller should prefer it
+   *  over the current `value` prop (setState is async — without the
+   *  override, a chip click would submit the previous input). */
+  onSubmit?: (value?: string) => void;
   disabled?: boolean;
   /** DOM id for the input. */
   inputId?: string;
@@ -291,6 +294,9 @@ export type RepoPickerProps = {
    *  rest so the panel doesn't visually duplicate. The input itself is
    *  always rendered. */
   hideAuthChrome?: boolean;
+  /** Auto-focus the input on mount. Use on top-of-page pickers so the
+   *  user can type immediately without a click. */
+  autoFocus?: boolean;
 };
 
 // ─────────────────────────── Top-level services bag ──────────────────

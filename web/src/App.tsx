@@ -1,4 +1,4 @@
-import { useEffect, useMemo, lazy, Suspense, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, lazy, Suspense, type ReactNode } from 'react';
 import { Toaster, toast } from 'sonner';
 import { AppProvider, useApp } from './context/AppContext';
 import { AnalysisProvider } from './context/AnalysisContext';
@@ -231,6 +231,73 @@ function AppContent() {
       });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // URL deep-link IN + returning-user default landing.
+  //   1. ?repo=owner/repo in the URL → open Report Card with that repo
+  //      (deep-link / shared / bookmark land here in 0 clicks).
+  //   2. Otherwise, if the user has previously scored repos AND the
+  //      tabs hydrated to the default empty launcher, replace the
+  //      active launcher tab with a Report Card pre-filled with the
+  //      most-recent repo. Skips the launcher click for the common
+  //      "open the site → see my last report" path.
+  // Fires once after the app state has loaded (so we can read recent
+  // repos from persistence) — guards with appState.loaded.
+  const bootRoutedRef = useRef(false);
+  useEffect(() => {
+    if (bootRoutedRef.current) return;
+    if (!appState.loaded) return;
+    bootRoutedRef.current = true;
+
+    const params = new URLSearchParams(window.location.search);
+    const repoFromUrl = params.get('repo');
+    if (repoFromUrl && /^[\w.-]+\/[\w.-]+$/.test(repoFromUrl)) {
+      replaceActive('home', repoFromUrl);
+      return;
+    }
+
+    // Returning-user default: only kick in when the active tab is the
+    // bare launcher (no saved tabs from a previous session). If a
+    // user had a Compare tab open last time, respect that — don't
+    // hijack into a Report Card.
+    const active = tabsState.tabs.find((t) => t.id === tabsState.activeId);
+    const isBareLauncher =
+      active?.kind === 'launcher' && tabsState.tabs.length === 1 && !active.repo;
+    if (isBareLauncher && appState.recentRepos.length > 0) {
+      const mostRecent = appState.recentRepos[0];
+      replaceActive('home', `${mostRecent.owner}/${mostRecent.repo}`);
+    }
+  }, [appState.loaded, appState.recentRepos, replaceActive, tabsState.tabs, tabsState.activeId]);
+
+  // Browser back: when popstate fires (user hit back after a deep-link
+  // scored), re-read the URL and replace the active tab accordingly.
+  // Without this, browser back just changes the URL but the report
+  // stays on screen — surprising.
+  useEffect(() => {
+    const onPop = () => {
+      const params = new URLSearchParams(window.location.search);
+      const repo = params.get('repo');
+      if (repo && /^[\w.-]+\/[\w.-]+$/.test(repo)) {
+        replaceActive('home', repo);
+      } else {
+        // No repo in URL → user backed out to the launcher.
+        replaceActive('launcher');
+      }
+    };
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, [replaceActive]);
+
+  // URL deep-link OUT: when a Report Card finishes scoring, push the
+  // canonical owner/repo into the URL so refresh / share / bookmark
+  // land on the same report. Uses pushState (not replaceState) so
+  // browser back returns to the previous tab/launcher.
+  const onReportScored = useCallback((slug: string) => {
+    const current = new URLSearchParams(window.location.search).get('repo');
+    if (current === slug) return; // already on this URL — no history spam
+    const url = new URL(window.location.href);
+    url.search = `?repo=${encodeURIComponent(slug)}`;
+    window.history.pushState({}, '', url.pathname + url.search);
+  }, []);
+
   const paletteTools: Omit<PaletteCommand, 'group'>[] = useMemo(
     () =>
       WEB_TILES.map((t) => ({
@@ -400,6 +467,7 @@ function AppContent() {
             token={token}
             defaultUsername={appState.githubUser?.login}
             onSendRepoToReportCard={(repo) => replaceActive('home', repo)}
+            onReportScored={onReportScored}
           />
         ))}
       </main>
@@ -413,6 +481,7 @@ interface TabContentProps {
   token: string;
   defaultUsername?: string;
   onSendRepoToReportCard: (repo: string) => void;
+  onReportScored: (slug: string) => void;
 }
 
 function TabContent({
@@ -421,6 +490,7 @@ function TabContent({
   token,
   defaultUsername,
   onSendRepoToReportCard,
+  onReportScored,
 }: TabContentProps) {
   return (
     <div
@@ -430,7 +500,7 @@ function TabContent({
       aria-label={tab.title}
     >
       <CurrentTabProvider tab={tab}>
-        {renderTab(tab, { token, defaultUsername, onSendRepoToReportCard })}
+        {renderTab(tab, { token, defaultUsername, onSendRepoToReportCard, onReportScored })}
       </CurrentTabProvider>
     </div>
   );
@@ -438,7 +508,12 @@ function TabContent({
 
 function renderTab(
   tab: Tab,
-  ctx: { token: string; defaultUsername?: string; onSendRepoToReportCard: (repo: string) => void },
+  ctx: {
+    token: string;
+    defaultUsername?: string;
+    onSendRepoToReportCard: (repo: string) => void;
+    onReportScored: (slug: string) => void;
+  },
 ): ReactNode {
   switch (tab.kind) {
     case 'launcher':
@@ -450,7 +525,7 @@ function renderTab(
         />
       );
     case 'home':
-      return <ReportCardPage initialRepo={tab.repo} />;
+      return <ReportCardPage initialRepo={tab.repo} onScored={ctx.onReportScored} />;
     case 'docs':
       return (
         <Suspense fallback={<LoadingScreen />}>
