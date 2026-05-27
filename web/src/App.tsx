@@ -31,6 +31,7 @@ import {
 } from './utils/oauth';
 import { saveGithubToken } from './services/persistence/credentials';
 import { fetchInstallations } from './services/github/org';
+import { ReconnectBanner } from './components/auth/ReconnectBanner';
 
 const HowItWorksPage = lazy(() =>
   import('./pages/HowItWorksPage').then((m) => ({ default: m.HowItWorksPage })),
@@ -182,19 +183,24 @@ function AppContent() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (!params.has('code') && !params.has('setup_action')) return;
-    const handleCallback = isInstallationCallback()
-      ? handleInstallationCallback()
-      : handleOAuthCallback();
+    const wasInstall = isInstallationCallback();
+    const handleCallback = wasInstall ? handleInstallationCallback() : handleOAuthCallback();
     handleCallback
-      .then(async (accessToken) => {
+      .then(async (result) => {
+        // Installation flow returns the access token as a bare string;
+        // OAuth flow returns { accessToken, returnTo }. Normalise.
+        const accessToken = typeof result === 'string' ? result : (result?.accessToken ?? null);
+        const returnTo = typeof result === 'string' ? null : (result?.returnTo ?? null);
+
         if (accessToken) {
           dispatch({ type: 'SET_GITHUB_TOKEN', token: accessToken });
+          dispatch({ type: 'SET_AUTH_EXPIRED', expired: false });
           await saveGithubToken(accessToken);
           trackEvent('token_added', {
-            method: isInstallationCallback() ? 'installation' : 'oauth',
+            method: wasInstall ? 'installation' : 'oauth',
           });
         }
-        if (isInstallationCallback()) {
+        if (wasInstall) {
           toast.success('Organization access updated');
         } else if (accessToken) {
           const manageUrl = getInstallationManageUrl();
@@ -211,6 +217,12 @@ function AppContent() {
             }
           }
           toast.success('Connected to GitHub');
+        }
+
+        // Restore the page they were on before reconnecting. Same-origin
+        // check already done inside handleOAuthCallback.
+        if (returnTo && returnTo !== window.location.pathname + window.location.search) {
+          window.history.replaceState({}, '', returnTo);
         }
       })
       .catch((err) => {
@@ -378,6 +390,7 @@ function AppContent() {
           </button>
         }
       />
+      <ReconnectBanner />
       <main id="main-content" className="flex-1 overflow-y-auto" tabIndex={-1}>
         {tabsState.tabs.map((tab) => (
           <TabContent

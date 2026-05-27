@@ -114,7 +114,10 @@ describe('oauth', () => {
 
       const url = new URL(redirectUrl);
       expect(url.searchParams.get('client_id')).toBe('my-client-id');
-      expect(url.searchParams.get('state')).toBe('uuid-abc');
+      // State is now `<csrf>:<base64url returnTo>` so the URL contains
+      // the CSRF half plus an encoded path. Only the CSRF half is stored.
+      expect(url.searchParams.get('state')).toMatch(/^uuid-abc:/);
+      expect(sessionStorage.getItem('oauth_state')).toBe('uuid-abc');
     });
   });
 
@@ -232,9 +235,11 @@ describe('oauth', () => {
       } as Response);
 
       const { handleOAuthCallback } = await import('../oauth');
-      const token = await handleOAuthCallback();
+      const result = await handleOAuthCallback();
 
-      expect(token).toBe('gho_abc123');
+      expect(result?.accessToken).toBe('gho_abc123');
+      // No `:` in state above → no returnTo encoded → null.
+      expect(result?.returnTo).toBeNull();
       expect(window.history.replaceState).toHaveBeenCalled();
       expect(sessionStorage.getItem('oauth_state')).toBeNull();
     });

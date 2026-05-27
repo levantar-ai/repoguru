@@ -11,6 +11,7 @@ import type { AppSettings, RateLimitInfo, RecentRepo } from '../types';
 import { loadSettings, saveSettings } from '../services/persistence/settingsStore';
 import { loadRecentRepos, saveRecentRepo } from '../services/persistence/repoCache';
 import { loadGithubToken } from '../services/persistence/credentials';
+import { onAuthExpired } from '../utils/authEvents';
 
 /** Minimal GitHub user identity surfaced in the chrome so signed-in
  *  users see who they're acting as. Populated from /user once a token
@@ -29,6 +30,11 @@ interface AppState {
   recentRepos: RecentRepo[];
   settingsOpen: boolean;
   loaded: boolean;
+  /** Set by the GitHub fetcher when it sees a 401 — drives the inline
+   *  "GitHub session expired" reconnect banner. Cleared on successful
+   *  reconnect (callback handler) or when the user manually clears
+   *  their token. */
+  authExpired: boolean;
 }
 
 type AppAction =
@@ -42,7 +48,8 @@ type AppAction =
   | { type: 'SET_RECENT_REPOS'; repos: RecentRepo[] }
   | { type: 'ADD_RECENT_REPO'; repo: RecentRepo }
   | { type: 'TOGGLE_SETTINGS' }
-  | { type: 'SET_LOADED' };
+  | { type: 'SET_LOADED' }
+  | { type: 'SET_AUTH_EXPIRED'; expired: boolean };
 
 const initialState: AppState = {
   settings: { theme: 'dark', llmMode: 'off' },
@@ -53,6 +60,7 @@ const initialState: AppState = {
   recentRepos: [],
   settingsOpen: false,
   loaded: false,
+  authExpired: false,
 };
 
 function appReducer(state: AppState, action: AppAction): AppState {
@@ -65,8 +73,14 @@ function appReducer(state: AppState, action: AppAction): AppState {
       return { ...state, settings: { ...state.settings, llmMode: action.mode } };
     case 'SET_GITHUB_TOKEN':
       // Clear cached identity when the token changes/clears so we never
-      // render a stale "@user" against a different token.
-      return { ...state, githubToken: action.token, githubUser: null };
+      // render a stale "@user" against a different token. Also clear
+      // authExpired — a new token means we're fresh.
+      return {
+        ...state,
+        githubToken: action.token,
+        githubUser: null,
+        authExpired: false,
+      };
     case 'SET_GITHUB_USER':
       return { ...state, githubUser: action.user };
     case 'SET_ANTHROPIC_KEY':
@@ -85,6 +99,8 @@ function appReducer(state: AppState, action: AppAction): AppState {
       return { ...state, settingsOpen: !state.settingsOpen };
     case 'SET_LOADED':
       return { ...state, loaded: true };
+    case 'SET_AUTH_EXPIRED':
+      return { ...state, authExpired: action.expired };
     default:
       return state;
   }
@@ -100,6 +116,12 @@ const AppContext = createContext<AppContextValue | null>(null);
 
 export function AppProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(appReducer, initialState);
+
+  // Subscribe to 401s emitted by the github fetcher so the inline
+  // "session expired" banner can render anywhere in the tree.
+  useEffect(() => {
+    return onAuthExpired(() => dispatch({ type: 'SET_AUTH_EXPIRED', expired: true }));
+  }, []);
 
   // Load persisted settings and recent repos on mount
   useEffect(() => {

@@ -1,6 +1,7 @@
 import type { RateLimitInfo } from '../../types';
 import { GITHUB_API_BASE } from '../../utils/constants';
 import { clearGithubToken } from '../persistence/credentials';
+import { notifyAuthExpired } from '../../utils/authEvents';
 
 export class GitHubApiError extends Error {
   status: number;
@@ -52,10 +53,12 @@ export async function githubFetch<T>(
       );
     }
     if (res.status === 401) {
-      // Token expired or revoked — clear it so the user can re-authenticate
+      // Token expired or revoked — clear it and notify the app so the
+      // inline reconnect banner can render on whatever page they're on.
       clearGithubToken().catch(() => {});
+      notifyAuthExpired();
       throw new GitHubApiError(
-        'Your GitHub token has expired or been revoked. Please reconnect in Settings.',
+        'Your GitHub session has expired. Reconnect to continue.',
         401,
         rateLimit,
       );

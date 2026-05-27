@@ -4,14 +4,21 @@ const CORS_PROXY = (import.meta.env.VITE_CORS_PROXY_URL as string) || 'https://p
 
 const STATE_KEY = 'oauth_state';
 
-/** Redirect the user to GitHub's OAuth authorize page. */
+/** Redirect the user to GitHub's OAuth authorize page.
+ *  Encodes the current path+search in `state` so the callback can return
+ *  the user to where they were (mid-analysis, Compare, etc.) rather than
+ *  always dumping them on home. */
 export function startOAuthFlow(): void {
   if (!GITHUB_CLIENT_ID) {
     throw new Error('GitHub OAuth is not configured (VITE_GITHUB_CLIENT_ID is missing).');
   }
 
-  const state = crypto.randomUUID();
-  sessionStorage.setItem(STATE_KEY, state);
+  const csrf = crypto.randomUUID();
+  // base64url so it survives the query string without escaping. Empty
+  // returnTo (just `/`) is fine — caller handles it as a no-op.
+  const returnTo = window.location.pathname + window.location.search + window.location.hash;
+  const state = `${csrf}:${b64urlEncode(returnTo)}`;
+  sessionStorage.setItem(STATE_KEY, csrf);
 
   const params = new URLSearchParams({
     client_id: GITHUB_CLIENT_ID,
@@ -25,6 +32,15 @@ export function startOAuthFlow(): void {
   });
 
   window.location.href = `https://github.com/login/oauth/authorize?${params}`;
+}
+
+function b64urlEncode(s: string): string {
+  return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+function b64urlDecode(s: string): string {
+  const pad = s.length % 4 ? '='.repeat(4 - (s.length % 4)) : '';
+  return atob(s.replace(/-/g, '+').replace(/_/g, '/') + pad);
 }
 
 /** Returns true if VITE_GITHUB_CLIENT_ID is configured. */
@@ -69,12 +85,20 @@ export async function handleInstallationCallback(): Promise<string | null> {
   }
 }
 
+export interface OAuthCallbackResult {
+  accessToken: string;
+  /** Where the user was when they kicked off the flow — null if root or
+   *  state was opaque. Caller should `navigate(returnTo)` after applying
+   *  the token. */
+  returnTo: string | null;
+}
+
 /**
  * Check the current URL for a GitHub OAuth callback (?code=&state=).
  * If present, exchange the code for an access token via the CORS proxy worker.
- * Returns the access_token on success, null if no callback params, or throws on error.
+ * Returns { accessToken, returnTo } on success, null if no callback params, or throws on error.
  */
-export async function handleOAuthCallback(): Promise<string | null> {
+export async function handleOAuthCallback(): Promise<OAuthCallbackResult | null> {
   const params = new URLSearchParams(window.location.search);
   const code = params.get('code');
   const state = params.get('state');
@@ -95,9 +119,28 @@ export async function handleOAuthCallback(): Promise<string | null> {
     cleanUrl();
     return null;
   }
-  if (!state || state !== savedState) {
+  // State is "<csrf>:<base64url returnTo>". Only the CSRF half is
+  // validated; the returnTo half is opaque user-supplied data we treat
+  // as a hint.
+  const [csrf, encodedReturn] = (state ?? '').split(':');
+  if (!csrf || csrf !== savedState) {
     cleanUrl();
     throw new Error('OAuth state mismatch — possible CSRF attack. Please try signing in again.');
+  }
+
+  let returnTo: string | null = null;
+  if (encodedReturn) {
+    try {
+      const decoded = b64urlDecode(encodedReturn);
+      // Only accept same-origin paths — never an absolute URL. Prevents
+      // an attacker-crafted state from sending the user off-site after
+      // login.
+      if (decoded.startsWith('/') && !decoded.startsWith('//')) {
+        returnTo = decoded;
+      }
+    } catch {
+      // Malformed base64 — treat as no returnTo.
+    }
   }
 
   try {
@@ -113,7 +156,7 @@ export async function handleOAuthCallback(): Promise<string | null> {
       throw new Error(data.error || 'Failed to exchange OAuth code for token.');
     }
 
-    return data.access_token;
+    return { accessToken: data.access_token, returnTo };
   } finally {
     cleanUrl();
   }
