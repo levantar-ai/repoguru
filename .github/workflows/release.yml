@@ -46,7 +46,14 @@ jobs:
         run: |
           set -o pipefail
           OUTPUT=$(../node_modules/.bin/semantic-release 2>&1 | tee /dev/stderr || true)
-          TAG=$(echo "$OUTPUT" | grep -oE 'shared-v[0-9.]+' | head -1)
+          # semantic-release prints "Published release X.Y.Z on default channel"
+          # for the NEW tag. Earlier in the output it also references previous
+          # tags ("The last release was X"). grep -oE 'shared-v…' | head -1
+          # used to pick the FIRST mention — which is the OLD tag, so the
+          # attach workflow got dispatched against the previous release and
+          # silently re-deployed stale code. Parse the canonical line instead.
+          VERSION=$(echo "$OUTPUT" | grep -oE 'Published release [0-9.]+' | tail -1 | awk '{print $NF}')
+          TAG=${VERSION:+shared-v$VERSION}
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           echo "Resolved tag: $TAG"
       - name: Dispatch release-attach
@@ -75,7 +82,8 @@ jobs:
         run: |
           set -o pipefail
           OUTPUT=$(../node_modules/.bin/semantic-release 2>&1 | tee /dev/stderr || true)
-          TAG=$(echo "$OUTPUT" | grep -oE 'cli-v[0-9.]+' | head -1)
+          VERSION=$(echo "$OUTPUT" | grep -oE 'Published release [0-9.]+' | tail -1 | awk '{print $NF}')
+          TAG=${VERSION:+cli-v$VERSION}
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           echo "Resolved tag: $TAG"
       - name: Dispatch release-attach
@@ -104,7 +112,8 @@ jobs:
         run: |
           set -o pipefail
           OUTPUT=$(../node_modules/.bin/semantic-release 2>&1 | tee /dev/stderr || true)
-          TAG=$(echo "$OUTPUT" | grep -oE 'web-v[0-9.]+' | head -1)
+          VERSION=$(echo "$OUTPUT" | grep -oE 'Published release [0-9.]+' | tail -1 | awk '{print $NF}')
+          TAG=${VERSION:+web-v$VERSION}
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           echo "Resolved tag: $TAG"
       - name: Dispatch release-attach
@@ -133,7 +142,8 @@ jobs:
         run: |
           set -o pipefail
           OUTPUT=$(../node_modules/.bin/semantic-release 2>&1 | tee /dev/stderr || true)
-          TAG=$(echo "$OUTPUT" | grep -oE 'desktop-v[0-9.]+' | head -1)
+          VERSION=$(echo "$OUTPUT" | grep -oE 'Published release [0-9.]+' | tail -1 | awk '{print $NF}')
+          TAG=${VERSION:+desktop-v$VERSION}
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           echo "Resolved tag: $TAG"
       - name: Dispatch release-attach
