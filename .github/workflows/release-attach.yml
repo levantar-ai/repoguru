@@ -68,7 +68,7 @@ jobs:
               exit 1 ;;
           esac
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
           ref: ${{ steps.cls.outputs.tag }}
@@ -91,7 +91,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 35
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Find CI · cli run for ${{ needs.resolve.outputs.sha }}
         id: find_run
         env:
@@ -147,7 +147,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 35
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Find CI · desktop run for ${{ needs.resolve.outputs.sha }}
         id: find_run
         env:
@@ -204,7 +204,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 35
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       # wrangler-action auto-detects pnpm from the lockfile and tries to
       # install Wrangler via `pnpm`. Install pnpm first so that works.
       - uses: pnpm/action-setup@v4
@@ -292,7 +292,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Mark GitHub Release
         uses: softprops/action-gh-release@v2
         with:
