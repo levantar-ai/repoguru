@@ -22,14 +22,14 @@ smallvec = "1"
 bytes = "1"
 imara-diff = "0.1"
 regex = "1"
-tonic = "0.12"
-prost = "0.13"
+tonic = "0.14"
+prost = "0.14"
 tokio = { version = "1", features = ["full"] }
 tokio-stream = "0.1"
 tower = "0.5"
 
 [build-dependencies]
-tonic-build = { version = "0.12", features = ["prost"] }
+tonic-build = { version = "0.13", features = ["prost"] }
 
 # protobuf-src compiles protobuf 27.x from C++ source via cmake. That's
 # fine on macOS/Linux but fails to link on Windows MSVC (CRT mismatch
