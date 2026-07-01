@@ -23,7 +23,7 @@
     "@repoguru/ui": "workspace:*",
     "@types/d3": "^7.4.3",
     "d3": "^7.9.0",
-    "echarts": "^5.6.0",
+    "echarts": "^6.1.0",
     "echarts-for-react": "^3.0.2",
     "electron-updater": "^6.8.3",
     "react": "^19.0.0",
